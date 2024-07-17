@@ -3,9 +3,10 @@
 ## Install
 1. Install ruby, bundler, heroku CLI.
 2. `bundle install`
-3. Setup database or whatever
+3. Setup database or whatever.
+4. Configure options in rails credentials (see [credentials.sample.yml](./config/credentials.sample.yml)).
 
-## Development
+## Run local dev environment
 `just run`
 
 or
