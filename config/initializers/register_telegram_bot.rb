@@ -1,3 +1,1 @@
-if Rails.env == "production"
-  Rake::Task['telegram:bot:set_webhook'].invoke
-end
+Rake::Task['telegram:bot:set_webhook'].invoke if Rails.env == 'production'

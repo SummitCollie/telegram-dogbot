@@ -3,19 +3,16 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include Telegram::Bot::UpdatesController::TypedUpdate
 
   ### Handle commands
-  def summarize!(*)
-  end
+  def summarize!(*); end
 
-  def summarize_nicely!(*)
-  end
+  def summarize_nicely!(*); end
 
-  def stats!(*)
-  end
+  def stats!(*); end
 
-  def action_missing(action, *_args)
-    if action_type == :command
-      reply_with :message, text: "Invalid command!"
-    end
+  def action_missing(_action, *_args)
+    return unless action_type == :command
+
+    reply_with :message, text: 'Invalid command!'
   end
 
   ### Store incoming messages in DB - https://core.telegram.org/bots/api#message
