@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   # Auto typecast to types from telegram-bot-types gem
   include Telegram::Bot::UpdatesController::TypedUpdate

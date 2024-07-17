@@ -1,0 +1,14 @@
+require: rubocop-rails
+
+AllCops:
+  NewCops: enable
+  Exclude:
+    - bin/**/*
+    - vendor/**/*
+    - db/schema.rb
+
+Style/Documentation:
+  Enabled: false
+
+Layout/LineLength:
+  AllowedPatterns: ['(\A|\s)#'] # Allow long comments
