@@ -1,2 +1,1 @@
-web: bundle exec rails server -p 3000
 bot_poller: bundle exec rails telegram:bot:poller
