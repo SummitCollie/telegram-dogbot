@@ -41,5 +41,6 @@ devenv.local.nix
 !/tmp/storage/
 !/tmp/storage/.keep
 
-# Ignore master key for decrypting credentials and more.
+# Ignore keys for decrypting credentials.
 /config/master.key
+/config/credentials/production.key
