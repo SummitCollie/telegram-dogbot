@@ -13,8 +13,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     # TODO
   end
 
-  ### Store incoming messages in DB
-  # https://core.telegram.org/bots/api#message
+  ### Store incoming messages in DB - https://core.telegram.org/bots/api#message
   def message(message)
     # New message:
     #{"update_id"=>461170622,
@@ -46,8 +45,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def action_missing(action, *_args)
     if action_type == :command
-      respond_with :message,
-        text: 'Hello!'
+      reply_with :message, text: "Invalid command!"
     end
   end
 end
