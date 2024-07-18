@@ -3,9 +3,9 @@
 one:
   chat: one
   user: one
-  num_stored_messages: 1
+  total_sent_messages: 0
 
 two:
   chat: two
   user: two
-  num_stored_messages: 1
+  total_sent_messages: 0

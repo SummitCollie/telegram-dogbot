@@ -37,40 +37,48 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   private
 
+  ###
+  ### Store messages & edits
+  ###
   def store_message(message)
-    return if message.from.is_bot
+    return if from.is_bot
 
-    chat = create_or_update_chat(message)
-    user = create_or_update_user(message)
-    chat_user = create_or_update_chat_user(chat, user, message)
+    db_chat = create_or_update_chat
+    user = create_or_update_user
+    chat_user = create_or_update_chat_user(db_chat, user)
     create_or_update_message(chat_user, message)
   end
 
   def store_edited_message(message)
-    chat = create_or_update_chat(message)
-    user = create_or_update_user(message)
-    chat_user = create_or_update_chat_user(chat, user, message)
+    db_chat = create_or_update_chat
+    user = create_or_update_user
+    chat_user = create_or_update_chat_user(db_chat, user)
     create_or_update_message(chat_user, message)
   end
 
-  def create_or_update_user(message)
-    user = User.find_or_initialize_by(api_id: message.from.id)
-    user.username = message.from.username
-    user.first_name = message.from.first_name
+  ###
+  ### Create/update DB records
+  ###
+  def create_or_update_chat
+    db_chat = Chat.find_or_initialize_by(api_id: chat.id)
+    db_chat.title = chat.title
+    db_chat.type = chat.type.to_sym
+    db_chat.save!
+    db_chat
+  end
+
+  def create_or_update_user
+    user = User.find_or_initialize_by(api_id: from.id)
+    user.username = from.username
+    user.first_name = from.first_name
     user.save!
     user
   end
 
-  def create_or_update_chat(message)
-    chat = Chat.find_or_initialize_by(api_id: message.chat.id)
-    chat.title = message.chat.title
-    chat.type = message.chat.type.to_sym
-    chat.save!
-    chat
-  end
-
-  def create_or_update_chat_user(chat, user, _message)
-    ChatUser.create_or_update_by!(chat:, user:)
+  def create_or_update_chat_user(chat, user)
+    chat_user = ChatUser.create_or_initialize_by!(chat:, user:)
+    chat_user.save!
+    chat_user
   end
 
   def create_or_update_message(chat_user, message)

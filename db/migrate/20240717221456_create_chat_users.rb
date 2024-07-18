@@ -5,7 +5,10 @@ class CreateChatUsers < ActiveRecord::Migration[7.1]
     create_table :chat_users do |t|
       t.belongs_to :chat, null: false, foreign_key: true
       t.belongs_to :user, null: false, foreign_key: true
+      t.integer :num_total_messages, default: 0
       t.integer :num_stored_messages, default: 0
+      t.datetime :last_summary_started
+      t.datetime :last_nice_summary_started
 
       t.timestamps
     end
