@@ -5,11 +5,13 @@ class Message < ApplicationRecord
   has_one :user, through: chat_users
   belongs_to :chat_user, counter_cache: :num_stored_messages # increment counter on create
 
-  after_create :increment_chatuser_msg_counter
+  after_create :increment_message_counters
 
   private
 
-  def increment_chatuser_msg_counter
-    ChatUser.increment_counter :num_total_messages # rubocop:disable Rails::SkipsModelValidations
+  def increment_message_counters
+    # rubocop:disable Rails::SkipsModelValidations
+    ChatUser.increment_counter :num_chatuser_messages, chat_user.id
+    # rubocop:enable Rails::SkipsModelValidations
   end
 end

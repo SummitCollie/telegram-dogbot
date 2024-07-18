@@ -4,10 +4,8 @@ one:
   api_id: 1
   title: MyString
   type: :private
-  num_total_messages: 0
 
 two:
   api_id: 2
   title: MyString
   type: :supergroup
-  num_total_messages: 0
