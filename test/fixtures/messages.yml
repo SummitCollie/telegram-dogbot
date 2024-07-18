@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  api_id: 1
+  user: one
+  chat: one
+  date: 2024-07-17 17:08:22
+  text: MyString
+
+two:
+  api_id: 1
+  user: two
+  chat: two
+  date: 2024-07-17 17:08:22
+  text: MyString
