@@ -30,7 +30,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     # reply_with :message, text: message
   end
 
-  ### Handle incoming edited messages
+  ### Handle incoming edited message
   def edited_message(message)
     store_edited_message(message)
   end
@@ -47,6 +47,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     db_user = create_or_update_user
     db_chat_user = create_or_update_chat_user(db_chat, db_user)
     create_or_update_message(db_chat_user, message)
+
+    # rubocop:disable Rails::SkipsModelValidations
+    ChatUser.increment_counter :num_chatuser_messages, db_chat_user.id
+    # rubocop:enable Rails::SkipsModelValidations
   end
 
   def store_edited_message(message)
