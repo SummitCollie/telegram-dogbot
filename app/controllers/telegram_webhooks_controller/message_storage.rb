@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class TelegramWebhooksController
-  module StoreMessages
+  module MessageStorage
     extend self
 
     ###

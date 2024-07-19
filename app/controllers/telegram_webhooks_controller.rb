@@ -1,25 +1,36 @@
 # frozen_string_literal: true
 
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
-  include StoreMessages
-  include IncomingMessageFilter
+  include AuthorizationHandler
+  include MessageStorage
 
   # Auto typecast to types from telegram-bot-types gem
   include Telegram::Bot::UpdatesController::TypedUpdate
 
-  rescue_from Exceptions::ChatNotWhitelistedError, with: :handle_chat_not_whitelisted
-  rescue_from Exceptions::MessageFilterError, with: :debug_log_filtered_messages
+  rescue_from FuckyWuckies::AuthorizationError,
+              FuckyWuckies::NotAGroupChatError,
+              FuckyWuckies::ChatNotWhitelistedError,
+              FuckyWuckies::MessageFilterError, with: :handle_error
 
   mattr_reader :stickers, default: {
-    hmm: 'CAACAgEAAxkBAAN7Zpnjiy4fEBQDljYzOMMDE13t63cAAhYDAAJ1DsgJD2dJhv6G8sY1BA'
+    hmm: 'CAACAgEAAxkBAAN7Zpnjiy4fEBQDljYzOMMDE13t63cAAhYDAAJ1DsgJD2dJhv6G8sY1BA',
+    nonono: 'CAACAgEAAxkBAAOJZpnq0Evpppl3W2tMIetOnKOVgj8AAgIDAAJ1DsgJCj6cMfALhQw1BA',
+    spray_bottle: 'CAACAgEAAxkBAAORZpnuToKa-Hh0NZyFwC0GdJs4JeIAAmsKAALX8EUGAAHtDzfwk20gNQQ',
+    gun: 'CAACAgEAAxkBAAOXZpn3TETXIjiJKnucdhdf3WOqj3EAAoEAA-QPqR9m982-evFo-zUE',
+    heck: 'CAACAgEAAxkBAAO-ZpoHFLajSuHX6CqP6WIv7T097G0AArQAA-QPqR8Mpjf0MTIoSTUE'
   }
 
   ### Handle commands
-  def summarize!(*); end
+  def summarize!(*)
+    authorize_command!
+  end
 
-  def summarize_nicely!(*); end
+  def summarize_nicely!(*)
+    authorize_command!
+  end
 
   def stats!(*)
+    authorize_command!
     # Messages from chat currently stored in DB
     # Total messages seen from chat (including deleted)
     # Message counts per user in a chat (only show top 5 users)
@@ -29,12 +40,14 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def action_missing(_action, *_args)
     return unless action_type == :command
 
+    authorize_command!
+
     reply_with :message, text: 'Invalid command!'
   end
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
-    verify_should_store_message!(message)
+    authorize_message_storage!(message)
 
     db_message = store_message(message)
 
@@ -44,20 +57,16 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle incoming edited message
   def edited_message(message)
-    verify_should_store_message!(message)
+    authorize_message_storage!(message)
 
     store_edited_message(message)
   end
 
   private
 
-  def handle_chat_not_whitelisted
-    bot.send_sticker(chat_id: chat.id, sticker: stickers[:hmm])
-    respond_with :message,
-                 text: "This chat isn't whitelisted (AI costs money)!\nContact Summit and maybe he'll allow it."
-  end
-
-  def debug_log_filtered_messages(error)
-    logger.debug(error.message)
+  def handle_error(error)
+    logger.log(error.severity, error.message)
+    bot.send_sticker(chat_id: chat.id, sticker: stickers[error.sticker]) if error.sticker
+    respond_with :message, text: error.frontend_message if error.frontend_message
   end
 end

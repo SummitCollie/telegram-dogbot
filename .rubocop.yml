@@ -10,6 +10,12 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+Style/IfUnlessModifier:
+  Exclude: ['app/controllers/telegram_webhooks_controller/authorization_handler.rb']
+
+Style/GuardClause:
+  Exclude: ['app/controllers/telegram_webhooks_controller/authorization_handler.rb']
+
 Layout/LineLength:
   AllowedPatterns: ['(\A|\s)#'] # Allow long comments
 
