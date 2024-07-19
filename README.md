@@ -1,5 +1,9 @@
 # DogBot 🐶
 
+## TODO
+* Implement chat ID whitelist
+* AI summarizer
+
 ## Install
 1. Install ruby, bundler, heroku CLI.
 2. `bundle install`
