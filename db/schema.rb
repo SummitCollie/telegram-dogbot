@@ -17,8 +17,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
   create_table "chat_users", force: :cascade do |t|
     t.bigint "chat_id", null: false
     t.bigint "user_id", null: false
-    t.datetime "last_summary_started"
-    t.datetime "last_nice_summary_started"
     t.integer "num_chatuser_messages", default: 0, comment: "All-time count of messages sent by this ChatUser"
     t.integer "num_stored_messages", default: 0, comment: "Current number of messages from this ChatUser stored in the DB"
     t.datetime "created_at", null: false
@@ -30,7 +28,9 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
 
   create_table "chats", force: :cascade do |t|
     t.bigint "api_id", null: false
-    t.integer "type", null: false
+    t.integer "api_type", null: false, comment: "0=private 1=group 2=supergroup 3=channel"
+    t.datetime "last_summary_started"
+    t.datetime "last_nice_summary_started"
     t.string "title"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
