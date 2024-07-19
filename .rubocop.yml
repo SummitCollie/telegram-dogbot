@@ -14,7 +14,7 @@ Layout/LineLength:
   AllowedPatterns: ['(\A|\s)#'] # Allow long comments
 
 Metrics/MethodLength:
-  AllowedMethods: ['change'] # Allow in DB migrations
+  Enabled: false
 
 Metrics/AbcSize:
   Enabled: false

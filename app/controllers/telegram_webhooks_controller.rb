@@ -25,10 +25,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
     # logger.debug(message.to_yaml)
-    store_message(message)
+    db_message = store_message(message)
 
     # reply_with :message, text: message
-    reply_with :message, text: "Message ##{message.message_id} stored!"
+    reply_with :message, text: "Message ##{message.message_id} stored!" if db_message
   end
 
   ### Handle incoming edited message
@@ -42,16 +42,25 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   ### Store messages & edits
   ###
   def store_message(message)
-    return if from.is_bot
+    if from.is_bot
+      logger.debug("Not saving bot message, api_id=#{message.message_id}")
+      return
+    end
+    if message.text.nil?
+      logger.debug("Not saving message with no text: api_id=#{message.message_id}")
+      return
+    end
 
     db_chat = create_or_update_chat
     db_user = create_or_update_user
     db_chat_user = create_or_update_chat_user(db_chat, db_user)
-    create_or_update_message(db_chat, db_chat_user, message)
+    db_message = create_or_update_message(db_chat, db_chat_user, message)
 
     # rubocop:disable Rails::SkipsModelValidations
     ChatUser.increment_counter :num_chatuser_messages, db_chat_user.id
     # rubocop:enable Rails::SkipsModelValidations
+
+    db_message
   end
 
   def store_edited_message(message)
