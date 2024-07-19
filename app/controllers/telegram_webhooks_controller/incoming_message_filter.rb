@@ -12,6 +12,9 @@ class TelegramWebhooksController
       if empty_text?(message)
         raise Exceptions::MessageFilterError, "Not saving message with empty text: api_id=#{message.message_id}"
       end
+      unless chat_in_whitelist?
+        raise Exceptions::ChatNotWhitelistedError, "Chat not in whitelist: api_id=#{chat.id}"
+      end
       # rubocop:enable Style/IfUnlessModifier, Style/GuardClause
     end
 
@@ -23,6 +26,10 @@ class TelegramWebhooksController
 
     def empty_text?(message)
       message.text.nil?
+    end
+
+    def chat_in_whitelist?
+      Rails.application.credentials.chat_id_whitelist&.include?(chat.id)
     end
   end
 end

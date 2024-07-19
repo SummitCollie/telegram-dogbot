@@ -7,7 +7,12 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   # Auto typecast to types from telegram-bot-types gem
   include Telegram::Bot::UpdatesController::TypedUpdate
 
+  rescue_from Exceptions::ChatNotWhitelistedError, with: :handle_chat_not_whitelisted
   rescue_from Exceptions::MessageFilterError, with: :debug_log_filtered_messages
+
+  mattr_reader :stickers, default: {
+    hmm: 'CAACAgEAAxkBAAN7Zpnjiy4fEBQDljYzOMMDE13t63cAAhYDAAJ1DsgJD2dJhv6G8sY1BA'
+  }
 
   ### Handle commands
   def summarize!(*); end
@@ -45,6 +50,12 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   private
+
+  def handle_chat_not_whitelisted
+    bot.send_sticker(chat_id: chat.id, sticker: stickers[:hmm])
+    respond_with :message,
+                 text: "This chat isn't whitelisted (AI costs money)!\nContact Summit and maybe he'll allow it."
+  end
 
   def debug_log_filtered_messages(error)
     logger.debug(error.message)

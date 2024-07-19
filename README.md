@@ -1,7 +1,6 @@
 # DogBot 🐶
 
 ## TODO
-* Implement chat ID whitelist
 * AI summarizer
 
 ## Install
