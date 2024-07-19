@@ -39,12 +39,14 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
 
   create_table "messages", force: :cascade do |t|
     t.integer "api_id", null: false
+    t.bigint "reply_to_message_id"
     t.bigint "chat_user_id", null: false
     t.datetime "date"
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["chat_user_id"], name: "index_messages_on_chat_user_id"
+    t.index ["reply_to_message_id"], name: "index_messages_on_reply_to_message_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -59,4 +61,5 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
   add_foreign_key "chat_users", "chats"
   add_foreign_key "chat_users", "users"
   add_foreign_key "messages", "chat_users"
+  add_foreign_key "messages", "messages", column: "reply_to_message_id"
 end

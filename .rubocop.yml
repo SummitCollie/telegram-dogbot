@@ -15,3 +15,6 @@ Layout/LineLength:
 
 Metrics/MethodLength:
   AllowedMethods: ['change'] # Allow in DB migrations
+
+Metrics/AbcSize:
+  Enabled: false

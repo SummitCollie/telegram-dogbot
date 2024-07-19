@@ -47,7 +47,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     db_chat = create_or_update_chat
     db_user = create_or_update_user
     db_chat_user = create_or_update_chat_user(db_chat, db_user)
-    create_or_update_message(db_chat_user, message)
+    create_or_update_message(db_chat, db_chat_user, message)
 
     # rubocop:disable Rails::SkipsModelValidations
     ChatUser.increment_counter :num_chatuser_messages, db_chat_user.id
@@ -58,7 +58,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     db_chat = create_or_update_chat
     db_user = create_or_update_user
     db_chat_user = create_or_update_chat_user(db_chat, db_user)
-    create_or_update_message(db_chat_user, message)
+    create_or_update_message(db_chat, db_chat_user, message)
   end
 
   ###
@@ -86,8 +86,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     db_chat_user
   end
 
-  def create_or_update_message(db_chat_user, message)
+  def create_or_update_message(db_chat, db_chat_user, message)
     db_message = db_chat_user.messages.find_or_initialize_by(api_id: message.message_id)
+    db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
     db_message.date = Time.zone.at(message.date).to_datetime
     db_message.text = message.text
     db_message.save!
