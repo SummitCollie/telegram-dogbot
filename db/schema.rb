@@ -30,7 +30,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
     t.bigint "api_id", null: false
     t.integer "api_type", null: false, comment: "0=private 1=group 2=supergroup 3=channel"
     t.datetime "last_summary_started"
-    t.datetime "last_nice_summary_started"
+    t.string "last_summary_type"
     t.string "title"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
