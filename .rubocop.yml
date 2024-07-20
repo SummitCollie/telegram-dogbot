@@ -6,6 +6,7 @@ AllCops:
     - bin/**/*
     - vendor/**/*
     - db/schema.rb
+    - config/initializers/tg_🐺♋🖼️_stickers_🌶️🍆💦.rb
 
 Style/Documentation:
   Enabled: false
@@ -24,3 +25,6 @@ Metrics/MethodLength:
 
 Metrics/AbcSize:
   Enabled: false
+
+Naming/AsciiIdentifiers:
+  AsciiConstants: False

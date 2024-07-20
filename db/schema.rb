@@ -41,6 +41,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
     t.integer "api_id", null: false
     t.bigint "reply_to_message_id"
     t.bigint "chat_user_id", null: false
+    t.integer "attachment_type", comment: "0=animation 1=audio 2=document 3=photo 4=video 5=voice"
     t.datetime "date"
     t.string "text"
     t.datetime "created_at", null: false

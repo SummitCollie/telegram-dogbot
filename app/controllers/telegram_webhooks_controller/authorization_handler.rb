@@ -14,7 +14,7 @@ class TelegramWebhooksController
 
       unless group_chat?
         raise FuckyWuckies::AuthorizationError.new(
-          severity: Logger::INFO,
+          severity: Logger::Severity::INFO,
           frontend_message: 'the commands only work in group chats!!!1',
           sticker: :spray_bottle
         ), 'Command sent from non-group chat: ' \
@@ -23,10 +23,10 @@ class TelegramWebhooksController
 
       unless chat_in_whitelist?
         raise FuckyWuckies::ChatNotWhitelistedError.new(
-          severity: Logger::INFO,
+          severity: Logger::Severity::INFO,
           frontend_message: "This chat isn't whitelisted (AI costs money)!\n" \
                             "Contact Summit and maybe he'll allow it.",
-          sticker: :hmm
+          sticker: :bonk
         ), "Chat not in whitelist: chat api_id=#{chat.id} title=#{chat.title}"
       end
     end
@@ -43,7 +43,7 @@ class TelegramWebhooksController
 
       unless group_chat?
         raise FuckyWuckies::AuthorizationError.new(
-          severity: Logger::INFO,
+          severity: Logger::Severity::INFO,
           frontend_message: 'This bot is for group chats. ' \
                             'It has no functionality in DMs or channels.' \
                             "\n\nbut hewwo :3 *nuzzles u*",
@@ -53,8 +53,10 @@ class TelegramWebhooksController
       end
 
       unless chat_in_whitelist?
+        # TODO: should only show frontend error in group chats when a command is run.
+        # Save the full error message people trying to run commands in unauthorized group chats.
         raise FuckyWuckies::ChatNotWhitelistedError.new(
-          severity: Logger.INFO
+          severity: Logger::Severity::INFO
         ), 'Not saving message from un-whitelisted chat: ' \
            "chat api_id=#{chat.id} username=@#{chat.username} title=#{chat.title}"
       end
@@ -67,7 +69,8 @@ class TelegramWebhooksController
     end
 
     def empty_text?(message)
-      message.text.nil?
+      # Caption is used when message has an attachment (photo, video, ...)
+      message.text.nil? && message.caption.nil?
     end
 
     def group_chat?

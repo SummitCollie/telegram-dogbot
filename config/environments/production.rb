@@ -48,7 +48,7 @@ Rails.application.configure do
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new($stdout)
-                                       .tap  { |logger| logger.formatter = Logger::Formatter.new }
+                                       .tap  { |logger| logger.formatter = Logger::Severity::Formatter.new }
                                        .then { |logger| ActiveSupport::TaggedLogging.new(logger) }
 
   # Prepend all log lines with the following tags.

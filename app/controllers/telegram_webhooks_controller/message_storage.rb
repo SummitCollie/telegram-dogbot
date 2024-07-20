@@ -54,11 +54,18 @@ class TelegramWebhooksController
       db_chat_user
     end
 
+    # https://core.telegram.org/bots/api#message
     def create_or_update_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.find_or_initialize_by(api_id: message.message_id)
       db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
+
+      Message.attachment_types.each_key do |attachment_type|
+        db_message.attachment_type = attachment_type.to_sym if message.respond_to?(attachment_type)
+      end
+
+      db_message.text = db_message.attachment_type ? message.caption : message.text
       db_message.date = Time.zone.at(message.date).to_datetime
-      db_message.text = message.text
+
       db_message.save!
       db_message
     end

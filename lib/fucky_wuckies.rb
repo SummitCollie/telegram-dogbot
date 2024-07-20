@@ -4,7 +4,7 @@ module FuckyWuckies
   class BaseError < StandardError
     attr_accessor :severity, :frontend_message, :sticker
 
-    def initialize(severity: Logger::DEBUG, frontend_message: nil, sticker: nil)
+    def initialize(severity: Logger::Severity::DEBUG, frontend_message: nil, sticker: nil)
       super
 
       @severity = severity

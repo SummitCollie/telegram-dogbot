@@ -12,20 +12,16 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::ChatNotWhitelistedError,
               FuckyWuckies::MessageFilterError, with: :handle_error
 
-  mattr_reader :stickers, default: {
-    hmm: 'CAACAgEAAxkBAAN7Zpnjiy4fEBQDljYzOMMDE13t63cAAhYDAAJ1DsgJD2dJhv6G8sY1BA',
-    nonono: 'CAACAgEAAxkBAAOJZpnq0Evpppl3W2tMIetOnKOVgj8AAgIDAAJ1DsgJCj6cMfALhQw1BA',
-    spray_bottle: 'CAACAgEAAxkBAAORZpnuToKa-Hh0NZyFwC0GdJs4JeIAAmsKAALX8EUGAAHtDzfwk20gNQQ',
-    gun: 'CAACAgEAAxkBAAOXZpn3TETXIjiJKnucdhdf3WOqj3EAAoEAA-QPqR9m982-evFo-zUE',
-    heck: 'CAACAgEAAxkBAAO-ZpoHFLajSuHX6CqP6WIv7T097G0AArQAA-QPqR8Mpjf0MTIoSTUE'
-  }
-
   ### Handle commands
   def summarize!(*)
     authorize_command!
   end
 
   def summarize_nicely!(*)
+    authorize_command!
+  end
+
+  def summarize_schizo(*)
     authorize_command!
   end
 
@@ -66,7 +62,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def handle_error(error)
     logger.log(error.severity, error.message)
-    bot.send_sticker(chat_id: chat.id, sticker: stickers[error.sticker]) if error.sticker
+    bot.send_sticker(chat_id: chat.id, sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]) if error.sticker
     respond_with :message, text: error.frontend_message if error.frontend_message
   end
 end
