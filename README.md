@@ -2,6 +2,8 @@
 
 ## TODO
 * AI summarizer
+* Rake task which auto-deletes old messages
+* Some UI to jump to previous summary in telegram (next summary btn would be cool too)
 
 ## Install
 1. Install ruby, bundler, heroku CLI.

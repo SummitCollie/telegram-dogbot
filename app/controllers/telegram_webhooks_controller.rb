@@ -21,7 +21,11 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_command!
   end
 
-  def summarize_schizo(*)
+  def summarize_tinfoil!(*)
+    authorize_command!
+  end
+
+  def vibe_check!(*)
     authorize_command!
   end
 
@@ -43,6 +47,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
+    # binding.pry
+    # logger.debug(message.to_json)
     authorize_message_storage!(message)
 
     db_message = store_message(message)

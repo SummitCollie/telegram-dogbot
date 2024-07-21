@@ -53,8 +53,6 @@ class TelegramWebhooksController
       end
 
       unless chat_in_whitelist?
-        # TODO: should only show frontend error in group chats when a command is run.
-        # Save the full error message people trying to run commands in unauthorized group chats.
         raise FuckyWuckies::ChatNotWhitelistedError.new(
           severity: Logger::Severity::INFO
         ), 'Not saving message from un-whitelisted chat: ' \

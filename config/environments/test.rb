@@ -63,4 +63,8 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#testing
+  Telegram.reset_bots
+  Telegram::Bot::ClientStub.stub_all!
 end

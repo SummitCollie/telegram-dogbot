@@ -11,7 +11,7 @@ class TelegramWebhooksController
       db_chat = create_or_update_chat
       db_user = create_or_update_user
       db_chat_user = create_or_update_chat_user(db_chat, db_user)
-      db_message = create_or_update_message(db_chat, db_chat_user, message)
+      db_message = create_message(db_chat, db_chat_user, message)
 
       # rubocop:disable Rails::SkipsModelValidations
       ChatUser.increment_counter :num_chatuser_messages, db_chat_user.id
@@ -24,7 +24,8 @@ class TelegramWebhooksController
       db_chat = create_or_update_chat
       db_user = create_or_update_user
       db_chat_user = create_or_update_chat_user(db_chat, db_user)
-      create_or_update_message(db_chat, db_chat_user, message)
+
+      update_message(db_chat, db_chat_user, message)
     end
 
     private
@@ -55,16 +56,32 @@ class TelegramWebhooksController
     end
 
     # https://core.telegram.org/bots/api#message
-    def create_or_update_message(db_chat, db_chat_user, message)
-      db_message = db_chat_user.messages.find_or_initialize_by(api_id: message.message_id)
+    def create_message(db_chat, db_chat_user, message)
+      db_message = db_chat_user.messages.build(api_id: message.message_id)
       db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
 
       Message.attachment_types.each_key do |attachment_type|
-        db_message.attachment_type = attachment_type.to_sym if message.respond_to?(attachment_type)
+        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
       db_message.text = db_message.attachment_type ? message.caption : message.text
       db_message.date = Time.zone.at(message.date).to_datetime
+
+      db_message.save!
+      db_message
+    end
+
+    def update_message(db_chat, db_chat_user, message)
+      db_message = db_chat_user.messages.find_by(api_id: message.message_id)
+      return if !db_message
+
+      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
+
+      Message.attachment_types.each_key do |attachment_type|
+        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
+      end
+
+      db_message.text = db_message.attachment_type ? message.caption : message.text
 
       db_message.save!
       db_message
