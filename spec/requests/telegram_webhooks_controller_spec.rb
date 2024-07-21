@@ -30,15 +30,19 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     }
   end
 
-  let(:photo_message_options) {{
-    photo: [Telegram::Bot::Types::PhotoSize.new],
-    caption: 'Photo message caption text'
-  }}
+  let(:photo_message_options) do
+    {
+      photo: [Telegram::Bot::Types::PhotoSize.new],
+      caption: 'Photo message caption text'
+    }
+  end
 
-  let(:video_message_options) {{
-    video: Telegram::Bot::Types::Video.new,
-    caption: 'Video message caption text'
-  }}
+  let(:video_message_options) do
+    {
+      video: Telegram::Bot::Types::Video.new,
+      caption: 'Video message caption text'
+    }
+  end
 
   describe '#message' do
     context 'when message should be stored' do
@@ -145,10 +149,9 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       describe '#stats!'
     end
 
-    context 'for unsupported commands' do
-      subject { -> { dispatch time_travel: {back_to: :the_future} } }
+    context 'when an unsupported command is sent' do
       it 'does nothing' do
-        subject.call
+        dispatch time_travel: { back_to: :the_future }
         expect(response).to be_ok
       end
     end

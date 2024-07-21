@@ -73,7 +73,7 @@ class TelegramWebhooksController
 
     def update_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.find_by(api_id: message.message_id)
-      return if !db_message
+      return unless db_message
 
       db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
 

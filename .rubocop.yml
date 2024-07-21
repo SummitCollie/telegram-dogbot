@@ -30,4 +30,16 @@ Metrics/AbcSize:
   Enabled: false
 
 Naming/AsciiIdentifiers:
-  AsciiConstants: False
+  AsciiConstants: false
+
+Style/NumericLiterals:
+  Exclude: ['spec/**/*']
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
