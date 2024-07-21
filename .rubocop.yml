@@ -43,3 +43,9 @@ RSpec/ExampleLength:
 
 RSpec/NestedGroups:
   Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/MultipleDescribes:
+  Enabled: false
