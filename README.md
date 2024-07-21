@@ -2,7 +2,7 @@
 
 ## TODO
 * AI summarizer
-* Rake task which auto-deletes old messages
+* Rake task which auto-deletes old messages and users/chats with no messages
 * Some UI to jump to previous summary in telegram (next summary btn would be cool too)
 
 ## Install
@@ -21,4 +21,4 @@
 ## Run linter & tests
 * `just test`
 
-  (just runs `rubocop` and `rspec` in parallel)
+  (runs `rubocop` and `rspec` in parallel)
