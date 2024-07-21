@@ -161,7 +161,9 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
             type: 'channel',
             title: 'Some channel'
           ) }
-        end.not_to change(Message, :count)
+        end.to not_change(Message, :count)
+           .and not_change(User, :count)
+           .and not_change(Chat, :count)
       end
 
       it 'does not store messages from other bots' do
@@ -192,6 +194,18 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   end
 
   context 'when a command is sent' do
+    it 'does not store command message' do
+      expect do
+        dispatch_command :summarize, { from: Telegram::Bot::Types::User.new(
+          id: 9999999,
+          is_bot: true,
+          first_name: 'Botty',
+          username: 'tgBotUsername',
+          language_code: 'en'
+        ) }
+      end.not_to change(Message, :count)
+    end
+
     describe '#summarize!'
     describe '#summarize_nicely!'
     describe '#summarize_tinfoil!'
@@ -203,6 +217,34 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     it 'does nothing' do
       dispatch time_travel: { back_to: :the_future }
       expect(response).to be_ok
+    end
+  end
+end
+
+# Need to use this lower-level syntax to allow mocks
+# https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#testing
+require 'telegram/bot/updates_controller/rspec_helpers'
+RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
+  context 'when a command is sent' do
+    context 'when unauthorized' do
+      it 'refuses to run commands from other bots' do
+        allow_any_instance_of(described_class).to receive(:handle_error).and_raise(
+          FuckyWuckies::AuthorizationError
+        )
+
+        expect do
+          dispatch_command summarize: { from: Telegram::Bot::Types::User.new(
+            id: 9999999,
+            is_bot: true,
+            first_name: 'Botty',
+            username: 'tgBotUsername',
+            language_code: 'en'
+          ) }
+        end.to raise_error(FuckyWuckies::AuthorizationError)
+      end
+
+      it 'refuses to run commands in non-group chats'
+      it 'refuses to run commands in non-whitelisted chats'
     end
   end
 end
