@@ -67,4 +67,6 @@ RSpec.configure do |config|
 
   # https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#testing
   config.after { Telegram.bot.reset }
+
+  RSpec::Matchers.define_negated_matcher :not_change, :change
 end

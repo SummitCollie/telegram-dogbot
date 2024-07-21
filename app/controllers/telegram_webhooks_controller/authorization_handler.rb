@@ -68,7 +68,7 @@ class TelegramWebhooksController
 
     def empty_text?(message)
       # Caption is used when message has an attachment (photo, video, ...)
-      message.text.nil? && message.caption.nil?
+      message.text.blank? && message.caption.blank?
     end
 
     def group_chat?

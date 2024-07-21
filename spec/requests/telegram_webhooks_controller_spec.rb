@@ -131,29 +131,78 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     end
 
     context 'when message should not be stored' do
-      it 'does not create User record for unauthorized chats'
-      it 'does not create Chat record for unauthorized chats'
-      it 'does not store messages from unauthorized group chats'
-      it 'does not store messages from non-group chats'
-      it 'does not store messages from other bots'
-      it 'does not store messages with empty text'
+      it 'does not create User record for unauthorized chats' do
+        expect do
+          dispatch_message 'text', { chat: { id: 0o0000 } }
+        end.not_to change(User, :count)
+      end
+
+      it 'does not create Chat record for unauthorized chats' do
+        expect do
+          dispatch_message 'text', { chat: { id: 0o0000 } }
+        end.not_to change(Chat, :count)
+      end
+
+      it 'does not store messages from unauthorized group chats' do
+        expect do
+          dispatch_message 'text', { chat: { id: 0o0000 } }
+        end.not_to change(Message, :count)
+      end
+
+      it 'does not store messages from non-group chats' do
+        expect do
+          dispatch_message 'text', { chat: Telegram::Bot::Types::Chat.new(
+            id: 23456,
+            type: 'private',
+            title: "Someone's DMs"
+          ) }
+          dispatch_message 'text', { chat: Telegram::Bot::Types::Chat.new(
+            id: 34567,
+            type: 'channel',
+            title: 'Some channel'
+          ) }
+        end.not_to change(Message, :count)
+      end
+
+      it 'does not store messages from other bots' do
+        expect do
+          dispatch_message 'text', { from: Telegram::Bot::Types::User.new(
+            id: 9999999,
+            is_bot: true,
+            first_name: 'Botty',
+            username: 'tgBotUsername',
+            language_code: 'en'
+          ) }
+        end.to not_change(Message, :count)
+           .and not_change(User, :count)
+           .and not_change(Chat, :count)
+      end
+
+      it 'does not store messages with empty text' do
+        expect do
+          # Empty plain text message
+          dispatch message: default_message_options.merge(text: nil)
+
+          # Media message with no caption
+          dispatch_message nil, { photo: [Telegram::Bot::Types::PhotoSize.new],
+                                  caption: nil }
+        end.not_to change(Message, :count)
+      end
     end
   end
 
   context 'when a command is sent' do
-    context 'when receiving a command' do
-      describe '#summarize!'
-      describe '#summarize_nicely!'
-      describe '#summarize_tinfoil!'
-      describe '#vibe_check!'
-      describe '#stats!'
-    end
+    describe '#summarize!'
+    describe '#summarize_nicely!'
+    describe '#summarize_tinfoil!'
+    describe '#vibe_check!'
+    describe '#stats!'
+  end
 
-    context 'when an unsupported command is sent' do
-      it 'does nothing' do
-        dispatch time_travel: { back_to: :the_future }
-        expect(response).to be_ok
-      end
+  context 'when an unsupported command is sent' do
+    it 'does nothing' do
+      dispatch time_travel: { back_to: :the_future }
+      expect(response).to be_ok
     end
   end
 end
