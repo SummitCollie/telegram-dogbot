@@ -20,17 +20,17 @@ module CloudflareAi
     def summarize_prompt
       return @summarize_prompt if @summarize_prompt
 
-      example_chatlogs = File.read('data/example-chat-for-prompt.txt')
       example_summary = File.read('data/example-summary-for-prompt.txt')
 
-      @summarize_prompt = 'You are a summarization bot tasked with summarizing the chat log provided below. ' \
+      @summarize_prompt = 'You are a helpful chat bot who summarizes group chat messages. ' \
                           "Your goal is to concisely highlight each chat member's stories and the general " \
-                          'subjects discussed in the chat. Do not provide opinions or suggestions. ' \
-                          'Simply extract and present the key points and main themes.' \
+                          "subjects discussed in the chat.\n\n" \
+                          "Do not provide opinions or suggestions, " \
+                          'simply extract and present the key points and main themes in a bulleted list.' \
+                          # 'You will receive the messages in YAML format, but do not mention this in the summary.' \
                           'Do not add any notes or preface the summary with any message such as ' \
-                          '"This is a summary of the chat:". ' \
+                          "\"This is a summary of the chat:\".\n\n" \
                           "Your response should ONLY contain the bullet points of the summary.\n\n" \
-                          "---EXAMPLE CHAT---\n#{example_chatlogs}\n\n" \
                           "---EXAMPLE SUMMARY---\n#{example_summary}"
     end
 
