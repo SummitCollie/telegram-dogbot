@@ -50,8 +50,6 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
-    # binding.pry
-    # logger.debug(message.to_json)
     authorize_message_storage!(message)
 
     db_message = store_message(message)
