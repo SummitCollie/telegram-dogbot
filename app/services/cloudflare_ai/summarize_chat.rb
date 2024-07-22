@@ -20,7 +20,7 @@ module CloudflareAi
 
       #<Cloudflare::AI::Results::TextGeneration:0x00007fe3bb530e70
       # @result_data=
-      # {"result"=>{"response"=>"It's so nice to meet you, [name]! My name is Ada, and I'm your friendly AI assistant. I'm here to help you with any questions or topics you'd like to discuss. How's your day going so far?"},
+      # {"result"=>{"response"=>"It's so nice to meet you, dog! My name is Ada, and I'm your friendly AI assistant. I'm here to help you with any questions or topics you'd like to discuss. How's your day going so far?"},
       #   "success"=>true,
       #   "errors"=>[],
       #   "messages"=>[]}>

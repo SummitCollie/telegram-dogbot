@@ -3,9 +3,11 @@
 ## TODO
 * AI summarizer
 * Some UI to jump to previous summary in telegram (next summary btn would be cool too)
-* Rake task which auto-deletes old messages and users/chats with no messages
+* Rake task which auto-deletes old messages
 * Feed previous summaries back into LLM prompt for longer "memory"
-* Granular authorization: only admins/mods can execute commands, etc.
+* Jannie features
+  * Granular authorization: only admins/mods can execute commands, etc.
+  * Customizable old-message-deletion timeframe
 * Summarize links somehow:
   * Maybe if `/summarize` command is followed by a URL
   * or `/summarize` command is a reply to another msg containing a URL
