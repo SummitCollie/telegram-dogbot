@@ -17,7 +17,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_command!
 
     db_chat = Chat.find_by(api_id: chat.id)
-    SummarizeChat.run!(chat: db_chat)
+    CloudflareAi::SummarizeChat.run!(db_chat: db_chat)
   end
 
   def summarize_nicely!(*)

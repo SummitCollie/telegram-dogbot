@@ -2,8 +2,13 @@
 
 ## TODO
 * AI summarizer
-* Rake task which auto-deletes old messages and users/chats with no messages
 * Some UI to jump to previous summary in telegram (next summary btn would be cool too)
+* Rake task which auto-deletes old messages and users/chats with no messages
+* Feed previous summaries back into LLM prompt for longer "memory"
+* Granular authorization: only admins/mods can execute commands, etc.
+* Summarize links somehow:
+  * Maybe if `/summarize` command is followed by a URL
+  * or `/summarize` command is a reply to another msg containing a URL
 
 ## Install
 1. Install ruby, bundler, heroku CLI.
