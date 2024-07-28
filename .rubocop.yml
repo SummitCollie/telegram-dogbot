@@ -20,6 +20,9 @@ Style/IfUnlessModifier:
 Style/GuardClause:
   Exclude: ['app/controllers/telegram_webhooks_controller/authorization_handler.rb']
 
+Style/ModuleFunction:
+  Exclude: ['app/controllers/telegram_webhooks_controller/summarize_helpers.rb']
+
 Layout/LineLength:
   AllowedPatterns: ['(\A|\s)#'] # Allow long comments
 

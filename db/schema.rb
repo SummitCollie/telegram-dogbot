@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
+ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "chat_summaries", force: :cascade do |t|
+    t.bigint "chat_id", null: false
+    t.bigint "first_message_id"
+    t.integer "status", default: 0, null: false, comment: "0=running 1=complete"
+    t.integer "type", null: false, comment: "0=default 1=nice 2=vibe_check"
+    t.integer "summary_message_api_id", comment: "api_id of the message where the bot sent this summary output"
+    t.string "text"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_id"], name: "index_chat_summaries_on_chat_id"
+    t.index ["created_at"], name: "index_chat_summaries_on_created_at"
+    t.index ["first_message_id"], name: "index_chat_summaries_on_first_message_id"
+  end
 
   create_table "chat_users", force: :cascade do |t|
     t.bigint "chat_id", null: false
@@ -29,8 +43,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
   create_table "chats", force: :cascade do |t|
     t.bigint "api_id", null: false
     t.integer "api_type", null: false, comment: "0=private 1=group 2=supergroup 3=channel"
-    t.datetime "last_summary_started"
-    t.string "last_summary_type"
     t.string "title"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -59,6 +71,8 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_17_221456) do
     t.index ["api_id"], name: "index_users_on_api_id"
   end
 
+  add_foreign_key "chat_summaries", "chats"
+  add_foreign_key "chat_summaries", "messages", column: "first_message_id"
   add_foreign_key "chat_users", "chats"
   add_foreign_key "chat_users", "users"
   add_foreign_key "messages", "chat_users"

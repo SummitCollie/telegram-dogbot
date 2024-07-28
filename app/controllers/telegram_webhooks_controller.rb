@@ -3,6 +3,7 @@
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include MessageStorage
+  include SummarizeHelpers
 
   # Auto typecast to types from telegram-bot-types gem
   include Telegram::Bot::UpdatesController::TypedUpdate
@@ -13,23 +14,28 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::MessageFilterError, with: :handle_error
 
   ### Handle commands
+  # Be sure to add any new ones in config/initializers/register_telegram_bot.rb
   def summarize!(*)
     authorize_command!
 
     db_chat = Chat.find_by(api_id: chat.id)
-    CloudflareAi::SummarizeChat.run!(db_chat:)
+    ensure_summarize_allowed!(db_chat:)
+
+    CloudflareAi::SummarizeChat.perform_later(db_chat:)
   end
 
   def summarize_nicely!(*)
     authorize_command!
-  end
 
-  def summarize_tinfoil!(*)
-    authorize_command!
+    db_chat = Chat.find_by(api_id: chat.id)
+    ensure_summarize_allowed!(db_chat:)
   end
 
   def vibe_check!(*)
     authorize_command!
+
+    db_chat = Chat.find_by(api_id: chat.id)
+    ensure_summarize_allowed!(db_chat:)
   end
 
   def stats!(*)
