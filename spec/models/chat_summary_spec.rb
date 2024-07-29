@@ -3,5 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe ChatSummary do
-  pending "add some examples to (or delete) #{__FILE__}"
+  describe '#after_find' do
+    it 'deletes any in-progress ChatSummary started > 5 minutes ago'
+  end
 end

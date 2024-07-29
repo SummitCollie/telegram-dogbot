@@ -329,4 +329,16 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
       end
     end
   end
+
+  context 'when a summarize command is sent' do
+    context 'when no SummarizeChatJob is running for this chat' do
+      it 'starts a SummarizeChatJob'
+      it 'creates a ChatSummary record with "running" status'
+    end
+
+    context 'when a SummarizeChatJob is already running for this chat' do
+      it 'refuses to start another SummarizeChatJob'
+      it 'does not create a ChatSummary record'
+    end
+  end
 end

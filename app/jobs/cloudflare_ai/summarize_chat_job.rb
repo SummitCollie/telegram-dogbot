@@ -5,24 +5,36 @@ module CloudflareAi
     retry_on FuckyWuckies::SummarizeJobError
     discard_on FuckyWuckies::SummarizeJobFailure
 
-    def perform(*args)
-      # db_summary = ChatSummary.create!(
-      #   chat:,
-      #   type:,
-      #   status: :running,
-      # )
+    def perform(db_summary)
+      if executions > 3
+        raise FuckyWuckies::SummarizeJobFailure.new(
+          severity: Logger::Severity::ERROR,
+          frontend_message: 'Processing failed, sowwy :(',
+          sticker: :dead
+        ), "All summarization attempts failed\n" \
+           "chat api_id=#{chat.id} title=#{chat.title}"
+      end
 
+      db_chat = db_summary.chat
       messages_to_summarize = db_chat.messages_since_last_summary
-      yaml_messages = transform_messages_to_yaml(messages_to_summarize)
-      result_text = cloudflare_summarize(yaml_messages)
 
-      # `executions` attribute is retry count
-      # TODO: each retry, if input doesn't fit in LLM context, discard oldest 25% of messages
+      # `executions` attribute is retry count.
+      # Each retry, if input doesn't fit in LLM context, discard oldest 25% of messages
+      if executions.positive?
+        reduced_count = (messages_to_summarize.size * 0.75).floor
+        messages_to_summarize = db_chat.messages_since_last_summary.last(reduced_count)
+      end
 
-      # db_summary.update!(
-      #   text: result_text,
-      #   first_message: = whatever first message ends up succeeding
-      # )
+      result_text = cloudflare_summarize(messages_to_summarize)
+
+      # TODO: send message to chat with result
+      # response_message = send_message...
+
+      db_summary.update!(
+        text: result_text,
+        status: :complete
+        # summary_message_api_id: response_message.message_id
+      )
     end
 
     private
@@ -59,7 +71,7 @@ module CloudflareAi
       end.to_yaml
     end
 
-    def cloudflare_summarize(yaml_messages)
+    def cloudflare_summarize(messages)
       Cloudflare::AI.logger.level = :info
       Cloudflare::AI.logger = Logger.new($stdout)
 
@@ -67,6 +79,8 @@ module CloudflareAi
         account_id: Rails.application.credentials.cloudflare.account_id,
         api_token: Rails.application.credentials.cloudflare.api_token
       )
+
+      yaml_messages = transform_messages_to_yaml(messages)
 
       messages = [
         Cloudflare::AI::Message.new(role: 'system', content: summarize_prompt),
@@ -76,7 +90,15 @@ module CloudflareAi
       result = ''
       client.chat(messages:, model_name: '@cf/meta/llama-3-8b-instruct-awq', max_tokens: 512) do |data|
         if data == '[DONE]'
-          raise StandardError 'Error: summarization failed' if result.empty?
+          # If prompt exceeds model context size, Cloudflare API returns success=true with empty text.
+          # If this error gets triggered, that's probably the issue, so upon encountering this error
+          # this job will retry a few times with a progressively smaller number of messages.
+          if result.empty?
+            raise FuckyWuckies::SummarizeJobError.new(
+              severity: Logger::Severity::INFO
+            ), "Error: summarization failed -- prompt probably too long\n" \
+               "chat api_id=#{chat.id} title=#{chat.title}"
+          end
         else
           result += JSON.parse(data)['response']
         end

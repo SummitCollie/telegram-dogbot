@@ -13,24 +13,20 @@ class Chat < ApplicationRecord
     chat_summaries.exists?(status: :running)
   end
 
-  def messages_since_last_summary(type:)
-    if (last_summary = chat_summaries.order(:created_at).limit(1))
-      msgs = messages.where('date > ?', last_summary.created_at)
+  def messages_since_last_summary(summary_type)
+    last_summary = chat_summaries.where(type: summary_type).order(:created_at).last
 
-      return msgs if msgs.count > MIN_MESSAGES_BETWEEN_SUMMARIES
+    if last_summary
+      msgs = messages.where('date > ?', last_summary.created_at).order(:date)
 
-      # Ran the same type of summary too recently
-      if last_summary.type == type
-        raise FuckyWuckies::SummarizeJobFailure.new(
-          frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
-                            'since last summary. Read them yourself!',
-          sticker: :no_u
-        ), 'Not enough messages since last summary of this type: ' \
-           "chat api_id=#{chat.id} summary type=#{type}"
-      end
+      return msgs if msgs.size >= MIN_MESSAGES_BETWEEN_SUMMARIES
 
-      # Return messages since last summary of other type
-      msgs = messages.where('date > ?', last_summary.first_message.date)
+      raise FuckyWuckies::SummarizeJobFailure.new(
+        frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
+                          'since last summary. Read them yourself!',
+        sticker: :no_u
+      ), 'Not enough messages since last summary of this type: ' \
+         "chat api_id=#{chat.id} summary type=#{summary_type}"
     else
       # No summaries yet so just grab some messages idk
       messages.order(:date).last(200)

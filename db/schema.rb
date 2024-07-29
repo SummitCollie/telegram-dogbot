@@ -16,7 +16,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
 
   create_table "chat_summaries", force: :cascade do |t|
     t.bigint "chat_id", null: false
-    t.bigint "first_message_id"
     t.integer "status", default: 0, null: false, comment: "0=running 1=complete"
     t.integer "type", null: false, comment: "0=default 1=nice 2=vibe_check"
     t.integer "summary_message_api_id", comment: "api_id of the message where the bot sent this summary output"
@@ -25,7 +24,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
     t.datetime "updated_at", null: false
     t.index ["chat_id"], name: "index_chat_summaries_on_chat_id"
     t.index ["created_at"], name: "index_chat_summaries_on_created_at"
-    t.index ["first_message_id"], name: "index_chat_summaries_on_first_message_id"
   end
 
   create_table "chat_users", force: :cascade do |t|
@@ -72,7 +70,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
   end
 
   add_foreign_key "chat_summaries", "chats"
-  add_foreign_key "chat_summaries", "messages", column: "first_message_id"
   add_foreign_key "chat_users", "chats"
   add_foreign_key "chat_users", "users"
   add_foreign_key "messages", "chat_users"

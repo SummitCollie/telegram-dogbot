@@ -21,7 +21,13 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     db_chat = Chat.find_by(api_id: chat.id)
     ensure_summarize_allowed!(db_chat:)
 
-    CloudflareAi::SummarizeChat.perform_later(db_chat:)
+    db_summary = ChatSummary.create!(
+      chat: db_chat,
+      type: summary_type,
+      status: :running
+    )
+
+    CloudflareAi::SummarizeChat.perform_later(db_summary)
   end
 
   def summarize_nicely!(*)
