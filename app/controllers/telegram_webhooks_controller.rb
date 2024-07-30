@@ -27,7 +27,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       status: :running
     )
 
-    CloudflareAi::SummarizeChat.perform_later(db_summary)
+    CloudflareAi::SummarizeChatJob.perform_later(db_summary)
   end
 
   def summarize_nicely!(*)

@@ -42,38 +42,6 @@ module CloudflareAi
 
     private
 
-    def summarize_prompt
-      return @summarize_prompt if @summarize_prompt
-
-      example_summary = File.read('data/example-summary-for-prompt.txt')
-      @summarize_prompt = <<~TEXT
-        You are a helpful chat bot who summarizes group chat messages.
-        Your goal is to concisely highlight each chat member's stories and the general subjects discussed in the chat.
-        Do not provide opinions or suggestions, simply extract and present the key points and main themes in a bulleted list.
-        You will receive the messages in YAML format, but do not mention this in the summary.
-        Do not add any notes or preface the summary with any message such as "This is a summary of the chat:"
-        Your response should ONLY contain the bullet points of the summary.
-
-        ---EXAMPLE SUMMARY---
-        #{example_summary}
-      TEXT
-    end
-
-    def transform_messages_to_yaml(messages)
-      messages.map do |message|
-        result = {
-          id: message.id,
-          user: message.user.first_name,
-          text: message.text
-        }
-
-        result.reply_to = message.reply_to_message if message.reply_to_message.present?
-        result.attachment = message.attachment_type.to_s if message.attachment_type.present?
-
-        result
-      end.to_yaml
-    end
-
     def cloudflare_summarize(messages)
       Cloudflare::AI.logger.level = :info
       Cloudflare::AI.logger = Logger.new($stdout)
@@ -83,10 +51,10 @@ module CloudflareAi
         api_token: Rails.application.credentials.cloudflare.api_token
       )
 
-      yaml_messages = transform_messages_to_yaml(messages)
+      yaml_messages = LLMTools.messages_to_yaml(messages)
 
       messages = [
-        Cloudflare::AI::Message.new(role: 'system', content: summarize_prompt),
+        Cloudflare::AI::Message.new(role: 'system', content: LLMTools.summarize_prompt),
         Cloudflare::AI::Message.new(role: 'user', content: yaml_messages)
       ]
 

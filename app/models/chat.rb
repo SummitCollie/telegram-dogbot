@@ -19,7 +19,7 @@ class Chat < ApplicationRecord
                    .order(:created_at).last
 
     if last_summary
-      msgs = messages.where('date > ?', last_summary.created_at).order(:date)
+      msgs = messages.includes(:user).where('date > ?', last_summary.created_at).order(:date)
 
       return msgs if msgs.size >= MIN_MESSAGES_BETWEEN_SUMMARIES
 
@@ -31,7 +31,7 @@ class Chat < ApplicationRecord
          "chat api_id=#{id} summary type=#{summary_type}"
     else
       # No summaries yet so just grab some messages idk
-      messages.order(:date).last(200)
+      messages.includes(:user).order(:date).last(200)
     end
   end
 end
