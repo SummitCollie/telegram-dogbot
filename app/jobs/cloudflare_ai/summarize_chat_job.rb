@@ -6,23 +6,26 @@ module CloudflareAi
     discard_on FuckyWuckies::SummarizeJobFailure
 
     def perform(db_summary)
-      if executions > 3
+      db_chat = db_summary.chat
+
+      if executions > 4
+        db_summary.destroy!
+
         raise FuckyWuckies::SummarizeJobFailure.new(
           severity: Logger::Severity::ERROR,
           frontend_message: 'Processing failed, sowwy :(',
           sticker: :dead
         ), "All summarization attempts failed\n" \
-           "chat api_id=#{chat.id} title=#{chat.title}"
+           "chat api_id=#{db_chat.id} title=#{db_chat.title}"
       end
 
-      db_chat = db_summary.chat
-      messages_to_summarize = db_chat.messages_since_last_summary
+      messages_to_summarize = db_chat.messages_since_last_summary(db_summary.summary_type)
 
       # `executions` attribute is retry count.
       # Each retry, if input doesn't fit in LLM context, discard oldest 25% of messages
-      if executions.positive?
-        reduced_count = (messages_to_summarize.size * 0.75).floor
-        messages_to_summarize = db_chat.messages_since_last_summary.last(reduced_count)
+      if executions > 1
+        reduced_count = (messages_to_summarize.size * (1 - ((executions - 1) / 4.0))).floor
+        messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
       result_text = cloudflare_summarize(messages_to_summarize)

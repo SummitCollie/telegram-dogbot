@@ -23,7 +23,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     db_summary = ChatSummary.create!(
       chat: db_chat,
-      type: summary_type,
+      summary_type:,
       status: :running
     )
 

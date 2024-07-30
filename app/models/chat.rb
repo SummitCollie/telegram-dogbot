@@ -14,7 +14,9 @@ class Chat < ApplicationRecord
   end
 
   def messages_since_last_summary(summary_type)
-    last_summary = chat_summaries.where(type: summary_type).order(:created_at).last
+    last_summary = chat_summaries
+                   .where(summary_type:, status: :complete)
+                   .order(:created_at).last
 
     if last_summary
       msgs = messages.where('date > ?', last_summary.created_at).order(:date)
@@ -26,7 +28,7 @@ class Chat < ApplicationRecord
                           'since last summary. Read them yourself!',
         sticker: :no_u
       ), 'Not enough messages since last summary of this type: ' \
-         "chat api_id=#{chat.id} summary type=#{summary_type}"
+         "chat api_id=#{id} summary type=#{summary_type}"
     else
       # No summaries yet so just grab some messages idk
       messages.order(:date).last(200)
