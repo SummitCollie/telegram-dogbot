@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module CloudflareAi
-  class SummarizeChatJob < ApplicationJob
+  class SummarizeChatJob < ActiveJob::Base
     retry_on FuckyWuckies::SummarizeJobError
     discard_on FuckyWuckies::SummarizeJobFailure
 
