@@ -18,7 +18,6 @@ module FuckyWuckies
   class MessageFilterError < BaseError; end
   class NotAGroupChatError < BaseError; end
   class ChatNotWhitelistedError < BaseError; end
-
   class SummarizeJobError < BaseError; end
   class SummarizeJobFailure < BaseError; end
 end
