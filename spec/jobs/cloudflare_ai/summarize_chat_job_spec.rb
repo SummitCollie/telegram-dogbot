@@ -26,7 +26,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :cloudflare_summarize
-          ).with(expected_messages)
+          ).with(expected_messages, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -39,7 +39,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :cloudflare_summarize
-          ).with(expected_messages)
+          ).with(expected_messages, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -65,7 +65,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :cloudflare_summarize
-        ).with(expected_messages)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -76,7 +76,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :cloudflare_summarize
-        ).with(expected_messages)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -87,27 +87,24 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :cloudflare_summarize
-        ).with(expected_messages)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
     end
 
     context 'when maximum attempts reached' do
-      let(:chat) { create(:chat) }
-      let(:summary) { create(:chat_summary, chat:) }
-      let(:messages) do
-        Array.new(100) do
-          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
-        end.sort_by(&:date)
-      end
-
       before do
         allow_any_instance_of(described_class).to receive(:cloudflare_summarize)
+        allow_any_instance_of(described_class).to receive(:executions).and_return(5)
       end
 
       it 'raises fatal error' do
-        allow_any_instance_of(described_class).to receive(:executions).and_return(5)
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:)
+        messages = Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end.sort_by(&:date)
 
         expect do
           described_class.new.perform(summary)
@@ -115,7 +112,8 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
       end
 
       it 'deletes ChatSummary record' do
-        allow_any_instance_of(described_class).to receive(:executions).and_return(5)
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:, status: :running)
 
         expect do
           described_class.perform_now(summary)

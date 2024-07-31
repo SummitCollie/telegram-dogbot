@@ -9,7 +9,7 @@ Telegram.bot.set_my_commands commands: [
     description: 'Summarize messages since last summary (or as many as possible)' },
   { command: 'summarize_nicely', description: 'Summarize more positively' },
   { command: 'vibe_check', description: 'Run vibe analysis' },
-  { command: 'stats', description: 'Show group chat stats' }
+  # { command: 'stats', description: 'Show group chat stats' }
 ]
 
 # Register endpoint for telegram webhook events in production

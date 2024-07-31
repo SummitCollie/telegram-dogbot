@@ -19,30 +19,19 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def summarize!(*)
     authorize_command!
 
-    db_chat = Chat.find_by(api_id: chat.id)
-    ensure_summarize_allowed!(db_chat:)
-
-    db_summary = ChatSummary.create!(
-      chat: db_chat,
-      summary_type: :default,
-      status: :running
-    )
-
-    CloudflareAi::SummarizeChatJob.perform_later(db_summary)
+    run_summarize(chat, summary_type: :default)
   end
 
   def summarize_nicely!(*)
     authorize_command!
 
-    db_chat = Chat.find_by(api_id: chat.id)
-    ensure_summarize_allowed!(db_chat:)
+    run_summarize(chat, summary_type: :nice)
   end
 
   def vibe_check!(*)
     authorize_command!
 
-    db_chat = Chat.find_by(api_id: chat.id)
-    ensure_summarize_allowed!(db_chat:)
+    run_summarize(chat, summary_type: :vibe_check)
   end
 
   def stats!(*)
@@ -65,10 +54,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def message(message)
     authorize_message_storage!(message)
 
-    db_message = store_message(message)
-
-    # reply_with :message, text: message
-    reply_with :message, text: "Message ##{message.message_id} stored!" if db_message
+    store_message(message)
   end
 
   ### Handle incoming edited message
@@ -79,6 +65,22 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   private
+
+  def run_summarize(chat, summary_type:)
+    db_chat = Chat.find_by(api_id: chat.id)
+    ensure_summarize_allowed!(db_chat:)
+
+    db_summary = ChatSummary.create!(
+      summary_type:,
+      status: :running,
+      chat: db_chat
+    )
+
+    CloudflareAi::SummarizeChatJob.perform_later(db_summary)
+  rescue StandardError => e
+    db_summary&.destroy!
+    raise e
+  end
 
   def handle_error(error)
     logger.log(error.severity, error.message)

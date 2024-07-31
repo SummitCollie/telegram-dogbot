@@ -23,11 +23,11 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.first[:id]).to eq messages.first.id
+      expect(results.first[:id]).to eq messages.first.api_id
       expect(results.first[:user]).to eq messages.first.user.first_name
       expect(results.first[:text]).to eq messages.first.text
 
-      expect(results.last[:id]).to eq messages.last.id
+      expect(results.last[:id]).to eq messages.last.api_id
       expect(results.last[:user]).to eq messages.last.user.first_name
       expect(results.last[:text]).to eq messages.last.text
     end
@@ -40,7 +40,7 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last[:reply_to]).to eq messages.first.id
+      expect(results.last[:reply_to]).to eq messages.first.api_id
     end
 
     it 'omits `reply_to` when parent message outside of context' do

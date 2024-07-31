@@ -21,16 +21,17 @@ module CloudflareAi
 
       messages_to_summarize = db_chat.messages_since_last_summary(db_summary.summary_type)
 
-      # `executions` attribute is retry count.
-      # Each retry, if input doesn't fit in LLM context, discard oldest 25% of messages
+      # Each retry, assuming last try failed because input didn't fit in LLM context,
+      # discard oldest 25% of messages
       if executions > 1
         reduced_count = (messages_to_summarize.size * (1 - ((executions - 1) / 4.0))).floor
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = cloudflare_summarize(messages_to_summarize)
+      result_text = cloudflare_summarize(messages_to_summarize, db_summary.summary_type)
 
       # TODO: send message to chat with result
+      # and remember to set protected flag to true!
       # response_message = send_message...
 
       db_summary.update!(
@@ -42,7 +43,7 @@ module CloudflareAi
 
     private
 
-    def cloudflare_summarize(messages)
+    def cloudflare_summarize(messages, summary_type)
       Cloudflare::AI.logger.level = :info
       Cloudflare::AI.logger = Logger.new($stdout)
 
@@ -54,7 +55,7 @@ module CloudflareAi
       yaml_messages = LLMTools.messages_to_yaml(messages)
 
       messages = [
-        Cloudflare::AI::Message.new(role: 'system', content: LLMTools.summarize_prompt),
+        Cloudflare::AI::Message.new(role: 'system', content: LLMTools.prompt_for_style(summary_type)),
         Cloudflare::AI::Message.new(role: 'user', content: yaml_messages)
       ]
 
