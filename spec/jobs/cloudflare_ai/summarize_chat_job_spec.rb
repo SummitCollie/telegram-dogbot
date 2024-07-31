@@ -102,9 +102,9 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
       it 'raises fatal error' do
         chat = create(:chat)
         summary = create(:chat_summary, chat:)
-        messages = Array.new(100) do
+        Array.new(100) do
           create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
-        end.sort_by(&:date)
+        end
 
         expect do
           described_class.new.perform(summary)
