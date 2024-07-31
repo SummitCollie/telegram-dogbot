@@ -1,6 +1,19 @@
 # DogBot 🐶
 
-## Features
+## Commands
+### `/summarize`
+Summarize group chat messages sent since the last summary (or as many as possible)
+
+### `/summarize_nicely`
+Like above but be very nice about it
+
+### `/vibe_check`
+Analyze chat members' moods
+
+### `/stats`
+Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
+
+## Features & Ideas
 - [ ] LLM chatroom summarization
   - [x] Aware of reply threads
   - [x] Aware of media presence (photo/video) & captions on media

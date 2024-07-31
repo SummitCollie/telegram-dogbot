@@ -1,4 +1,3 @@
-# rename to devenv.nix
 { inputs, pkgs, ... }:
 let
   nixpkgs-unstable = import inputs.nixpkgs-unstable { system = pkgs.stdenv.system; };

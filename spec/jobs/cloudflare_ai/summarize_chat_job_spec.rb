@@ -8,7 +8,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
       let(:chat) { create(:chat) }
       let(:messages) do
         Array.new(250) do
-          create(:message, chat:, date: Faker::Time.backward(days: 2))
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
         end.sort_by(&:date)
       end
 
@@ -51,7 +51,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
       let(:summary) { create(:chat_summary, chat:) }
       let(:messages) do
         Array.new(100) do
-          create(:message, chat:, date: Faker::Time.backward(days: 2))
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
         end.sort_by(&:date)
       end
 
@@ -98,7 +98,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
       let(:summary) { create(:chat_summary, chat:) }
       let(:messages) do
         Array.new(100) do
-          create(:message, chat:, date: Faker::Time.backward(days: 2))
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
         end.sort_by(&:date)
       end
 

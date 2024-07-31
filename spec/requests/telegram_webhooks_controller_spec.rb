@@ -247,11 +247,75 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end.not_to change(Message, :count)
     end
 
-    describe '#summarize!'
-    describe '#summarize_nicely!'
-    describe '#summarize_tinfoil!'
-    describe '#vibe_check!'
-    describe '#stats!'
+    describe '#summarize!' do
+      context 'when no SummarizeChatJob is running for this chat' do
+        let(:chat) { create(:chat, api_id: 12345) }
+        let(:messages) do
+          Array.new(100) do
+            create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+          end.sort_by(&:date)
+        end
+
+        before do
+          ChatSummary.destroy_all
+        end
+
+        it 'enqueues a SummarizeChatJob' do
+          expect do
+            dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.to have_enqueued_job(CloudflareAi::SummarizeChatJob)
+        end
+
+        it 'creates a ChatSummary record' do
+          expect do
+            dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.to change(ChatSummary, :count).by(1)
+        end
+      end
+
+      context 'when a SummarizeChatJob is already running for this chat' do
+        let(:chat) { create(:chat, api_id: 12345) }
+        let(:messages) do
+          Array.new(100) do
+            create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+          end.sort_by(&:date)
+        end
+
+        it 'refuses to enqueue another SummarizeChatJob' do
+          create(:chat_summary, chat:, status: :running)
+
+          expect do
+            dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.not_to have_enqueued_job(CloudflareAi::SummarizeChatJob)
+        end
+
+        it 'does not create a ChatSummary record' do
+          create(:chat_summary, chat:, status: :running)
+
+          expect do
+            dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.not_to change(ChatSummary, :count)
+        end
+      end
+    end
+
+    describe '#stats!' # TODO: add tests for this
   end
 
   context 'when an unsupported command is sent' do
@@ -327,18 +391,6 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           ) }
         end.to raise_error(FuckyWuckies::AuthorizationError)
       end
-    end
-  end
-
-  context 'when a summarize command is sent' do
-    context 'when no SummarizeChatJob is running for this chat' do
-      it 'starts a SummarizeChatJob'
-      it 'creates a ChatSummary record with "running" status'
-    end
-
-    context 'when a SummarizeChatJob is already running for this chat' do
-      it 'refuses to start another SummarizeChatJob'
-      it 'does not create a ChatSummary record'
     end
   end
 end

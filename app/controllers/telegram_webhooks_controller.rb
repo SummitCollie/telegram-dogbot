@@ -11,7 +11,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   rescue_from FuckyWuckies::AuthorizationError,
               FuckyWuckies::NotAGroupChatError,
               FuckyWuckies::ChatNotWhitelistedError,
-              FuckyWuckies::MessageFilterError, with: :handle_error
+              FuckyWuckies::MessageFilterError,
+              FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
   ### Handle commands
   # Be sure to add any new ones in config/initializers/register_telegram_bot.rb
@@ -23,7 +24,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     db_summary = ChatSummary.create!(
       chat: db_chat,
-      summary_type:,
+      summary_type: :default,
       status: :running
     )
 
