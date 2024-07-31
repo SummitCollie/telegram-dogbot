@@ -125,6 +125,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
     context 'when a SummarizeChatJob completes successfully' do
       it 'correctly updates existing ChatSummary record with results'
+      it 'sends message to chat containing summarize result'
     end
   end
 end

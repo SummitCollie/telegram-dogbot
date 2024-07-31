@@ -35,7 +35,7 @@ RSpec.describe LLMTools do
     it 'sets `reply_to` when parent message within context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 2.minutes.ago)
-      response_message = create(:message, chat:, date: 2.minute.ago, reply_to_message: parent_message)
+      response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
       messages = [parent_message, response_message]
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
@@ -45,14 +45,14 @@ RSpec.describe LLMTools do
 
     it 'omits `reply_to` when parent message outside of context' do
       chat = create(:chat)
-      parent_message = create(:message, chat:, date: 2.hours.ago)
-      response_message = create(:message, chat:, date: 2.hours.ago + 1.minute, reply_to_message: parent_message)
-      other_message = create(:message, chat:, date: 1.hour.ago)
+      parent_message = create(:message, chat:, date: 3.minutes.ago)
+      response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
+      create(:message, chat:, date: 1.minute.ago)
       messages = [response_message, response_message]
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last.has_key? :reply_to ).to eq false
+      expect(results.last.key?(:reply_to)).to be false
     end
 
     it 'sets `attachment_type` for messages with attachments' do
@@ -74,7 +74,7 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last.has_key? :attachment ).to eq false
+      expect(results.last.key?(:attachment)).to be false
     end
   end
 end
