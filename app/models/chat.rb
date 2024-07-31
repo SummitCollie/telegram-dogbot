@@ -24,6 +24,7 @@ class Chat < ApplicationRecord
       return msgs if msgs.size >= MIN_MESSAGES_BETWEEN_SUMMARIES
 
       raise FuckyWuckies::SummarizeJobFailure.new(
+        db_chat: self,
         frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
                           'since last summary. Read them yourself!',
         sticker: :no_u

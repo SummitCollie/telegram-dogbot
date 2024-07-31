@@ -3,16 +3,15 @@
 module CloudflareAi
   class SummarizeChatJob < ActiveJob::Base
     retry_on FuckyWuckies::SummarizeJobError
-    discard_on FuckyWuckies::SummarizeJobFailure
+    rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
     def perform(db_summary)
       db_chat = db_summary.chat
 
       if executions > 4
-        db_summary.destroy!
-
         raise FuckyWuckies::SummarizeJobFailure.new(
           severity: Logger::Severity::ERROR,
+          db_chat:,
           frontend_message: 'Processing failed, sowwy :(',
           sticker: :dead
         ), "All summarization attempts failed\n" \
@@ -30,14 +29,12 @@ module CloudflareAi
 
       result_text = cloudflare_summarize(messages_to_summarize, db_summary.summary_type)
 
-      # TODO: send message to chat with result
-      # and remember to set protected flag to true!
-      # response_message = send_message...
+      response_message = send_output_message(db_chat, result_text)
 
       db_summary.update!(
         text: result_text,
-        status: :complete
-        # summary_message_api_id: response_message.message_id
+        status: 'complete',
+        summary_message_api_id: response_message['message_id']
       )
     end
 
@@ -77,6 +74,28 @@ module CloudflareAi
       end
 
       result
+    end
+
+    def send_output_message(db_chat, text)
+      Telegram.bot.send_message(
+        chat_id: db_chat.api_id,
+        protect_content: true,
+        text:
+      )['result']
+    end
+
+    def handle_error(error)
+      db_chat = error.db_chat
+      raise error if db_chat.blank?
+
+      # Delete any running ChatSummary
+      db_chat.chat_summaries.where(status: 'running').destroy_all
+
+      # Respond in chat with error message
+      logger.log(error.severity, error.message)
+      Telegram.bot.send_sticker(chat_id: db_chat.api_id, sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]) if error.sticker
+      Telegram.bot.send_message(chat_id: db_chat.api_id, text: error.frontend_message) if error.frontend_message
+      raise error
     end
   end
 end

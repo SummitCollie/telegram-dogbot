@@ -16,6 +16,17 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
         allow_any_instance_of(described_class).to receive(
           :cloudflare_summarize
         ).and_return('summary text')
+
+        allow_any_instance_of(described_class).to receive(
+          :send_output_message
+        ).and_return({
+          ok: true,
+          result: {
+            chat_id: chat.api_id,
+            protect_content: true,
+            text: 'summary text'
+          }
+        }.to_json)
       end
 
       context 'when previous summary of same type exists' do
@@ -57,6 +68,17 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
       before do
         allow_any_instance_of(described_class).to receive(:cloudflare_summarize)
+
+        allow_any_instance_of(described_class).to receive(
+          :send_output_message
+        ).and_return({
+          ok: true,
+          result: {
+            chat_id: chat.api_id,
+            protect_content: true,
+            text: 'summary text'
+          }
+        }.to_json)
       end
 
       it 'uses 25% fewer messages on attempt 2' do
@@ -99,7 +121,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
         allow_any_instance_of(described_class).to receive(:executions).and_return(5)
       end
 
-      it 'raises fatal error' do
+      it 'raises fatal error and deletes in-progress ChatSummary' do
         chat = create(:chat)
         summary = create(:chat_summary, chat:)
         Array.new(100) do
@@ -108,16 +130,7 @@ RSpec.describe CloudflareAi::SummarizeChatJob do
 
         expect do
           described_class.new.perform(summary)
-        end.to raise_error(FuckyWuckies::SummarizeJobFailure)
-      end
-
-      it 'deletes ChatSummary record' do
-        chat = create(:chat)
-        summary = create(:chat_summary, chat:, status: :running)
-
-        expect do
-          described_class.perform_now(summary)
-        end.to change(ChatSummary, :count).by(-1)
+        end.to raise_error(FuckyWuckies::SummarizeJobFailure) and change(ChatSummary, :count).by(-1)
       end
     end
 
