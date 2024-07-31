@@ -9,8 +9,8 @@ class LLMTools
         text: message.text
       }
 
-      result.reply_to = message.reply_to_message.id if messages.include?(message.reply_to_message)
-      result.attachment = message.attachment_type.to_s if message.attachment_type.present?
+      result[:reply_to] = message.reply_to_message.id if messages.include?(message.reply_to_message)
+      result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
 
       result
     end.to_yaml

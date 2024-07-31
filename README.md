@@ -19,6 +19,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [x] Aware of media presence (photo/video) & captions on media
   - [ ] "Vibe check" summary of users' moods
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
+    * (`/summarize_past_summaries` command?)
 - [ ] Some UI to jump to previous summary in telegram (next summary btn would be cool too)
 - [ ] Rake task which auto-deletes old messages
 - [ ] Jannie features
