@@ -57,6 +57,8 @@ module CloudflareAi
       ]
 
       result = ''
+      # TODO: try this later: @cf/meta/llama-3.1-8b-instruct
+      #       can't do emojis as of 07/31 :(
       client.chat(messages:, model_name: '@cf/meta/llama-3-8b-instruct-awq', max_tokens: 512) do |data|
         if data == '[DONE]'
           # If prompt exceeds model context size, Cloudflare API returns success=true with empty text.

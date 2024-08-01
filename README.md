@@ -14,10 +14,10 @@ Analyze chat members' moods
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ## Features & Ideas
-- [ ] LLM chatroom summarization
+- [x] LLM chatroom summarization
   - [x] Aware of reply threads
-  - [x] Aware of media presence (photo/video) & captions on media
-  - [ ] "Vibe check" summary of users' moods
+  - [x] Aware of media presence (photo/video/etc) & captions on media
+  - [x] "Vibe check" summary of users' moods
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
     * (`/summarize_past_summaries` command?)
 - [ ] Some UI to jump to previous summary in telegram (next summary btn would be cool too)
