@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe CloudflareAi::SummarizeChatJob do
+RSpec.describe LLM::SummarizeChatJob do
   describe '#perform' do
     context 'when running first attempt' do
       let(:chat) { create(:chat) }

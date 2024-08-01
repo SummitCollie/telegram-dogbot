@@ -267,7 +267,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
               type: 'supergroup',
               title: chat.title
             ) })
-          end.to have_enqueued_job(CloudflareAi::SummarizeChatJob)
+          end.to have_enqueued_job(LLM::SummarizeChatJob)
         end
 
         it 'creates a ChatSummary record' do
@@ -298,7 +298,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
               type: 'supergroup',
               title: chat.title
             ) })
-          end.not_to have_enqueued_job(CloudflareAi::SummarizeChatJob)
+          end.not_to have_enqueued_job(LLM::SummarizeChatJob)
         end
 
         it 'does not create a ChatSummary record' do

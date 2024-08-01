@@ -76,7 +76,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       chat: db_chat
     )
 
-    CloudflareAi::SummarizeChatJob.perform_later(db_summary)
+    LLM::SummarizeChatJob.perform_later(db_summary)
   rescue StandardError => e
     db_summary&.destroy!
     raise e

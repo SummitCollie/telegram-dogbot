@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module CloudflareAi
+module LLM
   class SummarizeChatJob < ActiveJob::Base
     retry_on FuckyWuckies::SummarizeJobError
     rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
@@ -27,7 +27,7 @@ module CloudflareAi
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = cloudflare_summarize(messages_to_summarize, db_summary.summary_type)
+      result_text = llm_summarize(messages_to_summarize, db_summary.summary_type)
 
       response_message = send_output_message(db_chat, result_text)
 
@@ -40,42 +40,29 @@ module CloudflareAi
 
     private
 
-    def cloudflare_summarize(messages, summary_type)
-      Cloudflare::AI.logger.level = :info
-      Cloudflare::AI.logger = Logger.new($stdout)
-
-      client = Cloudflare::AI::Client.new(
-        account_id: Rails.application.credentials.cloudflare.account_id,
-        api_token: Rails.application.credentials.cloudflare.api_token
-      )
+    def llm_summarize(messages, summary_type)
+      client = OpenAI::Client.new
 
       yaml_messages = LLMTools.messages_to_yaml(messages)
 
       messages = [
-        Cloudflare::AI::Message.new(role: 'system', content: LLMTools.prompt_for_style(summary_type)),
-        Cloudflare::AI::Message.new(role: 'user', content: yaml_messages)
+        { role: 'system', content: LLMTools.prompt_for_style(summary_type) },
+        { role: 'user', content: yaml_messages }
       ]
 
-      result = ''
-      # TODO: try this later: @cf/meta/llama-3.1-8b-instruct
-      #       can't do emojis as of 07/31 :(
-      client.chat(messages:, model_name: '@cf/meta/llama-3-8b-instruct-awq', max_tokens: 512) do |data|
-        if data == '[DONE]'
-          # If prompt exceeds model context size, Cloudflare API returns success=true with empty text.
-          # If this error gets triggered, that's probably the issue, so upon encountering this error
-          # this job will retry a few times with a progressively smaller number of messages.
-          if result.empty?
-            raise FuckyWuckies::SummarizeJobError.new(
-              severity: Logger::Severity::INFO
-            ), "Error: summarization failed -- prompt probably too long\n" \
-               "chat api_id=#{chat.id} title=#{chat.title}"
-          end
-        else
-          result += JSON.parse(data)['response']
-        end
-      end
+      # TODO: handle faraday errors
+      result = StringIO.new
+      client.chat(parameters: {
+                    model: 'meta-llama/Meta-Llama-3-70B-Instruct',
+                    max_tokens: 512,
+                    temperature: 0.7,
+                    messages:,
+                    stream: proc do |chunk, _bytesize|
+                              result << chunk.dig('choices', 0, 'delta', 'content')
+                            end
+                  })
 
-      result
+      result.string
     end
 
     def send_output_message(db_chat, text)
