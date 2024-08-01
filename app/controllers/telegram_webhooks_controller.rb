@@ -83,8 +83,6 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   def handle_error(error)
-    logger.log(error.severity, error.message)
-    bot.send_sticker(chat_id: chat.id, sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]) if error.sticker
-    respond_with :message, text: error.frontend_message if error.frontend_message
+    TelegramTools.send_error_message(error, chat.id)
   end
 end

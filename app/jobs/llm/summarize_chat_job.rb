@@ -27,7 +27,7 @@ module LLM
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = llm_summarize(messages_to_summarize, db_summary.summary_type)
+      result_text = llm_summarize(messages_to_summarize, db_chat, db_summary.summary_type)
 
       response_message = send_output_message(db_chat, result_text)
 
@@ -40,7 +40,7 @@ module LLM
 
     private
 
-    def llm_summarize(messages, summary_type)
+    def llm_summarize(messages, db_chat, summary_type)
       client = OpenAI::Client.new
 
       yaml_messages = LLMTools.messages_to_yaml(messages)
@@ -63,6 +63,14 @@ module LLM
                   })
 
       result.string
+    rescue Faraday::Error => e
+      raise FuckyWuckies::SummarizeJobFailure.new(
+        severity: Logger::Severity::ERROR,
+        db_chat:,
+        frontend_message: 'API error! Try again later.',
+        sticker: :dead
+      ), 'Huggingface API error: ' \
+         "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
     end
 
     def send_output_message(db_chat, text)
@@ -81,10 +89,7 @@ module LLM
       db_chat.chat_summaries.where(status: 'running').destroy_all
 
       # Respond in chat with error message
-      logger.log(error.severity, error.message)
-      Telegram.bot.send_sticker(chat_id: db_chat.api_id, sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]) if error.sticker
-      Telegram.bot.send_message(chat_id: db_chat.api_id, text: error.frontend_message) if error.frontend_message
-      raise error
+      TelegramTools.send_error_message(error, db_chat.api_id)
     end
   end
 end

@@ -14,7 +14,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
       before do
         allow_any_instance_of(described_class).to receive(
-          :cloudflare_summarize
+          :llm_summarize
         ).and_return('summary text')
 
         allow_any_instance_of(described_class).to receive(
@@ -36,8 +36,8 @@ RSpec.describe LLM::SummarizeChatJob do
           expected_messages = messages.drop(50)
 
           expect_any_instance_of(described_class).to receive(
-            :cloudflare_summarize
-          ).with(expected_messages, summary.summary_type)
+            :llm_summarize
+          ).with(expected_messages, chat, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -49,8 +49,8 @@ RSpec.describe LLM::SummarizeChatJob do
           expected_messages = messages.drop(50)
 
           expect_any_instance_of(described_class).to receive(
-            :cloudflare_summarize
-          ).with(expected_messages, summary.summary_type)
+            :llm_summarize
+          ).with(expected_messages, chat, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -67,7 +67,7 @@ RSpec.describe LLM::SummarizeChatJob do
       end
 
       before do
-        allow_any_instance_of(described_class).to receive(:cloudflare_summarize)
+        allow_any_instance_of(described_class).to receive(:llm_summarize)
 
         allow_any_instance_of(described_class).to receive(
           :send_output_message
@@ -86,8 +86,8 @@ RSpec.describe LLM::SummarizeChatJob do
         expected_messages = messages.drop(25)
 
         expect_any_instance_of(described_class).to receive(
-          :cloudflare_summarize
-        ).with(expected_messages, summary.summary_type)
+          :llm_summarize
+        ).with(expected_messages, chat, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -97,8 +97,8 @@ RSpec.describe LLM::SummarizeChatJob do
         expected_messages = messages.drop(50)
 
         expect_any_instance_of(described_class).to receive(
-          :cloudflare_summarize
-        ).with(expected_messages, summary.summary_type)
+          :llm_summarize
+        ).with(expected_messages, chat, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -108,8 +108,8 @@ RSpec.describe LLM::SummarizeChatJob do
         expected_messages = messages.drop(75)
 
         expect_any_instance_of(described_class).to receive(
-          :cloudflare_summarize
-        ).with(expected_messages, summary.summary_type)
+          :llm_summarize
+        ).with(expected_messages, chat, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -117,7 +117,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
     context 'when maximum attempts reached' do
       before do
-        allow_any_instance_of(described_class).to receive(:cloudflare_summarize)
+        allow_any_instance_of(described_class).to receive(:llm_summarize)
         allow_any_instance_of(described_class).to receive(:executions).and_return(5)
       end
 
