@@ -64,12 +64,14 @@ module LLM
 
       result.string
     rescue Faraday::Error => e
+      # TODO: determine what 'prompt too long' error looks like in order to retry
+
       raise FuckyWuckies::SummarizeJobFailure.new(
         severity: Logger::Severity::ERROR,
         db_chat:,
-        frontend_message: 'API error! Try again later.',
+        frontend_message: 'API error! Try again later :(',
         sticker: :dead
-      ), 'Huggingface API error: ' \
+      ), 'LLM API error: ' \
          "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
     end
 

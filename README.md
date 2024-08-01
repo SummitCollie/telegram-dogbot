@@ -22,6 +22,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
     * (`/summarize_past_summaries` command?)
 - [ ] Some UI to jump to previous summary in telegram (next summary btn would be cool too)
 - [ ] Rake task which auto-deletes old messages
+- [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
   - [ ] Customizable old-message-deletion timeframe

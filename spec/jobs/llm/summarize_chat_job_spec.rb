@@ -117,7 +117,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
     context 'when maximum attempts reached' do
       before do
-        allow_any_instance_of(described_class).to receive(:llm_summarize)
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
         allow_any_instance_of(described_class).to receive(:executions).and_return(5)
       end
 
@@ -135,8 +135,43 @@ RSpec.describe LLM::SummarizeChatJob do
     end
 
     context 'when a SummarizeChatJob completes successfully' do
-      it 'correctly updates existing ChatSummary record with results'
-      it 'sends message to chat containing summarize result'
+      before do
+        allow_any_instance_of(described_class).to receive(:send_output_message).and_return({
+          message_id: 9999
+        }.with_indifferent_access)
+
+        # rubocop:disable RSpec/VerifiedDoubles
+        allow(OpenAI::Client).to receive(:new).and_return(
+          double({ chat: true })
+        )
+        # rubocop:enable RSpec/VerifiedDoubles
+      end
+
+      it 'correctly updates existing ChatSummary record to mark completion' do
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:, status: :running)
+        Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end
+
+        described_class.perform_now(summary)
+
+        summary.reload
+        expect(summary.status).to eq 'complete'
+      end
+
+      it 'sends message to chat containing summarize result' do
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:, status: :running)
+        Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end
+
+        described_class.perform_now(summary)
+
+        summary.reload
+        expect(summary.summary_message_api_id).to eq 9999
+      end
     end
   end
 end
