@@ -20,8 +20,7 @@ module LLM
 
       messages_to_summarize = db_chat.messages_since_last_summary(db_summary.summary_type)
 
-      # Each retry, assuming last try failed because input didn't fit in LLM context,
-      # discard oldest 25% of messages
+      # Each retry, since input didn't fit in LLM context, discard oldest 25% of messages
       if executions > 1
         reduced_count = (messages_to_summarize.size * (1 - ((executions - 1) / 4.0))).floor
         messages_to_summarize = messages_to_summarize.last(reduced_count)
@@ -63,9 +62,13 @@ module LLM
                   })
 
       result.string
+    rescue Faraday::UnprocessableEntityError => e
+      # Prompt most likely too long, raise SummarizeJobError to retry with fewer messages
+      raise FuckyWuckies::SummarizeJobError.new(
+        severity: Logger::Severity::INFO
+      ), "Error: summarization failed -- prompt probably too long\n" \
+         "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
     rescue Faraday::Error => e
-      # TODO: determine what 'prompt too long' error looks like in order to retry
-
       raise FuckyWuckies::SummarizeJobFailure.new(
         severity: Logger::Severity::ERROR,
         db_chat:,
