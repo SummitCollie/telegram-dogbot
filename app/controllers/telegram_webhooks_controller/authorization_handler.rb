@@ -24,7 +24,7 @@ class TelegramWebhooksController
       unless chat_in_whitelist?
         raise FuckyWuckies::ChatNotWhitelistedError.new(
           severity: Logger::Severity::INFO,
-          frontend_message: "This chat isn't whitelisted (AI costs money)!\n" \
+          frontend_message: "This chat isn't whitelisted. Hosting this costs money!\n" \
                             "Contact Summit and maybe he'll allow it.",
           sticker: :bonk
         ), "Chat not in whitelist: chat api_id=#{chat.id} title=#{chat.title}"

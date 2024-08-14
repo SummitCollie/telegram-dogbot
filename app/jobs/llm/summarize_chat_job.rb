@@ -49,7 +49,6 @@ module LLM
         { role: 'user', content: yaml_messages }
       ]
 
-      # TODO: handle faraday errors
       result = StringIO.new
       client.chat(parameters: {
                     model: 'meta-llama/Meta-Llama-3-70B-Instruct',
