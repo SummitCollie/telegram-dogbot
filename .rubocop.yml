@@ -54,5 +54,14 @@ RSpec/AnyInstance:
 RSpec/MultipleDescribes:
   Enabled: false
 
+RSpec/IndexedLet:
+  Enabled: false
+
 Rails/ApplicationJob:
+  Enabled: false
+
+RSpec/DescribeClass:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
   Enabled: false

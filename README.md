@@ -20,8 +20,8 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [x] "Vibe check" summary of users' moods
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
     * (`/summarize_past_summaries` command?)
-- [ ] Some UI to jump to previous summary in telegram (next summary btn would be cool too)
-- [ ] Rake task which auto-deletes old messages
+- [x] Rake task which auto-deletes old messages
+- [ ] UI to jump to previous/next summary via links appended to summary messages
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
@@ -30,20 +30,27 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Maybe if `/summarize` command is followed by a URL
   - [ ] or `/summarize` command is a reply to another msg containing a URL
 
-## Install
+## Deployment
+Designed to be deployed on Heroku, but should be adaptable to any service.
+
+### Heroku Scheduler
+A rake task `rake purge_old_telegram_messages` is set up to purge old messages from the DB. This is intended to be run on a daily basis by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task.
+
+## Local Development
+### Install
 1. Install postgres, ruby, bundler, heroku CLI.
 2. `bundle install`
 3. Setup database or whatever.
 4. Configure options in rails credentials (see [credentials.sample.yml](./config/credentials.sample.yml)).
 
-## Run local dev environment
+### Run local dev environment
 * `just run`
 
   or
 
 * `heroku local --procfile=Procfile.dev`
 
-## Run linter & tests
+### Run linter & tests
 * `just test`
 
   (runs `rubocop` and `rspec` in parallel)
