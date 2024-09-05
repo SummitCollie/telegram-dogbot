@@ -21,11 +21,10 @@ class TelegramWebhooksController
            "chat api_id=#{chat.id} username=@#{chat.username}"
       end
 
-      unless chat_in_whitelist?
+      if whitelist_enabled? && !chat_in_whitelist?
         raise FuckyWuckies::ChatNotWhitelistedError.new(
           severity: Logger::Severity::INFO,
-          frontend_message: "This chat isn't whitelisted. Hosting this costs money!\n" \
-                            "Contact Summit and maybe he'll allow it.",
+          frontend_message: "This chat isn't whitelisted; contact this bot's owner.",
           sticker: :bonk
         ), "Chat not in whitelist: chat api_id=#{chat.id} title=#{chat.title}"
       end
@@ -52,7 +51,7 @@ class TelegramWebhooksController
            "chat api_id=#{chat.id} username=@#{chat.username}"
       end
 
-      unless chat_in_whitelist?
+      if whitelist_enabled? && !chat_in_whitelist?
         raise FuckyWuckies::ChatNotWhitelistedError.new(
           severity: Logger::Severity::INFO
         ), 'Not saving message from un-whitelisted chat: ' \
@@ -73,6 +72,10 @@ class TelegramWebhooksController
 
     def group_chat?
       chat.type == 'group' || chat.type == 'supergroup'
+    end
+
+    def whitelist_enabled?
+      Rails.application.credentials.whitelist_enabled == true
     end
 
     def chat_in_whitelist?

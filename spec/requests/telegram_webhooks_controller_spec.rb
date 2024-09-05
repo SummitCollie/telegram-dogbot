@@ -6,6 +6,7 @@ require 'telegram/bot/rspec/integration/rails'
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   # rubocop:disable RSpec/BeforeAfterAll
   before :all do
+    Rails.application.credentials.whitelist_enabled = true
     Rails.application.credentials.chat_id_whitelist = [12345]
   end
   # rubocop:enable RSpec/BeforeAfterAll
@@ -230,6 +231,31 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
           dispatch_message nil, { photo: [Telegram::Bot::Types::PhotoSize.new],
                                   caption: nil }
         end.not_to change(Message, :count)
+      end
+    end
+
+    context 'when whitelist is disabled' do
+      before do
+        Rails.application.credentials.whitelist_enabled = false
+      end
+
+      it 'stores messages from chats not present in whitelist' do
+        options = default_message_options
+        options[:chat] = Telegram::Bot::Types::Chat.new(
+          id: 12345678,
+          type: 'group',
+          title: 'Non-whitelisted Chat',
+          all_members_are_administrators: true
+        )
+
+        dispatch_message 'text', options
+
+        user = User.find_by(api_id: options[:from][:id])
+        message = user.messages.last
+
+        expect(message.text).to eq 'text'
+        expect(message.date.to_i).to eq options[:date]
+        expect(message.attachment_type).to be_nil
       end
     end
   end
