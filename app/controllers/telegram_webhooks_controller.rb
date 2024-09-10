@@ -15,7 +15,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
   ### Handle commands
-  # Be sure to add any new ones in config/initializers/register_telegram_bot.rb
+  # Be sure to add any new ones in config/initializers/telegram_bot.rb
   def summarize!(*)
     authorize_command!
 
