@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module LLM
-  class SummarizeChatJob < ActiveJob::Base
+  class SummarizeChatJob < ApplicationJob
     retry_on FuckyWuckies::SummarizeJobError
     rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
