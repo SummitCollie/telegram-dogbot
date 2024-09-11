@@ -21,12 +21,11 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
     * (`/summarize_past_summaries` command?)
 - [x] Rake task which auto-deletes old messages
-- [ ] UI to jump to previous/next summary via links appended to summary messages
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
   - [ ] Customizable old-message-deletion timeframe
-- [ ] Summarize links somehow:
+- [ ] Summarize links somehow?
   - [ ] Maybe if `/summarize` command is followed by a URL
   - [ ] or `/summarize` command is a reply to another msg containing a URL
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
+ActiveRecord::Schema[7.1].define(version: 2024_09_11_163632) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -18,7 +18,6 @@ ActiveRecord::Schema[7.1].define(version: 2024_07_28_031804) do
     t.bigint "chat_id", null: false
     t.integer "status", default: 0, null: false, comment: "0=running 1=complete"
     t.integer "summary_type", null: false, comment: "0=default 1=nice 2=vibe_check"
-    t.integer "summary_message_api_id", comment: "api_id of the message where the bot sent this summary output"
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

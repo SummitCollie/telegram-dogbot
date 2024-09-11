@@ -28,13 +28,8 @@ module LLM
 
       result_text = llm_summarize(messages_to_summarize, db_chat, db_summary.summary_type)
 
-      response_message = send_output_message(db_chat, result_text)
-
-      db_summary.update!(
-        text: result_text,
-        status: 'complete',
-        summary_message_api_id: response_message['message_id']
-      )
+      send_output_message(db_chat, result_text)
+      db_summary.update!(text: result_text, status: 'complete')
     end
 
     private
@@ -82,7 +77,7 @@ module LLM
         chat_id: db_chat.api_id,
         protect_content: true,
         text:
-      )['result']
+      )
     end
 
     def handle_error(error)

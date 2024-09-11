@@ -159,19 +159,6 @@ RSpec.describe LLM::SummarizeChatJob do
         summary.reload
         expect(summary.status).to eq 'complete'
       end
-
-      it 'sends message to chat containing summarize result' do
-        chat = create(:chat)
-        summary = create(:chat_summary, chat:, status: :running)
-        Array.new(100) do
-          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
-        end
-
-        described_class.perform_now(summary)
-
-        summary.reload
-        expect(summary.summary_message_api_id).to eq 9999
-      end
     end
   end
 end
