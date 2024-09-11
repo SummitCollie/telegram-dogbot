@@ -12,7 +12,7 @@ Like above but be very nice about it
 ### `/vibe_check`
 Analyze chat members' moods
 
-### `/stats`
+### ~~`/stats`~~ (wip)
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ## Features & Ideas
