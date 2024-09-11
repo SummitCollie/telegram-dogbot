@@ -17,6 +17,3 @@ client.set_my_commands commands: [
   { command: 'vibe_check', description: 'Run vibe analysis' }
   # { command: 'stats', description: 'Show group chat stats' }
 ]
-
-# Register endpoint for telegram webhook events in production
-Rake::Task['telegram:bot:set_webhook'].invoke if Rails.env.production?

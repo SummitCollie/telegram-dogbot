@@ -33,5 +33,8 @@ module Dogbot
 
     # https://api.rubyonrails.org/classes/ActiveJob/QueueAdapters/AsyncAdapter.html
     config.active_job.queue_adapter = :async
+
+    # Register callback url for telegram webhook events in production
+    Rake::Task['telegram:bot:set_webhook'].invoke if Rails.env.production?
   end
 end
