@@ -1,4 +1,4 @@
-# DogBot 🐶
+# <p align="center">DogBot 🐶</p>
 
 <p align="center"><img src="README-image.png" /></p>
 
