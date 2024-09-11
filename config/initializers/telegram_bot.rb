@@ -10,10 +10,13 @@ client = Telegram::Bot::Client.new(
 
 # Set slash commands available from telegram UI
 # https://core.telegram.org/bots/features#commands
-client.set_my_commands commands: [
-  { command: 'summarize',
-    description: 'Summarize messages since last summary (or as many as possible)' },
-  { command: 'summarize_nicely', description: 'Summarize more positively' },
-  { command: 'vibe_check', description: 'Run vibe analysis' }
-  # { command: 'stats', description: 'Show group chat stats' }
-]
+client.set_my_commands(
+  commands: [
+    { command: 'summarize',
+      description: 'Summarize messages since last summary (or as many as possible)' },
+    { command: 'summarize_nicely', description: 'Summarize more positively' },
+    { command: 'vibe_check', description: 'Run vibe analysis' }
+    # { command: 'stats', description: 'Show group chat stats' }
+  ],
+  language_code: 'en'
+)
