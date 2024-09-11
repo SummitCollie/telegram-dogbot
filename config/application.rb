@@ -3,7 +3,6 @@
 require_relative 'boot'
 
 require 'rails/all'
-require 'rake'
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
@@ -35,7 +34,12 @@ module Dogbot
     # https://api.rubyonrails.org/classes/ActiveJob/QueueAdapters/AsyncAdapter.html
     config.active_job.queue_adapter = :async
 
-    # Register callback url for telegram webhook events in production
-    Rake::Task['telegram:bot:set_webhook'].invoke if Rails.env.production?
+    if Rails.env.production?
+      # Register callback url for telegram webhook events in production
+      config.after_initialize do
+        Rails.application.load_tasks
+        Rake::Task['telegram:bot:set_webhook'].invoke
+      end
+    end
   end
 end
