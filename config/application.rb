@@ -10,6 +10,8 @@ Bundler.require(*Rails.groups)
 
 module Dogbot
   class Application < Rails::Application
+    include Rails.application.routes.url_helpers
+
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.1
 
