@@ -69,8 +69,4 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions
   config.action_controller.raise_on_missing_callback_actions = true
-
-  # For registering telegram bot webhook.
-  # Set in `rails credentials:edit --environment=production`
-  routes.default_url_options = { host: Rails.application.credentials.host_url, protocol: 'https' }
 end

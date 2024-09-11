@@ -85,4 +85,9 @@ Rails.application.configure do
   # ]
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # For registering telegram bot webhook.
+  # Set in `rails credentials:edit --environment=production`
+  # https://github.com/telegram-bot-rb/telegram-bot/wiki/Deployment#webhooks
+  routes.default_url_options = { host: Rails.application.credentials.host_url, protocol: 'https' }
 end
