@@ -1,5 +1,7 @@
 # DogBot 🐶
 
+<p align="center"><img src="README-image.png" /></p>
+
 ## Commands
 ### `/summarize`
 Summarize group chat messages sent since the last summary (or as many as possible)
