@@ -36,9 +36,8 @@ module Dogbot
 
     if Rails.env.production?
       # Register callback url for telegram webhook events in production
-      config.after_initialize do
+      config.after_routes_loaded do
         Rails.application.load_tasks
-        Rails.application.reload_routes!
         Rake::Task['telegram:bot:set_webhook'].invoke
       end
     end
