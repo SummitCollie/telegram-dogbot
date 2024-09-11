@@ -10,8 +10,6 @@ Bundler.require(*Rails.groups)
 
 module Dogbot
   class Application < Rails::Application
-    include Rails.application.routes.url_helpers
-
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.1
 
@@ -40,6 +38,7 @@ module Dogbot
       # Register callback url for telegram webhook events in production
       config.after_initialize do
         Rails.application.load_tasks
+        Rails.application.reload_routes!
         Rake::Task['telegram:bot:set_webhook'].invoke
       end
     end
