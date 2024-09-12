@@ -13,7 +13,7 @@ class LLMTools
       result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
 
       result
-    end.to_yaml
+    end.to_yaml({ line_width: -1 }) # Don't wrap long lines
   end
 
   def self.prompt_for_style(summary_type)
