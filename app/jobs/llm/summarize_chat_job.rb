@@ -34,10 +34,10 @@ module LLM
 
     private
 
-    def llm_summarize(messages, db_chat, summary_type)
+    def llm_summarize(db_messages, db_chat, summary_type)
       client = OpenAI::Client.new
 
-      yaml_messages = LLMTools.messages_to_yaml(messages)
+      yaml_messages = LLMTools.messages_to_yaml(db_messages)
 
       messages = [
         { role: 'system', content: LLMTools.prompt_for_style(summary_type) },
@@ -54,9 +54,13 @@ module LLM
                               result << chunk.dig('choices', 0, 'delta', 'content')
                             end
                   })
+      output = result.string.strip
 
-      result.string
-    rescue Faraday::UnprocessableEntityError => e
+      raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
+
+      output
+    rescue FuckyWuckies::SummarizeJobFailure,
+           Faraday::UnprocessableEntityError => e
       # Prompt most likely too long, raise SummarizeJobError to retry with fewer messages
       raise FuckyWuckies::SummarizeJobError.new(
         severity: Logger::Severity::INFO
