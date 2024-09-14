@@ -48,8 +48,7 @@ module LLM
       client.chat(parameters: {
                     model: Rails.application.credentials.openai.model,
                     max_tokens: 512,
-                    temperature: 1.0,
-                    min_p: 0.02,
+                    temperature: 0.7,
                     messages:,
                     stream: proc do |chunk, _bytesize|
                               result << chunk.dig('choices', 0, 'delta', 'content')
