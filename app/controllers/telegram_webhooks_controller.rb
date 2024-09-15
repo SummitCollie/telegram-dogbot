@@ -41,15 +41,6 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     # Message counts per user in a chat (only show top 5 users)
   end
 
-  ### Handle unknown commands
-  def action_missing(_action, *_args)
-    return unless action_type == :command
-
-    authorize_command!
-
-    reply_with :message, text: 'Invalid command!'
-  end
-
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
     authorize_message_storage!(message)
