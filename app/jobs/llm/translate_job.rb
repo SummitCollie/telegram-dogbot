@@ -9,23 +9,9 @@ module LLM
       TelegramTools.send_error_message(error, db_chat.api_id)
     end
 
+    # rubocop:disable Metrics/CyclomaticComplexity
     def perform(db_chat, text_to_translate, target_language = 'english')
-      if text_to_translate.blank?
-        raise FuckyWuckies::TranslateJobFailure.new(
-          severity: Logger::Severity::ERROR,
-          db_chat:,
-          frontend_message: "Translate by replying to someone's message,\nor by pasting text after the command:\n" \
-                            "\t\t`/translate hola mi amigo`\n\n" \
-                            "Specify target language:\n" \
-                            "\t\t`/translate polish hi there!`\n\n" \
-                            "Supported languages:\n" \
-                            "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
-        ), "Aborting translation: empty text_to_translate\n" \
-           "chat api_id=#{db_chat.id} title=#{db_chat.title}"
-      end
-
       result_text = llm_translate(text_to_translate, target_language)
-
       send_output_message(db_chat, result_text)
     rescue Faraday::Error => e
       model_loading_time = e&.response&.dig(
@@ -51,6 +37,7 @@ module LLM
       ), 'Translation failed: ' \
          "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
     end
+    # rubocop:enable Metrics/CyclomaticComplexity
 
     private
 

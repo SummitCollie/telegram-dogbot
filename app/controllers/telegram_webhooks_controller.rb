@@ -12,7 +12,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::NotAGroupChatError,
               FuckyWuckies::ChatNotWhitelistedError,
               FuckyWuckies::MessageFilterError,
-              FuckyWuckies::SummarizeJobFailure, with: :handle_error
+              FuckyWuckies::SummarizeJobFailure,
+              FuckyWuckies::TranslateJobFailure, with: :handle_error
 
   ### Handle commands
   # Be sure to add any new ones in config/initializers/telegram_bot.rb
@@ -90,15 +91,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     candidate_target_language = first_input_word&.downcase
     target_language = detect_target_language(candidate_target_language)
 
-    quoted_message_text = payload.reply_to_message&.text&.strip
+    text_to_translate = determine_text_to_translate(db_chat, payload, target_language, candidate_target_language)
 
-    message_text = if target_language
-                     payload.text.delete_prefix("/translate #{candidate_target_language}").strip
-                   else
-                     payload.text.delete_prefix('/translate').strip
-                   end
-
-    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, target_language)
+    LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language)
   end
 
   def detect_target_language(first_input_word)
@@ -106,6 +101,36 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
 
     supported_languages.include?(candidate) ? candidate : nil
+  end
+
+  def determine_text_to_translate(db_chat, payload, target_language, candidate_target_language)
+    # Text from the "forwarded" message (the message being replied to by the user calling /translate)
+    forwarded_message_text = payload.reply_to_message&.text&.strip
+
+    # Text from after the /translate command (ignored if forwarded_message_text exists)
+    command_message_text = if target_language
+                             payload.text.delete_prefix("/translate #{candidate_target_language}").strip
+                           else
+                             payload.text.delete_prefix('/translate').strip
+                           end
+
+    text_to_translate = forwarded_message_text || command_message_text
+
+    if text_to_translate.blank?
+      raise FuckyWuckies::TranslateJobFailure.new(
+        severity: Logger::Severity::ERROR,
+        db_chat:,
+        frontend_message: "Translate by replying to someone's message,\nor by pasting text after the command:\n" \
+                          "\t\t`/translate hola mi amigo`\n\n" \
+                          "Specify target language:\n" \
+                          "\t\t`/translate polish hi there!`\n\n" \
+                          "Supported languages:\n" \
+                          "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
+      ), "Aborting translation: empty text_to_translate\n" \
+         "chat api_id=#{db_chat.id} title=#{db_chat.title}"
+    end
+
+    text_to_translate
   end
 
   def handle_error(error)

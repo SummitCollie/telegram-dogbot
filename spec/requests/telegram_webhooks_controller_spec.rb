@@ -341,6 +341,36 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end
     end
 
+    describe '#translate!' do
+      before do
+        Rails.application.credentials.whitelist_enabled = false
+      end
+
+      context 'when not given any text to translate' do
+        it 'does not enqueue a TranslateJob' do
+          chat = create(:chat)
+          expect do
+            dispatch_command(:translate, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.not_to have_enqueued_job(LLM::TranslateJob)
+        end
+
+        it 'outputs help info' do
+          chat = create(:chat)
+          expect do
+            dispatch_command(:translate, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.to send_telegram_message(bot, /Supported languages/)
+        end
+      end
+    end
+
     describe '#stats!' # TODO: add tests for this
   end
 
