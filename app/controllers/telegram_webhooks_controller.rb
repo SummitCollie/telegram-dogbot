@@ -107,9 +107,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     # Text from after the /translate command (ignored if forwarded_message_text exists)
     command_message_text = if target_language
-                             payload.text.gsub(/^\/translate(\S?)+ #{Regexp.escape(first_input_word)}/, '').strip
+                             payload.text.gsub(%r{^/translate(\S?)+ #{Regexp.escape(first_input_word)}}, '').strip
                            else
-                             payload.text.gsub(/^\/translate(\S?)+/, '').strip
+                             payload.text.gsub(%r{^/translate(\S?)+}, '').strip
                            end
 
     text_to_translate = forwarded_message_text || command_message_text
