@@ -9,19 +9,22 @@ module LLM
       TelegramTools.send_error_message(error, db_chat.api_id)
     end
 
-    def perform(db_chat, text_to_translate, to_language = 'english')
+    def perform(db_chat, text_to_translate, target_language = 'english')
       if text_to_translate.blank?
         raise FuckyWuckies::TranslateJobFailure.new(
           severity: Logger::Severity::ERROR,
           db_chat:,
-          frontend_message: 'Translate by quoting a message or by pasting text after the command: ' \
-                            "`/translate hola mi amigo`\n\n" \
-                            'Specify target language: `/translate japanese hello, how are you?`'
+          frontend_message: "Translate by replying to someone's message,\nor by pasting text after the command:\n" \
+                            "\t\t`/translate hola mi amigo`\n\n" \
+                            "Specify target language:\n" \
+                            "\t\t`/translate polish hi there!`\n\n" \
+                            "Supported languages:\n" \
+                            "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
         ), "Aborting translation: empty text_to_translate\n" \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}"
       end
 
-      result_text = llm_translate(text_to_translate, to_language)
+      result_text = llm_translate(text_to_translate, target_language)
 
       send_output_message(db_chat, result_text)
     rescue Faraday::Error => e
@@ -49,12 +52,12 @@ module LLM
 
     private
 
-    def llm_translate(text, to_language)
+    def llm_translate(text, target_language)
       client = OpenAI::Client.new
 
       messages = [
         { role: 'system', content: LLMTools.prompt_for_style(:translate) },
-        { role: 'user', content: "Translate into #{to_language.capitalize}:\n#{text}" }
+        { role: 'user', content: "Translate into #{target_language.capitalize}:\n#{text}" }
       ]
 
       result = StringIO.new

@@ -81,23 +81,28 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def run_translate(chat, first_input_word)
     db_chat = Chat.find_by(api_id: chat.id)
+    unless db_chat
+      raise FuckyWuckies::TranslateJobFailure.new(
+        severity: Logger::Severity::ERROR
+      ), "Translate aborted: db_chat ID #{chat.id} not found"
+    end
 
-    candidate_target_language = first_input_word.downcase
+    candidate_target_language = first_input_word&.downcase
     target_language = detect_target_language(candidate_target_language)
 
     quoted_message_text = payload.reply_to_message&.text&.strip
 
     message_text = if target_language
-                     payload.text.delete_prefix("/translate #{maybe_target_language}").strip
+                     payload.text.delete_prefix("/translate #{candidate_target_language}").strip
                    else
                      payload.text.delete_prefix('/translate').strip
                    end
 
-    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, to_language)
+    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, target_language)
   end
 
   def detect_target_language(first_input_word)
-    candidate = first_input_word.downcase
+    candidate = first_input_word&.downcase
     supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
 
     supported_languages.include?(candidate) ? candidate : nil
