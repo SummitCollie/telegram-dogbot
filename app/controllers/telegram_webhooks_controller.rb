@@ -88,10 +88,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       ), "Translate aborted: db_chat ID #{chat.id} not found"
     end
 
-    candidate_target_language = first_input_word&.downcase
-    target_language = detect_target_language(candidate_target_language)
-
-    text_to_translate = determine_text_to_translate(db_chat, payload, target_language, candidate_target_language)
+    target_language = detect_target_language(first_input_word)
+    text_to_translate = determine_text_to_translate(db_chat, payload, target_language, first_input_word)
 
     LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language)
   end
@@ -103,15 +101,15 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     supported_languages.include?(candidate) ? candidate : nil
   end
 
-  def determine_text_to_translate(db_chat, payload, target_language, candidate_target_language)
+  def determine_text_to_translate(db_chat, payload, target_language, first_input_word)
     # Text from the "forwarded" message (the message being replied to by the user calling /translate)
     forwarded_message_text = payload.reply_to_message&.text&.strip
 
     # Text from after the /translate command (ignored if forwarded_message_text exists)
     command_message_text = if target_language
-                             payload.text.delete_prefix("/translate #{candidate_target_language}").strip
+                             payload.text.gsub(/^\/translate(\S?)+ #{Regexp.escape(first_input_word)}/, '').strip
                            else
-                             payload.text.delete_prefix('/translate').strip
+                             payload.text.gsub(/^\/translate(\S?)+/, '').strip
                            end
 
     text_to_translate = forwarded_message_text || command_message_text
@@ -120,10 +118,12 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       raise FuckyWuckies::TranslateJobFailure.new(
         severity: Logger::Severity::ERROR,
         db_chat:,
-        frontend_message: "Translate by replying to someone's message,\nor by pasting text after the command:\n" \
-                          "\t\t`/translate hola mi amigo`\n\n" \
-                          "Specify target language:\n" \
-                          "\t\t`/translate polish hi there!`\n\n" \
+        frontend_message: "Translate:\n" \
+                          "• Reply to a message, or\n" \
+                          "• Paste text after command:\n" \
+                          "\t\t\t\t/translate hola mi amigo\n\n" \
+                          "Choose target language:\n" \
+                          "\t\t\t\t/translate polish hi there!\n\n" \
                           "Supported languages:\n" \
                           "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
       ), "Aborting translation: empty text_to_translate\n" \

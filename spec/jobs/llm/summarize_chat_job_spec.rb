@@ -135,10 +135,6 @@ RSpec.describe LLM::SummarizeChatJob do
     end
 
     context 'when a SummarizeChatJob completes successfully' do
-      before do
-        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
-      end
-
       it 'sends summary text' do
         chat = create(:chat)
         summary = create(:chat_summary, chat:)
@@ -146,9 +142,10 @@ RSpec.describe LLM::SummarizeChatJob do
           create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
         end
 
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
         expect_any_instance_of(described_class).to receive(:send_output_message).with(chat, 'summary text')
 
-        described_class.new.perform(summary)
+        described_class.perform_now(summary)
       end
     end
   end
