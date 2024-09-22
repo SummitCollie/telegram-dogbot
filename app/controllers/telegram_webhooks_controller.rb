@@ -34,6 +34,28 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     run_summarize(chat, summary_type: :vibe_check)
   end
 
+  def translate!(maybe_to_language = nil, *)
+    authorize_command!
+
+    db_chat = Chat.find_by(api_id: chat.id)
+
+    supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
+    to_language = supported_languages.include?(maybe_to_language) ? maybe_to_language : nil
+
+    quoted_message_text = payload.reply_to_message&.text&.strip
+
+    message_text = if to_language
+      payload.text.delete_prefix("/translate #{maybe_to_language}").strip
+    else
+      payload.text.delete_prefix('/translate').strip
+    end
+
+    puts "to_language: #{to_language}"
+    puts "message_text: #{message_text}"
+
+    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, to_language)
+  end
+
   def stats!(*)
     authorize_command!
     # Messages from chat currently stored in DB

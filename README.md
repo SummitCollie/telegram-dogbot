@@ -12,6 +12,14 @@ Like above but be very nice about it
 ### `/vibe_check`
 Analyze chat members' moods
 
+### `/translate hola mi amigo`
+Translates the text to English. Alternatively, just quote another message from the chat and type `/translate` to translate that message.
+
+#### specify target language: `/translate spanish hello my friend`
+Translate to a given language. Supported languages (using suggested model Aya-23-8B):
+
+> Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
+
 ### ~~`/stats`~~ (wip)
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
@@ -23,6 +31,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
     * (`/summarize_past_summaries` command?)
 - [x] Rake task which auto-deletes old messages
+- [x] Translate text
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.

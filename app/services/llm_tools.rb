@@ -24,6 +24,8 @@ class LLMTools
       nice_summarize_prompt
     when :vibe_check
       vibe_check_prompt
+    when :translate
+      translate_prompt
     end
   end
 
@@ -40,6 +42,10 @@ class LLMTools
 
     def vibe_check_prompt
       @vibe_check_prompt ||= File.read('data/llm_prompts/vibe_check.txt')
+    end
+
+    def translate_prompt
+      @translate_prompt ||= File.read('data/llm_prompts/translate.txt')
     end
   end
 end

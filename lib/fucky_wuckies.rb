@@ -20,4 +20,5 @@ module FuckyWuckies
   class ChatNotWhitelistedError < BaseError; end
   class SummarizeJobError < BaseError; end
   class SummarizeJobFailure < BaseError; end
+  class TranslateJobFailure < BaseError; end
 end
