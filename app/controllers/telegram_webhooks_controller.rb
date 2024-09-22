@@ -102,17 +102,17 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   def determine_text_to_translate(db_chat, payload, target_language, first_input_word)
-    # Text from the "forwarded" message (the message being replied to by the user calling /translate)
-    forwarded_message_text = payload.reply_to_message&.text&.strip
+    # Text from (the message being replied to) by the user calling /translate (quote)
+    reply_parent_text = payload.reply_to_message&.text&.strip
 
-    # Text from after the /translate command (ignored if forwarded_message_text exists)
+    # Text from after the /translate command (ignored if reply_parent_text exists)
     command_message_text = if target_language
                              payload.text.gsub(%r{^/translate(\S?)+ #{Regexp.escape(first_input_word)}}, '').strip
                            else
                              payload.text.gsub(%r{^/translate(\S?)+}, '').strip
                            end
 
-    text_to_translate = forwarded_message_text || command_message_text
+    text_to_translate = reply_parent_text || command_message_text
 
     if text_to_translate.blank?
       raise FuckyWuckies::TranslateJobFailure.new(

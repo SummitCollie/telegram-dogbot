@@ -346,6 +346,22 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         Rails.application.credentials.whitelist_enabled = false
       end
 
+      context 'when a target language is specified' do
+        it 'avoids translating the language choice from user input'
+      end
+
+      context 'when a target language is not specified' do
+        it 'defaults to english as target'
+      end
+
+      context 'when translate command is a reply to an earlier message' do
+        it 'translates replied-to message to requested language'
+      end
+
+      context 'when translate command is NOT a reply to an earlier message' do
+        it 'translates any text after command to requested language'
+      end
+
       context 'when not given any text to translate' do
         it 'does not enqueue a TranslateJob' do
           chat = create(:chat)
