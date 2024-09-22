@@ -136,15 +136,19 @@ RSpec.describe LLM::SummarizeChatJob do
 
     context 'when a SummarizeChatJob completes successfully' do
       before do
-        allow_any_instance_of(described_class).to receive(:send_output_message).and_return({
-          message_id: 9999
-        }.with_indifferent_access)
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
+      end
 
-        # rubocop:disable RSpec/VerifiedDoubles
-        allow(OpenAI::Client).to receive(:new).and_return(
-          double({ chat: true })
-        )
-        # rubocop:enable RSpec/VerifiedDoubles
+      it 'sends summary text' do
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:)
+        Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end
+
+        expect_any_instance_of(described_class).to receive(:send_output_message).with(chat, 'summary text')
+
+        described_class.new.perform(summary)
       end
     end
   end
