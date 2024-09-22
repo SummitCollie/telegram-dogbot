@@ -28,14 +28,16 @@ module LLM
 
       send_output_message(db_chat, result_text)
     rescue Faraday::Error => e
-      model_loading_time = e&.response&.dig(:body, 'estimated_time')&.round
+      model_loading_time = e&.response&.dig(
+        :body, 'estimated_time'
+      )&.seconds&.in_minutes&.round
 
       if model_loading_time
         raise FuckyWuckies::TranslateJobFailure.new(
           severity: Logger::Severity::ERROR,
           db_chat:,
           frontend_message: "--- Model Loading! ---\n" \
-                            "API claims it should be ready in #{model_loading_time} seconds.\n" \
+                            "API claims it should be ready in ~#{model_loading_time} mins.\n" \
                             'But the API frequently lies so just try again later.'
         ), "Translation model loading, supposedly ready in #{model_loading_time}s: " \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
@@ -54,6 +56,7 @@ module LLM
 
     def llm_translate(text, target_language)
       client = OpenAI::Client.new
+      # client.add_headers('x-wait-for-model' => 'true')
 
       messages = [
         { role: 'system', content: LLMTools.prompt_for_style(:translate) },
