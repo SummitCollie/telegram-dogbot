@@ -2,7 +2,7 @@
 
 module LLM
   class TranslateJob < ApplicationJob
-    discard_on(FuckyWuckies::TranslateJobFailure) do |job, error|
+    discard_on(FuckyWuckies::TranslateJobFailure) do |_job, error|
       db_chat = error.db_chat
       raise error if db_chat.blank?
 
@@ -33,9 +33,9 @@ module LLM
           db_chat:,
           frontend_message: "--- Model Loading! ---\n" \
                             "API claims it should be ready in #{model_loading_time} seconds.\n" \
-                            "But the API frequently lies so just try again later.",
+                            'But the API frequently lies so just try again later.'
         ), "Translation model loading, supposedly ready in #{model_loading_time}s: " \
-          "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
+           "chat api_id=#{db_chat.id} title=#{db_chat.title}\n#{e}"
       end
 
       raise FuckyWuckies::TranslateJobFailure.new(

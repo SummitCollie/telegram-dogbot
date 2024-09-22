@@ -34,26 +34,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     run_summarize(chat, summary_type: :vibe_check)
   end
 
-  def translate!(maybe_to_language = nil, *)
+  def translate!(first_input_word = nil, *)
     authorize_command!
 
-    db_chat = Chat.find_by(api_id: chat.id)
-
-    supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
-    to_language = supported_languages.include?(maybe_to_language) ? maybe_to_language : nil
-
-    quoted_message_text = payload.reply_to_message&.text&.strip
-
-    message_text = if to_language
-      payload.text.delete_prefix("/translate #{maybe_to_language}").strip
-    else
-      payload.text.delete_prefix('/translate').strip
-    end
-
-    puts "to_language: #{to_language}"
-    puts "message_text: #{message_text}"
-
-    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, to_language)
+    run_translate(chat, first_input_word)
   end
 
   def stats!(*)
@@ -93,6 +77,30 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   rescue StandardError => e
     db_summary&.destroy!
     raise e
+  end
+
+  def run_translate(chat, first_input_word)
+    db_chat = Chat.find_by(api_id: chat.id)
+
+    candidate_target_language = first_input_word.downcase
+    target_language = detect_target_language(candidate_target_language)
+
+    quoted_message_text = payload.reply_to_message&.text&.strip
+
+    message_text = if target_language
+                     payload.text.delete_prefix("/translate #{maybe_target_language}").strip
+                   else
+                     payload.text.delete_prefix('/translate').strip
+                   end
+
+    LLM::TranslateJob.perform_later(db_chat, quoted_message_text || message_text, to_language)
+  end
+
+  def detect_target_language(first_input_word)
+    candidate = first_input_word.downcase
+    supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
+
+    supported_languages.include?(candidate) ? candidate : nil
   end
 
   def handle_error(error)

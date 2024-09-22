@@ -31,7 +31,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Feed previous summaries back into LLM prompt for longer "memory"
     * (`/summarize_past_summaries` command?)
 - [x] Rake task which auto-deletes old messages
-- [x] Translate text
+- [x] Translate messages & quoted messages between different languages
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
