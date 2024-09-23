@@ -4,6 +4,8 @@ require 'rails_helper'
 require 'telegram/bot/rspec/integration/rails'
 
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
+  include ActiveJob::TestHelper
+
   # rubocop:disable RSpec/BeforeAfterAll
   before :all do
     Rails.application.credentials.whitelist_enabled = true
@@ -347,19 +349,67 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end
 
       context 'when a target language is specified' do
-        it 'avoids translating the language choice from user input'
+        it 'excludes language choice (first word after command) from translated text' do
+          chat = create(:chat)
+          expect do
+            dispatch_command(:translate, 'french hello how are you?', {
+                               chat: Telegram::Bot::Types::Chat.new(
+                                 id: chat.api_id,
+                                 type: 'supergroup',
+                                 title: chat.title
+                               )
+                             })
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hello how are you?', 'french')
+        end
       end
 
-      context 'when a target language is not specified' do
-        it 'defaults to english as target'
+      context 'when a target language is NOT specified' do
+        it 'leaves first word of input in translated text' do
+          chat = create(:chat)
+          expect do
+            dispatch_command(:translate, 'hola mi amigo', {
+                               chat: Telegram::Bot::Types::Chat.new(
+                                 id: chat.api_id,
+                                 type: 'supergroup',
+                                 title: chat.title
+                               )
+                             })
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hola mi amigo', nil)
+        end
       end
 
       context 'when translate command is a reply to an earlier message' do
-        it 'translates replied-to message to requested language'
-      end
+        it 'translates text from replied-to message' do
+          chat = create(:chat)
+          message_to_translate = Telegram::Bot::Types::Message.new(text: 'text to translate')
 
-      context 'when translate command is NOT a reply to an earlier message' do
-        it 'translates any text after command to requested language'
+          expect do
+            dispatch_command(:translate, {
+                               chat: Telegram::Bot::Types::Chat.new(
+                                 id: chat.api_id,
+                                 type: 'supergroup',
+                                 title: chat.title
+                               ),
+                               reply_to_message: message_to_translate
+                             })
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', nil)
+        end
+
+        it 'still searches for target language after command' do
+          chat = create(:chat)
+          message_to_translate = Telegram::Bot::Types::Message.new(text: 'text to translate')
+
+          expect do
+            dispatch_command(:translate, 'french', {
+                               chat: Telegram::Bot::Types::Chat.new(
+                                 id: chat.api_id,
+                                 type: 'supergroup',
+                                 title: chat.title
+                               ),
+                               reply_to_message: message_to_translate
+                             })
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', 'french')
+        end
       end
 
       context 'when not given any text to translate' do
