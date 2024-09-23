@@ -361,6 +361,19 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                              })
           end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hello how are you?', 'french', anything, anything)
         end
+
+        it 'detects target language regardless of capitalization' do
+          chat = create(:chat)
+          expect do
+            dispatch_command(:translate, 'FrEncH hello how are you?', {
+                               chat: Telegram::Bot::Types::Chat.new(
+                                 id: chat.api_id,
+                                 type: 'supergroup',
+                                 title: chat.title
+                               )
+                             })
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hello how are you?', 'french', anything, anything)
+        end
       end
 
       context 'when a target language is NOT specified' do
