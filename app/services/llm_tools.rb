@@ -13,6 +13,7 @@ class LLMTools
       result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
 
       # avoids ':' prefix on every key in the resulting YAML
+      # https://stackoverflow.com/a/53093339
       result.deep_stringify_keys
     end.to_yaml({ line_width: -1 }) # Don't wrap long lines
   end
