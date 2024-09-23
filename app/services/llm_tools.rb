@@ -12,7 +12,8 @@ class LLMTools
       result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
       result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
 
-      result
+      # avoids ':' prefix on every key in the resulting YAML
+      result.deep_stringify_keys
     end.to_yaml({ line_width: -1 }) # Don't wrap long lines
   end
 

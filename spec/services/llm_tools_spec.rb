@@ -23,13 +23,13 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.first[:id]).to eq messages.first.api_id
-      expect(results.first[:user]).to eq messages.first.user.first_name
-      expect(results.first[:text]).to eq messages.first.text
+      expect(results.first['id']).to eq messages.first.api_id
+      expect(results.first['user']).to eq messages.first.user.first_name
+      expect(results.first['text']).to eq messages.first.text
 
-      expect(results.last[:id]).to eq messages.last.api_id
-      expect(results.last[:user]).to eq messages.last.user.first_name
-      expect(results.last[:text]).to eq messages.last.text
+      expect(results.last['id']).to eq messages.last.api_id
+      expect(results.last['user']).to eq messages.last.user.first_name
+      expect(results.last['text']).to eq messages.last.text
     end
 
     it 'sets `reply_to` when parent message within context' do
@@ -40,7 +40,7 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last[:reply_to]).to eq messages.first.api_id
+      expect(results.last['reply_to']).to eq messages.first.api_id
     end
 
     it 'omits `reply_to` when parent message outside of context' do
@@ -48,11 +48,11 @@ RSpec.describe LLMTools do
       parent_message = create(:message, chat:, date: 3.minutes.ago)
       response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
       create(:message, chat:, date: 1.minute.ago)
-      messages = [response_message, response_message]
+      messages = [response_message]
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last.key?(:reply_to)).to be false
+      expect(results.last.key?('reply_to')).to be false
     end
 
     it 'sets `attachment_type` for messages with attachments' do
@@ -63,7 +63,7 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.first[:attachment]).to eq 'photo'
+      expect(results.first['attachment']).to eq 'photo'
     end
 
     it 'omits `attachment_type` for messages without attachments' do
@@ -74,7 +74,7 @@ RSpec.describe LLMTools do
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 
-      expect(results.last.key?(:attachment)).to be false
+      expect(results.last.key?('attachment')).to be false
     end
   end
 end
