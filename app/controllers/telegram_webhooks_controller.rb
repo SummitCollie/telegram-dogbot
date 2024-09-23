@@ -38,7 +38,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def translate!(first_input_word = nil, *)
     authorize_command!
 
-    run_translate(chat, first_input_word)
+    command_message_from = payload.from.first_name
+    parent_message_from = payload.reply_to_message&.from&.first_name
+
+    run_translate(chat, first_input_word, command_message_from, parent_message_from)
   end
 
   def stats!(*)
@@ -80,7 +83,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     raise e
   end
 
-  def run_translate(chat, first_input_word)
+  def run_translate(chat, first_input_word, command_message_from, parent_message_from)
     db_chat = Chat.find_by(api_id: chat.id)
     unless db_chat
       raise FuckyWuckies::TranslateJobFailure.new(
@@ -91,7 +94,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     target_language = detect_target_language(first_input_word)
     text_to_translate = determine_text_to_translate(db_chat, payload, target_language, first_input_word)
 
-    LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language)
+    LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language, command_message_from,
+                                    parent_message_from)
   end
 
   def detect_target_language(first_input_word)
@@ -118,13 +122,13 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       raise FuckyWuckies::TranslateJobFailure.new(
         severity: Logger::Severity::ERROR,
         db_chat:,
-        frontend_message: "Translate:\n" \
+        frontend_message: "💬 Translate\n" \
                           "• Reply to a message, or\n" \
                           "• Paste text after command:\n" \
                           "\t\t\t\t/translate hola mi amigo\n\n" \
-                          "Choose target language:\n" \
+                          "⚙️ Choose target language\n" \
                           "\t\t\t\t/translate polish hi there!\n\n" \
-                          "Supported languages:\n" \
+                          "❔ Supported languages\n" \
                           "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
       ), "Aborting translation: empty text_to_translate\n" \
          "chat api_id=#{db_chat.id} title=#{db_chat.title}"

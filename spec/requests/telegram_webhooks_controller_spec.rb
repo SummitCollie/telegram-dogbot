@@ -359,7 +359,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                  title: chat.title
                                )
                              })
-          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hello how are you?', 'french')
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hello how are you?', 'french', anything, anything)
         end
       end
 
@@ -374,7 +374,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                  title: chat.title
                                )
                              })
-          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hola mi amigo', nil)
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'hola mi amigo', nil, anything, anything)
         end
       end
 
@@ -392,7 +392,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                ),
                                reply_to_message: message_to_translate
                              })
-          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', nil)
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', nil, anything, anything)
         end
 
         it 'still searches for target language after command' do
@@ -408,7 +408,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                ),
                                reply_to_message: message_to_translate
                              })
-          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', 'french')
+          end.to have_enqueued_job(LLM::TranslateJob).with(chat, 'text to translate', 'french', anything, anything)
         end
       end
 
