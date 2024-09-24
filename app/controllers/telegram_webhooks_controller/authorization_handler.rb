@@ -30,12 +30,13 @@ class TelegramWebhooksController
       end
     end
 
+    # rubocop:disable Metrics/CyclomaticComplexity
     def authorize_message_storage!(message)
       if from_bot?
         raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
       end
 
-      if empty_text?(message)
+      if empty_text?(message) && !message.sticker&.emoji
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
                                                     "message api_id=#{message.message_id}"
       end
@@ -54,10 +55,11 @@ class TelegramWebhooksController
       if whitelist_enabled? && !chat_in_whitelist?
         raise FuckyWuckies::ChatNotWhitelistedError.new(
           severity: Logger::Severity::INFO
-        ), 'Not saving message from un-whitelisted chat: ' \
+        ), 'Not saving message from non-whitelisted chat: ' \
            "chat api_id=#{chat.id} username=@#{chat.username} title=#{chat.title}"
       end
     end
+    # rubocop:enable Metrics/CyclomaticComplexity
 
     private
 

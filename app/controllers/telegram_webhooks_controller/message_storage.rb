@@ -64,7 +64,7 @@ class TelegramWebhooksController
         db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
-      db_message.text = db_message.attachment_type ? message.caption : message.text
+      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
       db_message.date = Time.zone.at(message.date).to_datetime
 
       db_message.save!
@@ -81,10 +81,18 @@ class TelegramWebhooksController
         db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
-      db_message.text = db_message.attachment_type ? message.caption : message.text
+      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
 
       db_message.save!
       db_message
+    end
+
+    def determine_message_text(has_attached_media, message)
+      if message.sticker&.emoji
+        message.sticker&.emoji
+      else
+        has_attached_media ? message.caption : message.text
+      end
     end
   end
 end

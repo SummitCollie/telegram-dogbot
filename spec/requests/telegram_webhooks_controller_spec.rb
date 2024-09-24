@@ -47,6 +47,15 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     }
   end
 
+  let(:sticker_message_options) do
+    {
+      sticker: {
+        file_id: 'sticker_file_id',
+        emoji: '🙂'
+      }
+    }
+  end
+
   describe '#message' do
     context 'when message should be stored' do
       it 'creates User record if missing' do
@@ -119,6 +128,16 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message1.reload.replies).to include(message2)
         expect(message2.reply_to_message).to eq message1
       end
+
+      it 'saves related emoji from sticker messages as message text' do
+        options = default_message_options.merge(sticker_message_options)
+        dispatch_message nil, options
+
+        user = User.find_by(api_id: options[:from].id)
+        message1 = user.messages.last
+
+        expect(message1.reload.text).to eq(options[:sticker][:emoji])
+      end
     end
 
     context 'when a message is edited' do
@@ -175,19 +194,19 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     end
 
     context 'when message should not be stored' do
-      it 'does not create User record for unauthorized chats' do
+      it 'does not create User record for non-whitelisted chats' do
         expect do
           dispatch_message 'text', { chat: { id: 0o0000 } }
         end.not_to change(User, :count)
       end
 
-      it 'does not create Chat record for unauthorized chats' do
+      it 'does not create Chat record for non-whitelisted chats' do
         expect do
           dispatch_message 'text', { chat: { id: 0o0000 } }
         end.not_to change(Chat, :count)
       end
 
-      it 'does not store messages from unauthorized group chats' do
+      it 'does not store messages from non-whitelisted group chats' do
         expect do
           dispatch_message 'text', { chat: { id: 0o0000 } }
         end.not_to change(Message, :count)
