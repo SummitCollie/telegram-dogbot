@@ -58,14 +58,14 @@ class TelegramWebhooksController
     # https://core.telegram.org/bots/api#message
     def create_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.build(api_id: message.message_id)
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
 
       Message.attachment_types.each_key do |attachment_type|
         db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
-      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
       db_message.date = Time.zone.at(message.date).to_datetime
+      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
+      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
 
       db_message.save!
       db_message
@@ -75,12 +75,11 @@ class TelegramWebhooksController
       db_message = db_chat_user.messages.find_by(api_id: message.message_id)
       return unless db_message
 
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
-
       Message.attachment_types.each_key do |attachment_type|
         db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
+      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
       db_message.text = determine_message_text(db_message.attachment_type.present?, message)
 
       db_message.save!

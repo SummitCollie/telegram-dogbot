@@ -32,7 +32,7 @@ RSpec.describe LLMTools do
       expect(results.last['text']).to eq messages.last.text
     end
 
-    it 'sets `reply_to` when parent message within context' do
+    it 'sets `reply_to` to parent message ID when parent message within context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 2.minutes.ago)
       response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
@@ -43,7 +43,7 @@ RSpec.describe LLMTools do
       expect(results.last['reply_to']).to eq messages.first.api_id
     end
 
-    it 'omits `reply_to` when parent message outside of context' do
+    it 'omits `reply_to` when parent message outside context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 3.minutes.ago)
       response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
