@@ -6,32 +6,7 @@ require 'telegram/bot/rspec/integration/rails'
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   include ActiveJob::TestHelper
 
-  # rubocop:disable RSpec/BeforeAfterAll
-  before :all do
-    Rails.application.credentials.whitelist_enabled = true
-    Rails.application.credentials.chat_id_whitelist = [12345]
-  end
-  # rubocop:enable RSpec/BeforeAfterAll
-
-  def default_message_options
-    {
-      message_id: rand(1000..9999),
-      date: Time.current.to_i,
-      from: Telegram::Bot::Types::User.new(
-        id: 123456789,
-        is_bot: false,
-        first_name: 'First Name String',
-        username: 'tgUsernameString',
-        language_code: 'en'
-      ),
-      chat: Telegram::Bot::Types::Chat.new(
-        id: 12345,
-        type: 'group',
-        title: 'Chatroom Name String',
-        all_members_are_administrators: true
-      )
-    }
-  end
+  let(:known_commands) { %w[summarize summarize_nicely vibe_check translate].freeze }
 
   let(:photo_message_options) do
     {
@@ -55,6 +30,33 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       }
     }
   end
+
+  def default_message_options
+    {
+      message_id: rand(1000..9999),
+      date: Time.current.to_i,
+      from: Telegram::Bot::Types::User.new(
+        id: 123456789,
+        is_bot: false,
+        first_name: 'First Name String',
+        username: 'tgUsernameString',
+        language_code: 'en'
+      ),
+      chat: Telegram::Bot::Types::Chat.new(
+        id: 12345,
+        type: 'group',
+        title: 'Chatroom Name String',
+        all_members_are_administrators: true
+      )
+    }
+  end
+
+  # rubocop:disable RSpec/BeforeAfterAll
+  before :all do
+    Rails.application.credentials.whitelist_enabled = true
+    Rails.application.credentials.chat_id_whitelist = [12345]
+  end
+  # rubocop:enable RSpec/BeforeAfterAll
 
   describe '#message' do
     context 'when message should be stored' do
@@ -137,6 +139,56 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         message1 = user.messages.last
 
         expect(message1.reload.text).to eq(options[:sticker][:emoji])
+      end
+
+      it 'saves known bot commands' do
+        chat = create(:chat, api_id: 12345)
+
+        known_commands.each do |command|
+          dispatch_command(command.to_sym, {
+                             date: Time.current.to_i,
+                             from: Telegram::Bot::Types::User.new(
+                               id: 123456789,
+                               is_bot: false,
+                               first_name: 'First Name String',
+                               username: 'tgUsernameString',
+                               language_code: 'en'
+                             ),
+                             chat: Telegram::Bot::Types::Chat.new(
+                               id: chat.api_id,
+                               type: 'supergroup',
+                               title: chat.title
+                             )
+                           })
+
+          new_message = chat.messages.order(:date).reload.last
+
+          expect(new_message.text).to match %r{^/#{command}?+}
+        end
+      end
+
+      it 'saves unknown bot commands' do
+        chat = create(:chat, api_id: 12345)
+
+        dispatch_command(:some_unsupported_command, {
+                           date: Time.current.to_i,
+                           from: Telegram::Bot::Types::User.new(
+                             id: 123456789,
+                             is_bot: false,
+                             first_name: 'First Name String',
+                             username: 'tgUsernameString',
+                             language_code: 'en'
+                           ),
+                           chat: Telegram::Bot::Types::Chat.new(
+                             id: chat.api_id,
+                             type: 'supergroup',
+                             title: chat.title
+                           )
+                         })
+
+        new_message = chat.messages.order(:date).reload.last
+
+        expect(new_message.text).to eq '/some_unsupported_command'
       end
     end
 
@@ -470,13 +522,6 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
     end
 
     describe '#stats!' # TODO: add tests for this
-  end
-
-  context 'when an unsupported command is sent' do
-    it 'does nothing' do
-      dispatch time_travel: { back_to: :the_future }
-      expect(response).to be_ok
-    end
   end
 end
 

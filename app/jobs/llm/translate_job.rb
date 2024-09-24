@@ -86,7 +86,7 @@ module LLM
         return "<#{@parent_message_from} via #{@command_message_from}>"
       end
 
-      return "<#{@command_message_from}>"
+      "<#{@command_message_from}>"
     end
 
     def send_output_message(text)
