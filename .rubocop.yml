@@ -33,6 +33,9 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Enabled: false
 
+Metrics/ClassLength:
+  Enabled: false
+
 Naming/AsciiIdentifiers:
   AsciiConstants: false
 

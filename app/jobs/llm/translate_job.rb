@@ -82,9 +82,11 @@ module LLM
     end
 
     def username_header
-      return "<#{@command_message_from}>" unless @parent_message_from
+      if @parent_message_from && @parent_message_from != @command_message_from
+        return "<#{@parent_message_from} via #{@command_message_from}>"
+      end
 
-      "<#{@parent_message_from} via #{@command_message_from}>"
+      "<#{@command_message_from}>"
     end
 
     def send_output_message(text)

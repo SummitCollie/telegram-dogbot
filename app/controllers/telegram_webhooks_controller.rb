@@ -19,36 +19,55 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   # Be sure to add any new ones in config/initializers/telegram_bot.rb
   def summarize!(*)
     authorize_command!
+    authorize_message_storage!(payload)
 
+    store_message(payload)
     run_summarize(chat, summary_type: :default)
   end
 
   def summarize_nicely!(*)
     authorize_command!
+    authorize_message_storage!(payload)
 
+    store_message(payload)
     run_summarize(chat, summary_type: :nice)
   end
 
   def vibe_check!(*)
     authorize_command!
+    authorize_message_storage!(payload)
 
+    store_message(payload)
     run_summarize(chat, summary_type: :vibe_check)
   end
 
   def translate!(first_input_word = nil, *)
     authorize_command!
+    authorize_message_storage!(payload)
 
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
 
+    store_message(payload)
     run_translate(chat, first_input_word, command_message_from, parent_message_from)
   end
 
   def stats!(*)
     authorize_command!
+    authorize_message_storage!(payload)
     # Messages from chat currently stored in DB
     # Total messages seen from chat (including deleted)
     # Message counts per user in a chat (only show top 5 users)
+
+    # store_message(payload)
+  end
+
+  ### Handle unknown commands
+  def action_missing(_action, *_args)
+    authorize_command!
+    authorize_message_storage!(payload)
+
+    store_message(payload)
   end
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
