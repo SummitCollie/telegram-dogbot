@@ -92,7 +92,7 @@ module LLM
     def send_output_message(text)
       Telegram.bot.send_message(
         chat_id: @db_chat.api_id,
-        protect_content: true,
+        protect_content: false,
         text: "#{username_header}\n#{text}"
       )
     end
