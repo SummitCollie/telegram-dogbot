@@ -30,15 +30,14 @@ class TelegramWebhooksController
       end
     end
 
-    # rubocop:disable Metrics/CyclomaticComplexity
     def authorize_message_storage!(message)
       if from_bot?
         raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
       end
 
-      if empty_text?(message) && !message.sticker&.emoji
+      if empty_text?(message)
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
-                                                    "message api_id=#{message.message_id}"
+                                                    "message api_id=#{message.try(:message_id) || '?'}"
       end
 
       unless group_chat?
@@ -59,7 +58,6 @@ class TelegramWebhooksController
            "chat api_id=#{chat.id} username=@#{chat.username} title=#{chat.title}"
       end
     end
-    # rubocop:enable Metrics/CyclomaticComplexity
 
     private
 
@@ -68,8 +66,15 @@ class TelegramWebhooksController
     end
 
     def empty_text?(message)
+      return false if message.try(:text).present?
+
+      # Sticker message with emoji we can log as message text
+      return false if message.try(:sticker).try(:emoji).present?
+
       # Caption is used when message has an attachment (photo, video, ...)
-      message.text.blank? && message.caption.blank?
+      return false if message.try(:caption).present?
+
+      true
     end
 
     def group_chat?
