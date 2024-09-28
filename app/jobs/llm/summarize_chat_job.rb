@@ -46,7 +46,7 @@ module LLM
 
       result = StringIO.new
       client.chat(parameters: {
-                    model: Rails.application.credentials.openai.model,
+                    model: Rails.application.credentials.summarize.model,
                     max_tokens: 512,
                     temperature: 1.0,
                     messages:,
