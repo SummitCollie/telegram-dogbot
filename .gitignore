@@ -44,3 +44,6 @@ devenv.local.nix
 # Ignore keys for decrypting credentials.
 /config/master.key
 /config/credentials/production.key
+
+# Ignore justfile (in favor of justfile.sample)
+justfile

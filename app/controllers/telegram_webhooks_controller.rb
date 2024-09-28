@@ -119,7 +119,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def detect_target_language(first_input_word)
     candidate = first_input_word&.downcase
-    supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
+    supported_languages = Rails.application.credentials.translate.languages&.map(&:downcase)
 
     supported_languages.include?(candidate) ? candidate : nil
   end
@@ -148,7 +148,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
                           "⚙️ Choose target language\n" \
                           "\t\t\t\t/translate polish hi there!\n\n" \
                           "❔ Supported languages\n" \
-                          "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
+                          "#{Rails.application.credentials.translate.languages.join(', ')}"
       ), "Aborting translation: empty text_to_translate\n" \
          "chat api_id=#{db_chat.id} title=#{db_chat.title}"
     end

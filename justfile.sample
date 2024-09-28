@@ -1,0 +1,27 @@
+run:
+  heroku local --procfile=Procfile.dev
+
+test:
+  rubocop & rspec & wait
+
+edit-creds-dev:
+  rails credentials:edit
+
+edit-creds-prod:
+  rails credentials:edit --environment=production
+
+# If you want to self-host an LLM using koboldcpp, this generates SSH keys for kobold
+generate-self-signed-cert:
+  openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 \
+    -nodes -keyout example.com.key.pem -out example.com.crt.pem -subj "/CN=example.com"
+
+# Convenience script to run koboldcpp. Replace paths to koboldcpp and your model,
+# then configure options (run koboldcpp with `--help`)
+start-koboldcpp-api:
+  ~/path/to/koboldcpp-linux-x64-cuda1210 \
+    --model ~/path/to/model/like/aya-23-35B-Q4_K_S.gguf \
+    --contextsize 4096 --noshift \
+    --usecublas --flashattention --gpulayers -1 \ # -1 to autodetect
+    --threads 15 --skiplauncher --quiet \
+    --ssl ~/path/to/cert.pem ~/path/to/key.pem --nocertify \
+    --password superSecretApiKeyGoesHere # echo "some long input to hash" | sha256sum
