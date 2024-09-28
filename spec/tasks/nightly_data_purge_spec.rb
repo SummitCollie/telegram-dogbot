@@ -5,10 +5,10 @@ require 'rake'
 
 Rails.application.load_tasks
 
-RSpec.describe 'Rake Task: purge_old_telegram_messages' do
+RSpec.describe 'Rake Task: nightly_data_purge' do
   # Rake prevents repeated re-runs of tasks by default smh
   # HOURS of debugging
-  after { Rake::Task['purge_old_telegram_messages'].reenable }
+  after { Rake::Task['nightly_data_purge'].reenable }
 
   # rubocop:disable RSpec/LetSetup
   context 'when some messages in DB are > 2 days old' do
@@ -40,7 +40,7 @@ RSpec.describe 'Rake Task: purge_old_telegram_messages' do
     end
 
     it 'deletes messages > 2 days old' do
-      Rake::Task['purge_old_telegram_messages'].invoke
+      Rake::Task['nightly_data_purge'].invoke
 
       all_messages = Message.all
 
@@ -51,7 +51,7 @@ RSpec.describe 'Rake Task: purge_old_telegram_messages' do
     end
 
     it 'does not delete messages < 2 days old' do
-      Rake::Task['purge_old_telegram_messages'].invoke
+      Rake::Task['nightly_data_purge'].invoke
 
       all_messages = Message.all
 
@@ -65,7 +65,7 @@ RSpec.describe 'Rake Task: purge_old_telegram_messages' do
     parent_message = create(:message, chat:, date: 3.days.ago)
     reply_message = create(:message, chat:, reply_to_message_id: parent_message.id)
 
-    Rake::Task['purge_old_telegram_messages'].invoke
+    Rake::Task['nightly_data_purge'].invoke
 
     expect { parent_message.reload.id }.to raise_error(ActiveRecord::RecordNotFound)
     expect(reply_message.reload.reply_to_message).to be_nil
@@ -89,8 +89,26 @@ RSpec.describe 'Rake Task: purge_old_telegram_messages' do
 
     it 'does nothing' do
       expect do
-        Rake::Task['purge_old_telegram_messages'].invoke
+        Rake::Task['nightly_data_purge'].invoke
       end.not_to change(Message, :count)
+    end
+  end
+
+  context 'when some ChatSummaries in DB are > 2 days old' do
+    it 'deletes ChatSummaries > 2 days old' do
+      create(:chat_summary, status: :complete, created_at: 3.days.ago)
+
+      expect do
+        Rake::Task['nightly_data_purge'].invoke
+      end.to change(ChatSummary, :count).by(-1)
+    end
+
+    it 'does not delete ChatSummaries < 2 days old' do
+      create(:chat_summary, status: :complete, created_at: 1.day.ago)
+
+      expect do
+        Rake::Task['nightly_data_purge'].invoke
+      end.not_to change(ChatSummary, :count)
     end
   end
   # rubocop:enable RSpec/LetSetup
