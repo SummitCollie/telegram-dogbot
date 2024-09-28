@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Message < ApplicationRecord
-  enum :attachment_type, %i[animation audio document photo video voice]
+  enum :attachment_type, { animation: 0, audio: 1, document: 2, photo: 3, video: 4, voice: 5 }
 
   belongs_to :chat_user, counter_cache: :num_stored_messages # increment counter on create
   belongs_to :reply_to_message, class_name: 'Message', optional: true, inverse_of: :replies

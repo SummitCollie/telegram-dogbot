@@ -2,7 +2,7 @@
 
 class Chat < ApplicationRecord
   # _room suffix because `private` is a reserved word in ruby
-  enum :api_type, %i[private_room group_room supergroup_room channel_room]
+  enum :api_type, { private_room: 0, group_room: 1, supergroup_room: 2, channel_room: 3 }
 
   has_many :chat_summaries, dependent: :destroy
   has_many :chat_users, dependent: :destroy
