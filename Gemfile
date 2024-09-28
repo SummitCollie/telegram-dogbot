@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-ruby '3.3.4'
+ruby '3.3.5'
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem 'rails', '~> 7.1.3', '>= 7.1.3.4'
@@ -46,6 +46,7 @@ group :development, :test do
   gem 'debug', platforms: %i[mri windows]
   gem 'factory_bot_rails'
   gem 'faker'
+  gem 'ostruct' # undeclared dependency of pry
   gem 'pry'
   gem 'pry-byebug'
   gem 'rspec-rails', '~> 6.1.3'
