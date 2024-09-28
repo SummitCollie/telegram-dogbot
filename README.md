@@ -46,15 +46,12 @@ Designed to be deployed on Heroku, but should be adaptable to any service.
 1. Copy the master key encrypting your rails prod credentials [config/credentials/production.key](config/credentials/production.key) and make it available on your server as an environment variable `RAILS_MASTER_KEY`.
 2. You can also set `RAILS_SERVE_STATIC_FILES` to `disabled` if you want.
 
-### Purge messages > 2 days old from DB using Heroku Scheduler
-A rake task `rake purge_old_telegram_messages` is set up to purge old messages from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
+### Purge data > 2 days old from DB using Heroku Scheduler
+A rake task [`rake nightly_data_purge`](lib/tasks/nightly_data_purge.rake) is set up to purge old messages/users/other data from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
 
 Add the free Heroku Scheduler addon to your app and then configure it with:
 1. Run every day at 12:00am UTC
-2. Run command: `rake purge_old_telegram_messages`
-
-### Heroku Scheduler
-A rake task `rake purge_old_telegram_messages` is set up to purge old messages from the DB. This is intended to be run on a daily basis by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task.
+2. Run command: `rake nightly_data_purge`
 
 ## Local Development
 ### Install
