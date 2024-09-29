@@ -35,4 +35,14 @@ class Chat < ApplicationRecord
       messages.includes(:user).order(:date).last(200)
     end
   end
+
+  # Count of messages from this chat currently stored in DB
+  def num_messages_in_db
+    chat_users&.pluck(:num_stored_messages)&.reduce(:+)
+  end
+
+  # Count of messages seen in chat (including ones no longer in DB)
+  def num_messages_total
+    chat_users&.pluck(:num_chatuser_messages)&.reduce(:+)
+  end
 end

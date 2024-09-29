@@ -20,46 +20,48 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def summarize!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :default)
   end
 
   def summarize_nicely!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :nice)
   end
 
   def vibe_check!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :vibe_check)
   end
 
   def translate!(first_input_word = nil, *)
     authorize_command!
     authorize_message_storage!(payload)
+    store_message(payload)
 
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
 
-    store_message(payload)
     run_translate(chat, first_input_word, command_message_from, parent_message_from)
   end
 
   def stats!(*)
     authorize_command!
     authorize_message_storage!(payload)
-    # Messages from chat currently stored in DB
-    # Total messages seen from chat (including deleted)
-    # Message counts per user in a chat (only show top 5 users)
+    store_message(payload)
 
-    # store_message(payload)
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      protect_content: true,
+      text: chat_stats_text
+    )
   end
 
   ### Handle unknown commands
@@ -154,6 +156,27 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     end
 
     text_to_translate
+  end
+
+  def chat_stats_text
+    db_chat = Chat.find_by(api_id: chat.id)
+    top_5_users = Chat.joins(:users)
+                      .where(api_id: chat.id)
+                      .order('users.num_chatuser_messages desc')
+                      .limit(5)
+
+    if db_chat.blank? || top_5_users.blank?
+      raise FuckyWuckies::NotAGroupChatError.new(
+        severity: Logger::Severity::ERROR
+      ), 'No chat_users exist yet in this chat'
+    end
+
+    "📊 Stats\n" \
+    "Messages in DB: #{db_chat.num_messages_in_db}\n" \
+    "Total Messages: #{db_chat.num_messages_total}\n\n" \
+    "Top yappers:\n" + top_5_users.map.with_index do |u, i|
+      "\t\t#{i + 1}. #{u.first_name} / #{num_chatuser_messages} msgs\n"
+    end
   end
 
   def handle_error(error)
