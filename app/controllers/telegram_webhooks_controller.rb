@@ -160,23 +160,34 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def chat_stats_text
     db_chat = Chat.find_by(api_id: chat.id)
-    top_5_users = Chat.joins(:users)
-                      .where(api_id: chat.id)
-                      .order('users.num_chatuser_messages desc')
-                      .limit(5)
+    chat_users = ChatUser.joins(:user).where(chat_id: db_chat.id)
 
-    if db_chat.blank? || top_5_users.blank?
+    if db_chat.blank? || chat_users.blank?
       raise FuckyWuckies::NotAGroupChatError.new(
         severity: Logger::Severity::ERROR
       ), 'No chat_users exist yet in this chat'
     end
 
-    "📊 Stats\n" \
-    "Messages in DB: #{db_chat.num_messages_in_db}\n" \
-    "Total Messages: #{db_chat.num_messages_total}\n\n" \
-    "Top yappers:\n" + top_5_users.map.with_index do |u, i|
-      "\t\t#{i + 1}. #{u.first_name} / #{num_chatuser_messages} msgs\n"
-    end
+    top_5_in_db = chat_users.order(num_stored_messages: :desc)
+                            .limit(5)
+                            .includes(:user)
+    top_5_all_time = chat_users.order(num_chatuser_messages: :desc)
+                               .limit(5)
+                               .includes(:user)
+
+    top_yappers_db = top_5_in_db.map.with_index do |cu, i|
+      "\t\t#{i + 1}. #{cu.user.first_name} / #{cu.num_stored_messages} msgs"
+    end.join("\n")
+
+    top_yappers_all_time = top_5_all_time.map.with_index do |cu, i|
+      "\t\t#{i + 1}. #{cu.user.first_name} / #{cu.num_chatuser_messages} msgs"
+    end.join("\n")
+
+    "📊 Chat Stats\n" \
+      "Total Messages: #{db_chat.num_messages_total}\n" \
+      "Last 2 days: #{db_chat.num_messages_in_db}\n\n" \
+      "🗣 Top Yappers (last 2 days):\n#{top_yappers_db}\n\n" \
+      "⭐️ Top Yappers (all time):\n#{top_yappers_all_time}"
   end
 
   def handle_error(error)
