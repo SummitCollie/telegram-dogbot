@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Layout/LineContinuationLeadingSpace
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include MessageStorage
@@ -20,46 +21,48 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def summarize!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :default)
   end
 
   def summarize_nicely!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :nice)
   end
 
   def vibe_check!(*)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
+
     run_summarize(chat, summary_type: :vibe_check)
   end
 
   def translate!(first_input_word = nil, *)
     authorize_command!
     authorize_message_storage!(payload)
+    store_message(payload)
 
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
 
-    store_message(payload)
     run_translate(chat, first_input_word, command_message_from, parent_message_from)
   end
 
   def stats!(*)
     authorize_command!
     authorize_message_storage!(payload)
-    # Messages from chat currently stored in DB
-    # Total messages seen from chat (including deleted)
-    # Message counts per user in a chat (only show top 5 users)
+    store_message(payload)
 
-    # store_message(payload)
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      protect_content: true,
+      text: chat_stats_text
+    )
   end
 
   ### Handle unknown commands
@@ -144,9 +147,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
         frontend_message: "💬 Translate\n" \
                           "• Reply to a message, or\n" \
                           "• Paste text after command:\n" \
-                          "\t\t\t\t/translate hola mi amigo\n\n" \
+                          "    /translate hola mi amigo\n\n" \
                           "⚙️ Choose target language\n" \
-                          "\t\t\t\t/translate polish hi there!\n\n" \
+                          "    /translate polish hi there!\n\n" \
                           "❔ Supported languages\n" \
                           "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
       ), "Aborting translation: empty text_to_translate\n" \
@@ -156,7 +159,50 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     text_to_translate
   end
 
+  def chat_stats_text
+    db_chat = Chat.find_by(api_id: chat.id)
+    chat_users = ChatUser.joins(:user).where(chat_id: db_chat.id)
+
+    if db_chat.blank? || chat_users.blank?
+      raise FuckyWuckies::NotAGroupChatError.new(
+        severity: Logger::Severity::ERROR
+      ), 'No chat_users exist yet in this chat'
+    end
+
+    # total count of messages seen in chat (including deleted from db)
+    count_total_messages = db_chat.num_messages_total
+
+    top_5_all_time = chat_users.order(num_chatuser_messages: :desc)
+                               .limit(5)
+                               .includes(:user)
+
+    top_yappers_all_time = top_5_all_time.map.with_index do |cu, i|
+      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_chatuser_messages} msgs " \
+        "(#{((cu.num_chatuser_messages.to_f / count_total_messages) * 100).round(1)}%)"
+    end.join("\n")
+
+    # count of messages currently stored in db
+    count_db_messages = db_chat.num_messages_in_db
+    percent_db_messages = ((count_db_messages.to_f / count_total_messages) * 100).round(3)
+
+    top_5_in_db = chat_users.order(num_stored_messages: :desc)
+                            .limit(5)
+                            .includes(:user)
+
+    top_yappers_db = top_5_in_db.map.with_index do |cu, i|
+      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_stored_messages} msgs " \
+        "(#{((cu.num_stored_messages.to_f / count_db_messages) * 100).round(1)}%)"
+    end.join("\n")
+
+    "📊 Chat Stats\n" \
+      "  • Total Messages: #{count_total_messages}\n" \
+      "  • Last 2 days: #{count_db_messages} (#{percent_db_messages}%)\n\n" \
+      "🗣 Top Yappers - 2 days\n#{top_yappers_db}\n\n" \
+      "⭐️ Top Yappers - all time\n#{top_yappers_all_time}"
+  end
+
   def handle_error(error)
     TelegramTools.send_error_message(error, chat.id)
   end
 end
+# rubocop:enable Layout/LineContinuationLeadingSpace

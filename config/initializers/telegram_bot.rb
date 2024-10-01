@@ -16,8 +16,8 @@ client.set_my_commands(
       description: 'Summarize messages since last summary (or as many as possible)' },
     { command: 'summarize_nicely', description: 'Summarize more positively' },
     { command: 'vibe_check', description: 'Run vibe analysis' },
-    { command: 'translate', description: 'Translate text from your message or quoted message' }
-    # { command: 'stats', description: 'Show group chat stats' }
+    { command: 'translate', description: 'Translate text from your message or quoted message' },
+    { command: 'stats', description: 'Show group chat stats' }
   ],
   language_code: 'en'
 )

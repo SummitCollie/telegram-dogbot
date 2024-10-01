@@ -19,20 +19,32 @@ class Chat < ApplicationRecord
                    .order(:created_at).last
 
     if last_summary
-      msgs = messages.includes(:user).where('date > ?', last_summary.created_at).order(:date)
+      message_count = messages.where('date > ?', last_summary.created_at).count
 
-      return msgs if msgs.size >= MIN_MESSAGES_BETWEEN_SUMMARIES
+      if message_count < MIN_MESSAGES_BETWEEN_SUMMARIES
+        raise FuckyWuckies::SummarizeJobFailure.new(
+          db_chat: self,
+          frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
+                            'since last summary. Read them yourself!',
+          sticker: :no_u
+        ), 'Not enough messages since last summary of this type: ' \
+           "chat api_id=#{id} summary type=#{summary_type}"
+      end
 
-      raise FuckyWuckies::SummarizeJobFailure.new(
-        db_chat: self,
-        frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
-                          'since last summary. Read them yourself!',
-        sticker: :no_u
-      ), 'Not enough messages since last summary of this type: ' \
-         "chat api_id=#{id} summary type=#{summary_type}"
+      messages.where('date > ?', last_summary.created_at).order(:date)
     else
-      # No summaries yet so just grab some messages idk
+      # No summaries yet so just grab the last 200 messages
       messages.includes(:user).order(:date).last(200)
     end
+  end
+
+  # Count of messages from this chat currently stored in DB
+  def num_messages_in_db
+    chat_users&.pluck(:num_stored_messages)&.reduce(:+)
+  end
+
+  # Count of messages seen in chat (including ones no longer in DB)
+  def num_messages_total
+    chat_users&.pluck(:num_chatuser_messages)&.reduce(:+)
   end
 end
