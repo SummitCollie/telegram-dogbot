@@ -40,7 +40,7 @@ Supported languages (using suggested model Aya-23):
 
 > Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
 
-## <p align="center">/stats</p>
+## <p align="center">/chat_stats</p>
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ```

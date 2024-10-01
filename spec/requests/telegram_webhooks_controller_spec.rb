@@ -521,7 +521,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end
     end
 
-    describe '#stats!' do
+    describe '#chat_stats!' do
       before do
         Rails.application.credentials.whitelist_enabled = false
       end
@@ -551,7 +551,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
 
         expect do
           dispatch_command(
-            :stats,
+            :chat_stats,
             {
               chat: Telegram::Bot::Types::Chat.new(id: chat.api_id,
                                                    type: 'supergroup',

@@ -53,7 +53,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     run_translate(chat, first_input_word, command_message_from, parent_message_from)
   end
 
-  def stats!(*)
+  def chat_stats!(*)
     authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
