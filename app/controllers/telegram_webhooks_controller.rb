@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable Layout/LineContinuationLeadingSpace
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include MessageStorage
@@ -146,9 +147,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
         frontend_message: "💬 Translate\n" \
                           "• Reply to a message, or\n" \
                           "• Paste text after command:\n" \
-                          "\t\t\t\t/translate hola mi amigo\n\n" \
+                          "    /translate hola mi amigo\n\n" \
                           "⚙️ Choose target language\n" \
-                          "\t\t\t\t/translate polish hi there!\n\n" \
+                          "    /translate polish hi there!\n\n" \
                           "❔ Supported languages\n" \
                           "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
       ), "Aborting translation: empty text_to_translate\n" \
@@ -170,30 +171,32 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     # total count of messages seen in chat (including deleted from db)
     count_total_messages = db_chat.num_messages_total
+
     top_5_all_time = chat_users.order(num_chatuser_messages: :desc)
                                .limit(5)
                                .includes(:user)
 
     top_yappers_all_time = top_5_all_time.map.with_index do |cu, i|
-      "\t\t#{i + 1}. #{cu.user.first_name} / #{cu.num_chatuser_messages} msgs " \
-      "(#{((cu.num_chatuser_messages.to_f / count_total_messages) * 100).round(3)}%)"
+      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_chatuser_messages} msgs " \
+        "(#{((cu.num_chatuser_messages.to_f / count_total_messages) * 100).round(3)}%)"
     end.join("\n")
 
     # count of messages currently stored in db
     count_db_messages = db_chat.num_messages_in_db
     percent_db_messages = ((count_db_messages / count_total_messages) * 100).round(1)
+
     top_5_in_db = chat_users.order(num_stored_messages: :desc)
                             .limit(5)
                             .includes(:user)
-    
+
     top_yappers_db = top_5_in_db.map.with_index do |cu, i|
-      "\t\t#{i + 1}. #{cu.user.first_name} / #{cu.num_stored_messages} msgs " \
-      "(#{((cu.num_stored_messages.to_f / count_db_messages) * 100 ).round(1)}%)"
+      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_stored_messages} msgs " \
+        "(#{((cu.num_stored_messages.to_f / count_db_messages) * 100).round(1)}%)"
     end.join("\n")
 
     "📊 Chat Stats\n" \
-      "\t\t• Total Messages: #{count_total_messages}\n" \
-      "\t\t• Last 2 days: #{count_db_messages} (#{percent_db_messages}%)\n\n" \
+      "  • Total Messages: #{count_total_messages}\n" \
+      "  • Last 2 days: #{count_db_messages} (#{percent_db_messages}%)\n\n" \
       "🗣 Top Yappers (last 2 days):\n#{top_yappers_db}\n\n" \
       "⭐️ Top Yappers (all time):\n#{top_yappers_all_time}"
   end
@@ -202,3 +205,4 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     TelegramTools.send_error_message(error, chat.id)
   end
 end
+# rubocop:enable Layout/LineContinuationLeadingSpace
