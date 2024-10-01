@@ -3,7 +3,7 @@
 <p align="center"><img src="README-image.png" /></p>
 
 # Commands
-## <p align="center">`/summarize`</p>
+## <p align="center">/summarize</p>
 Summarize group chat messages sent since the last summary (or as many as possible)
 
 > • The group discussed Nick's hilarious experience while watching the film "Zootopia" in a movie theater.
@@ -15,7 +15,7 @@ Summarize group chat messages sent since the last summary (or as many as possibl
 ## <p align="center">/summarize_nicely</p>
 Like above but be very nice about it
 
-> • Summit diligently worked on testing and improving 
+> • Summit diligently worked on testing and improving
 their knowledge, inquiring about statistics multiple times to better comprehend the data.
 >
 > • Summit aesthetically shared a minimalist design element, adding a touch of simplicity and elegance to the conversation. ` // I posted a single emoji in the chat lol`
@@ -40,7 +40,7 @@ Supported languages (using suggested model Aya-23):
 
 > Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
 
-## <p align="center">`/stats`</p>
+## <p align="center">/stats</p>
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ```
