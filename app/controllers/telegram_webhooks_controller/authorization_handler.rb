@@ -35,7 +35,8 @@ class TelegramWebhooksController
         raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
       end
 
-      if empty_text?(message)
+      # Blank text?
+      if TelegramTools.extract_message_text(message).blank?
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
                                                     "message api_id=#{message.try(:message_id) || '?'}"
       end
@@ -63,18 +64,6 @@ class TelegramWebhooksController
 
     def from_bot?
       from.is_bot
-    end
-
-    def empty_text?(message)
-      return false if message.try(:text).present?
-
-      # Sticker message with emoji we can log as message text
-      return false if message.try(:sticker).try(:emoji).present?
-
-      # Caption is used when message has an attachment (photo, video, ...)
-      return false if message.try(:caption).present?
-
-      true
     end
 
     def group_chat?

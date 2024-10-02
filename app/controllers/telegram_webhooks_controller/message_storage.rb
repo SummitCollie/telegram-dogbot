@@ -65,7 +65,7 @@ class TelegramWebhooksController
 
       db_message.date = Time.zone.at(message.date).to_datetime
       db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
-      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
+      db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
       db_message
@@ -80,18 +80,10 @@ class TelegramWebhooksController
       end
 
       db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
-      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
+      db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
       db_message
-    end
-
-    def determine_message_text(has_attached_media, message)
-      if message.sticker&.emoji
-        message.sticker&.emoji
-      else
-        has_attached_media ? message.caption : message.text
-      end
     end
   end
 end

@@ -69,25 +69,33 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def action_missing(_action, *_args)
     authorize_command!
     authorize_message_storage!(payload)
-
     store_message(payload)
   end
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
     authorize_message_storage!(message)
-
     store_message(message)
+    reply_when_mentioned if bot_mentioned?
   end
 
   ### Handle incoming edited message
   def edited_message(message)
     authorize_message_storage!(message)
-
     store_edited_message(message)
   end
 
   private
+
+  def bot_mentioned?
+    TelegramTools.extract_message_text(payload).downcase.include?("@#{
+      Rails.application.credentials.telegram.bot.username.downcase
+    }")
+  end
+
+  def reply_when_mentioned
+    puts '=================== bot mentioned!'
+  end
 
   def run_summarize(chat, summary_type:)
     db_chat = Chat.find_by(api_id: chat.id)
@@ -114,7 +122,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     end
 
     target_language = detect_target_language(first_input_word)
-    text_to_translate = determine_text_to_translate(db_chat, payload, target_language, first_input_word)
+    text_to_translate = determine_text_to_translate(db_chat, target_language, first_input_word)
 
     LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language, command_message_from,
                                     parent_message_from)
@@ -127,7 +135,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     supported_languages.include?(candidate) ? candidate : nil
   end
 
-  def determine_text_to_translate(db_chat, payload, target_language, first_input_word)
+  def determine_text_to_translate(db_chat, target_language, first_input_word)
     # Text from (the message being replied to) by the user calling /translate (quote)
     reply_parent_text = payload.reply_to_message&.text&.strip
 
