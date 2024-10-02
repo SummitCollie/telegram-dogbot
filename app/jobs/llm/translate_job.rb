@@ -48,26 +48,19 @@ module LLM
     private
 
     def llm_translate(text, target_language)
-      client = OpenAI::Client.new
-      # client.add_headers('x-wait-for-model' => 'true')
+      system_prompt = LLMTools.prompt_for_style(:translate)
+      user_prompt = "Translate into #{target_language.capitalize}:\n#{text}"
 
-      messages = [
-        { role: 'system', content: LLMTools.prompt_for_style(:translate) },
-        { role: 'user', content: "Translate into #{target_language.capitalize}:\n#{text}" }
-      ]
-
-      result = StringIO.new
-      client.chat(parameters: {
-                    model: Rails.application.credentials.openai.translate_model ||
+      output = LLMTools.run_chat_completion(
+        system_prompt:,
+        user_prompt:,
+        model_params: {
+          model: Rails.application.credentials.openai.translate_model ||
                            Rails.application.credentials.openai.model,
-                    max_tokens: 512,
-                    temperature: 0.3,
-                    messages:,
-                    stream: proc do |chunk, _bytesize|
-                              result << chunk.dig('choices', 0, 'delta', 'content')
-                            end
-                  })
-      output = result.string.strip
+          max_tokens: 512,
+          temperature: 0.3
+        }
+      )
 
       if output.blank?
         raise FuckyWuckies::TranslateJobFailure.new(

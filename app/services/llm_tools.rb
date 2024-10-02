@@ -28,7 +28,32 @@ class LLMTools
       vibe_check_prompt
     when :translate
       translate_prompt
+    when :reply_when_mentioned
+      reply_when_mentioned_prompt
     end
+  end
+
+  def self.run_chat_completion(system_prompt:, user_prompt:, model_params: {})
+    client = OpenAI::Client.new
+    # client.add_headers('x-wait-for-model' => 'true')
+
+    messages = [
+      { role: 'system', content: system_prompt },
+      { role: 'user', content: user_prompt }
+    ]
+
+    result = StringIO.new
+    client.chat(parameters: {
+      model: Rails.application.credentials.openai.model,
+      max_tokens: 512,
+      temperature: 1.0,
+      messages:,
+      stream: proc do |chunk, _bytesize|
+        result << chunk.dig('choices', 0, 'delta', 'content')
+      end
+    }.merge(model_params))
+
+    result.string.strip
   end
 
   class << self
@@ -48,6 +73,10 @@ class LLMTools
 
     def translate_prompt
       @translate_prompt ||= File.read('data/llm_prompts/translate.txt')
+    end
+
+    def reply_when_mentioned_prompt
+      @reply_when_mentioned_prompt ||= File.read('data/llm_prompts/reply_when_mentioned.txt')
     end
   end
 end

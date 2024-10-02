@@ -25,12 +25,9 @@ their knowledge, inquiring about statistics multiple times to better comprehend 
 ## <p align="center">/vibe_check</p>
 Analyze chat members' moods
 
-> • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant
->
-> • SomeUser: 😍 ✨ 💖 / enamored, zealous, effusive
->
-> • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable
->
+> • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant\
+> • SomeUser: 😍 ✨ 💖 / enamored, zealous, effusive\
+> • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable\
 > • `...`
 
 ## <p align="center">/translate `french hola mi amigo`</p>
@@ -50,11 +47,11 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   • Total Messages: 100
   • Last 2 days: 40 (40%)
 
-🗣 Top Yappers (last 2 days):
+🗣 Top Yappers - 2 days
   1. SomeUser / 30 msgs (75%)
   2. Summit / 10 msgs (25%)
 
-⭐ Top Yappers (all time):
+⭐ Top Yappers - all time
   1. Summit / 70 msgs (70%)
   2. SomeUser / 30 msgs (30%)
 ```

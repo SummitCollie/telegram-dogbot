@@ -76,7 +76,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def message(message)
     authorize_message_storage!(message)
     store_message(message)
-    reply_when_mentioned if bot_mentioned?
+    reply_when_mentioned if bot_mentioned? || replied_to_bot?
   end
 
   ### Handle incoming edited message
@@ -93,8 +93,12 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     }")
   end
 
+  def replied_to_bot?
+    payload.reply_to_message.present?
+  end
+
   def reply_when_mentioned
-    puts '=================== bot mentioned!'
+    puts '=================== should send reply!'
   end
 
   def run_summarize(chat, summary_type:)

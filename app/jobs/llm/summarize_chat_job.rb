@@ -35,26 +35,10 @@ module LLM
     private
 
     def llm_summarize(db_messages, db_chat, summary_type)
-      client = OpenAI::Client.new
+      system_prompt = LLMTools.prompt_for_style(summary_type)
+      user_prompt = LLMTools.messages_to_yaml(db_messages)
 
-      yaml_messages = LLMTools.messages_to_yaml(db_messages)
-
-      messages = [
-        { role: 'system', content: LLMTools.prompt_for_style(summary_type) },
-        { role: 'user', content: yaml_messages }
-      ]
-
-      result = StringIO.new
-      client.chat(parameters: {
-                    model: Rails.application.credentials.openai.model,
-                    max_tokens: 512,
-                    temperature: 1.0,
-                    messages:,
-                    stream: proc do |chunk, _bytesize|
-                              result << chunk.dig('choices', 0, 'delta', 'content')
-                            end
-                  })
-      output = result.string.strip
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
       raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
 
