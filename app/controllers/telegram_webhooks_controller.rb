@@ -5,6 +5,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include MessageStorage
   include SummarizeHelpers
+  include TranslateHelpers
 
   # Auto typecast to types from telegram-bot-types gem
   include Telegram::Bot::UpdatesController::TypedUpdate
@@ -23,7 +24,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
-    run_summarize(chat, summary_type: :default)
+    run_summarize(:default)
   end
 
   def summarize_nicely!(*)
@@ -31,7 +32,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
-    run_summarize(chat, summary_type: :nice)
+    run_summarize(:nice)
   end
 
   def vibe_check!(*)
@@ -39,7 +40,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
-    run_summarize(chat, summary_type: :vibe_check)
+    run_summarize(:vibe_check)
   end
 
   def translate!(first_input_word = nil, *)
@@ -50,7 +51,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
 
-    run_translate(chat, first_input_word, command_message_from, parent_message_from)
+    run_translate(first_input_word, command_message_from, parent_message_from)
   end
 
   def chat_stats!(*)
@@ -58,11 +59,28 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
+    output = chat_stats_text
+
     Telegram.bot.send_message(
       chat_id: chat.id,
       protect_content: true,
-      text: chat_stats_text
+      text: output
     )
+    TelegramTools.store_bot_output(db_chat, output) # TODO: anywhere else?
+  end
+
+  def start!(*)
+    return unless chat.type == 'private'
+
+    raise FuckyWuckies::AuthorizationError.new(
+      severity: Logger::Severity::INFO,
+      frontend_message: 'You start! By adding this bot to a group chat ' \
+                        'because it has no functionality in DMs or channels.',
+      sticker: :heck
+    ), 'Not saving message from non-group chat: ' \
+       "chat api_id=#{chat.id} username=@#{chat.username}"
+
+    # Don't bother saving calls to start command idc about it
   end
 
   ### Handle unknown commands
@@ -87,6 +105,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   private
 
+  def db_chat
+    @db_chat ||= Chat.find_by(api_id: chat.id)
+  end
+
   def bot_mentioned?
     TelegramTools.extract_message_text(payload).downcase.include?("@#{
       Rails.application.credentials.telegram.bot.username.downcase
@@ -101,9 +123,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     puts '=================== should send reply!'
   end
 
-  def run_summarize(chat, summary_type:)
-    db_chat = Chat.find_by(api_id: chat.id)
-    ensure_summarize_allowed!(db_chat:)
+  def run_summarize(summary_type)
+    ensure_summarize_allowed!
 
     db_summary = ChatSummary.create!(
       summary_type:,
@@ -117,68 +138,22 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     raise e
   end
 
-  def run_translate(chat, first_input_word, command_message_from, parent_message_from)
-    db_chat = Chat.find_by(api_id: chat.id)
-    unless db_chat
-      raise FuckyWuckies::TranslateJobFailure.new(
-        severity: Logger::Severity::ERROR
-      ), "Translate aborted: db_chat ID #{chat.id} not found"
-    end
-
+  def run_translate(first_input_word, command_message_from, parent_message_from)
     target_language = detect_target_language(first_input_word)
-    text_to_translate = determine_text_to_translate(db_chat, target_language, first_input_word)
+    text_to_translate = determine_text_to_translate(target_language, first_input_word)
 
     LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language, command_message_from,
                                     parent_message_from)
   end
 
-  def detect_target_language(first_input_word)
-    candidate = first_input_word&.downcase
-    supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
-
-    supported_languages.include?(candidate) ? candidate : nil
-  end
-
-  def determine_text_to_translate(db_chat, target_language, first_input_word)
-    # Text from (the message being replied to) by the user calling /translate (quote)
-    reply_parent_text = payload.reply_to_message&.text&.strip
-
-    # Text from after the /translate command (ignored if reply_parent_text exists)
-    command_message_text = if target_language
-                             payload.text.gsub(%r{^/translate(\S?)+ #{Regexp.escape(first_input_word)}}, '').strip
-                           else
-                             payload.text.gsub(%r{^/translate(\S?)+}, '').strip
-                           end
-
-    text_to_translate = reply_parent_text || command_message_text
-
-    if text_to_translate.blank?
-      raise FuckyWuckies::TranslateJobFailure.new(
-        severity: Logger::Severity::ERROR,
-        db_chat:,
-        frontend_message: "💬 Translate\n" \
-                          "• Reply to a message, or\n" \
-                          "• Paste text after command:\n" \
-                          "    /translate hola mi amigo\n\n" \
-                          "⚙️ Choose target language\n" \
-                          "    /translate polish hi there!\n\n" \
-                          "❔ Supported languages\n" \
-                          "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
-      ), "Aborting translation: empty text_to_translate\n" \
-         "chat api_id=#{db_chat.id} title=#{db_chat.title}"
-    end
-
-    text_to_translate
-  end
-
   def chat_stats_text
-    db_chat = Chat.find_by(api_id: chat.id)
     chat_users = ChatUser.joins(:user).where(chat_id: db_chat.id)
 
-    if db_chat.blank? || chat_users.blank?
+    if chat_users.blank?
       raise FuckyWuckies::NotAGroupChatError.new(
         severity: Logger::Severity::ERROR
-      ), 'No chat_users exist yet in this chat'
+      ), 'No chat_users exist yet in this chat: ' \
+         ""
     end
 
     # total count of messages seen in chat (including deleted from db)

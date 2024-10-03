@@ -19,7 +19,7 @@ class Chat < ApplicationRecord
                    .order(:created_at).last
 
     if last_summary
-      message_count = messages.where('date > ?', last_summary.created_at).count
+      message_count = messages.not_from_bot.where('date > ?', last_summary.created_at).count
 
       if message_count < MIN_MESSAGES_BETWEEN_SUMMARIES
         raise FuckyWuckies::SummarizeJobFailure.new(
@@ -31,10 +31,10 @@ class Chat < ApplicationRecord
            "chat api_id=#{id} summary type=#{summary_type}"
       end
 
-      messages.where('date > ?', last_summary.created_at).order(:date)
+      messages.not_from_bot.where('date > ?', last_summary.created_at).order(:date)
     else
       # No summaries yet so just grab the last 200 messages
-      messages.includes(:user).order(:date).last(200)
+      messages.not_from_bot.includes(:user).order(:date).last(200)
     end
   end
 

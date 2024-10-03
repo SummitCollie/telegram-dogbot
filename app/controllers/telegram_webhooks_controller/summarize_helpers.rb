@@ -4,7 +4,7 @@ class TelegramWebhooksController
   module SummarizeHelpers
     extend self
 
-    def ensure_summarize_allowed!(db_chat:)
+    def ensure_summarize_allowed!
       return unless db_chat&.summarize_job_running?
 
       raise FuckyWuckies::SummarizeJobFailure.new(

@@ -20,5 +20,18 @@ class TelegramTools
     def extract_message_text(message)
       message.text.presence || message.sticker&.emoji.presence || message.caption.presence
     end
+
+    # Save a DB record of this bot's outgoing messages, to be used in some LLM prompts
+    def store_bot_output(db_chat, text, reply_to: nil)
+      bot_user = User.find_or_initialize_by(api_id: -1, is_this_bot: true)
+      bot_chatuser = ChatUser.find_or_initialize_by(chat: db_chat, user: bot_user)
+
+      Message.create!(
+        chat_user: bot_chatuser,
+        date: Time.current,
+        reply_to_message_id: reply_to,
+        text:
+      )
+    end
   end
 end

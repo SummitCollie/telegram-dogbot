@@ -27,12 +27,12 @@ module LLM
       if model_loading_time
         raise FuckyWuckies::TranslateJobFailure.new(
           db_chat: @db_chat,
-          severity: Logger::Severity::ERROR,
+          severity: Logger::Severity::WARN,
           frontend_message: "--- Model Loading! ---\n" \
                             "API claims it should be ready in ~#{model_loading_time} mins.\n" \
                             'But the API frequently lies so just try again later.'
         ), "Translation model loading, supposedly ready in #{model_loading_time}s: " \
-           "chat api_id=#{@db_chat.id} title=#{@db_chat.title}\n#{e}"
+           "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
       end
 
       raise FuckyWuckies::TranslateJobFailure.new(
@@ -41,7 +41,7 @@ module LLM
         frontend_message: "#{username_header}\n❌ Translation failed :(",
         sticker: :no_french
       ), 'Translation failed: ' \
-         "chat api_id=#{@db_chat.id} title=#{@db_chat.title}\n#{e}"
+         "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
     # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
@@ -82,12 +82,15 @@ module LLM
       "<#{@command_message_from}>"
     end
 
-    def send_output_message(text)
+    def send_output_message(translated_text)
+      output = "#{username_header}\n#{translated_text}"
+
       Telegram.bot.send_message(
         chat_id: @db_chat.api_id,
         protect_content: false,
-        text: "#{username_header}\n#{text}"
+        text: output
       )
+      TelegramTools.store_bot_output(@db_chat, output)
     end
   end
 end

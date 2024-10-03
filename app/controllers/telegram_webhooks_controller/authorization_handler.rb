@@ -5,6 +5,23 @@ class TelegramWebhooksController
     extend self
 
     def authorize_command!
+      if db_chat.blank?
+        raise FuckyWuckies::MessageFilterError.new(
+          severity: Logger::Severity::ERROR,
+        ), "Refusing command (Chat not initialized?? weird error alert!!!) - " \
+          "chat api_id=#{chat&.id || '?'} title=#{chat&.title || '?'}"
+      end
+
+      if from.blank? || chat.blank?
+        # All the updates we care about will have `chat` and `from` attrs.
+        # If not (polls etc), discard with a warning so I remember to set up `allowed_updates`:
+        # https://core.telegram.org/bots/api#setwebhook
+        raise FuckyWuckies::MessageFilterError.new(
+          severity: Logger::Severity::WARN,
+        ), "Ignoring update (missing params I want): " \
+          "chat api_id=#{db_chat.id} title=#{db_chat.title}"
+      end
+
       if from_bot?
         raise FuckyWuckies::AuthorizationError.new(
           frontend_message: 'begone bot',
@@ -63,7 +80,7 @@ class TelegramWebhooksController
     private
 
     def from_bot?
-      from.is_bot
+      from&.is_bot
     end
 
     def group_chat?

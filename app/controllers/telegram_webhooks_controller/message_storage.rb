@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 class TelegramWebhooksController
+
+  # Auto-creates prerequisite DB records for a Message, if not present
+  # (Message needs a ChatUser, which needs a User and Chat)
   module MessageStorage
     extend self
 
-    ###
-    ### Store messages & edits
-    ###
     def store_message(message)
       db_chat = create_or_update_chat
       db_user = create_or_update_user
@@ -30,9 +30,6 @@ class TelegramWebhooksController
 
     private
 
-    ###
-    ### Create/update DB records
-    ###
     def create_or_update_chat
       db_chat = Chat.find_or_initialize_by(api_id: chat.id)
       db_chat.title = chat.title
@@ -64,7 +61,7 @@ class TelegramWebhooksController
       end
 
       db_message.date = Time.zone.at(message.date).to_datetime
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(api_id: message.reply_to_message&.message_id)&.id
       db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
@@ -79,7 +76,7 @@ class TelegramWebhooksController
         db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
       end
 
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(api_id: message.reply_to_message&.message_id)&.id
       db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!

@@ -37,7 +37,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, chat, summary.summary_type)
+          ).with(expected_messages, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -50,7 +50,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, chat, summary.summary_type)
+          ).with(expected_messages, summary.summary_type)
 
           described_class.perform_now(summary)
         end
@@ -87,7 +87,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, chat, summary.summary_type)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -98,7 +98,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, chat, summary.summary_type)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -109,7 +109,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, chat, summary.summary_type)
+        ).with(expected_messages, summary.summary_type)
 
         described_class.perform_now(summary)
       end
@@ -143,7 +143,7 @@ RSpec.describe LLM::SummarizeChatJob do
         end
 
         allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
-        expect_any_instance_of(described_class).to receive(:send_output_message).with(chat, 'summary text')
+        expect_any_instance_of(described_class).to receive(:send_output_message).with('summary text')
 
         described_class.perform_now(summary)
       end
