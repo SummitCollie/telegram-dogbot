@@ -62,7 +62,7 @@ class TelegramWebhooksController
     private
 
     def from_bot?
-      from.is_bot
+      from&.is_bot
     end
 
     def empty_text?(message)
