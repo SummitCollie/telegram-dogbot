@@ -18,12 +18,11 @@ class Message < ApplicationRecord
   private
 
   # Because the production bot runs in webhook mode, it can never know telegram's API IDs
-  # for the messages it sends: https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#async-mode
-  # Therefore, I'm setting it to -1 for outgoing messages. See `TelegramTools#store_bot_output`
+  # for the messages it sends (see TelegramTools#store_bot_output):
+  # https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#async-mode
   def stub_api_id_for_own_messages
     return unless user.is_this_bot
 
     self.api_id = -1
-    # TODO: maybe remove db not-null constraint and set self.api_id = self.id after saving?
   end
 end

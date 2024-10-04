@@ -24,6 +24,9 @@ Style/GuardClause:
 Style/ModuleFunction:
   Exclude: ['app/controllers/telegram_webhooks_controller/summarize_helpers.rb']
 
+Style/OpenStructUse:
+  Enabled: false
+
 Layout/LineLength:
   AllowedPatterns: ['(\A|\s)#'] # Allow long comments
 

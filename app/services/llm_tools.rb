@@ -2,23 +2,6 @@
 
 class LLMTools
   class << self
-    def messages_to_yaml(messages)
-      messages.map do |message|
-        result = {
-          id: message.api_id,
-          user: message.user.first_name,
-          text: message.text
-        }
-
-        result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
-        result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
-
-        # avoids ':' prefix on every key in the resulting YAML
-        # https://stackoverflow.com/a/53093339
-        result.deep_stringify_keys
-      end.to_yaml({ line_width: -1 }) # Don't wrap long lines
-    end
-
     def prompt_for_style(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
       case summary_type.to_sym
       when :default
@@ -30,8 +13,8 @@ class LLMTools
       when :translate
         @translate_prompt ||= File.read('data/llm_prompts/translate.txt')
       when :reply_when_mentioned
-        @reply_when_mentioned_prompt ||= File.read('data/llm_prompts/reply_when_mentioned.txt')
-      end.strip
+        reply_when_mentioned_prompt
+      end
     end
 
     def run_chat_completion(system_prompt:, user_prompt:, model_params: {})
@@ -39,8 +22,8 @@ class LLMTools
       # client.add_headers('x-wait-for-model' => 'true')
 
       messages = [
-        { role: 'system', content: system_prompt },
-        { role: 'user', content: user_prompt }
+        { role: 'system', content: system_prompt.strip },
+        { role: 'user', content: user_prompt.strip }
       ]
 
       result = StringIO.new
@@ -55,6 +38,21 @@ class LLMTools
       }.merge(model_params))
 
       result.string.strip
+    end
+
+    private
+
+    def reply_when_mentioned_prompt
+      bot_name = Rails.application.credentials.telegram.bot.first_name
+      owner_username = Rails.application.credentials.telegram.bot.owner_username
+
+      @reply_when_mentioned_prompt ||= <<~PROMPT.strip
+        You are #{bot_name}, a witty, clever dog. Respond with intelligence, humor, and some snark where appropriate.
+        Use minimal dog-like expressions; you're in on the joke.
+        Reply in the same language when possible, otherwise use English.
+        @#{owner_username} is your owner. Tag users by @username.
+        ONLY provide the raw final text for the response.
+      PROMPT
     end
   end
 end

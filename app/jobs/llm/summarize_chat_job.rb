@@ -14,7 +14,7 @@ module LLM
           db_chat: @db_chat,
           frontend_message: 'Processing failed, sowwy :(',
           sticker: :dead
-        ), "All summarization attempts failed: " \
+        ), 'All summarization attempts failed: ' \
            "chat api_id=#{@db_chat.id} title=#{@db_chat.title}"
       end
 
@@ -32,11 +32,28 @@ module LLM
       db_summary.update!(text: result_text, status: 'complete')
     end
 
+    def self.messages_to_yaml(messages)
+      messages.map do |message|
+        result = {
+          id: message.api_id,
+          user: message.user.first_name,
+          text: message.text
+        }
+
+        result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
+        result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
+
+        # avoids ':' prefix on every key in the resulting YAML
+        # https://stackoverflow.com/a/53093339
+        result.deep_stringify_keys
+      end.to_yaml({ line_width: -1 }) # Don't wrap long lines
+    end
+
     private
 
     def llm_summarize(db_messages, summary_type)
       system_prompt = LLMTools.prompt_for_style(summary_type)
-      user_prompt = LLMTools.messages_to_yaml(db_messages)
+      user_prompt = SummarizeChatJob.messages_to_yaml(db_messages)
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
@@ -48,7 +65,7 @@ module LLM
       # Prompt most likely too long, raise SummarizeJobError to retry with fewer messages
       raise FuckyWuckies::SummarizeJobError.new(
         severity: Logger::Severity::WARN
-      ), "Error: summarization failed -- prompt probably too long: " \
+      ), 'Error: summarization failed -- prompt probably too long: ' \
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     rescue Faraday::Error => e
       raise FuckyWuckies::SummarizeJobFailure.new(

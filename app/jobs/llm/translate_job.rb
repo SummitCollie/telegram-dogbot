@@ -17,7 +17,6 @@ module LLM
       target_language ||= 'english'
 
       result_text = llm_translate(text_to_translate, target_language)
-
       send_output_message(result_text)
     rescue Faraday::Error => e
       model_loading_time = e&.response&.dig(

@@ -59,7 +59,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   # rubocop:enable RSpec/BeforeAfterAll
 
   describe '#message' do
-    context 'when message should be stored' do
+    context 'when message storage is authorized' do
       it 'creates User record if missing' do
         expect do
           dispatch_message 'text'
@@ -245,7 +245,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end
     end
 
-    context 'when message should not be stored' do
+    context 'when message storage is NOT authorized' do
       it 'does not create User record for non-whitelisted chats' do
         expect do
           dispatch_message 'text', { chat: { id: 0o0000 } }

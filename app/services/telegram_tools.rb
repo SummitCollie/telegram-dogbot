@@ -17,8 +17,37 @@ class TelegramTools
     # Returns the thing from the message that we want to save in the DB, or nil if missing.
     # - Sticker messages have an emoji we can log as message text
     # - Messages with media attached (photo, video, ...) use `caption` instead of `text`
-    def extract_message_text(message)
-      message.text.presence || message.sticker&.emoji.presence || message.caption.presence
+    def extract_message_text(api_message)
+      api_message.text.presence || api_message.sticker&.emoji.presence || api_message.caption.presence
+    end
+
+    def attachment_type(api_message)
+      Message.attachment_types.keys.find { |type| !!api_message[type] }
+    end
+
+    def serialize_api_message(message)
+      {
+        message_id: message.message_id,
+        text: message.text,
+        date: message.date,
+        from: {
+          first_name: message.from.first_name,
+          username: message.from.username
+        },
+        reply_to_message: message.reply_to_message.present? && {
+          message_id: message.reply_to_message.message_id,
+          text: message.reply_to_message.text,
+          date: message.reply_to_message.date,
+          from: {
+            first_name: message.reply_to_message.from.first_name,
+            username: message.reply_to_message.from.username
+          }
+        }
+      }.to_json
+    end
+
+    def deserialize_api_message(json)
+      JSON.parse(json, object_class: OpenStruct)
     end
 
     # Save a DB record of this bot's outgoing messages, to be used in some LLM prompts
@@ -28,8 +57,8 @@ class TelegramTools
 
       Message.create!(
         chat_user: bot_chatuser,
+        reply_to_message_id: reply_to&.id,
         date: Time.current,
-        reply_to_message_id: reply_to,
         text:
       )
     end

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 class TelegramWebhooksController
-
   # Auto-creates prerequisite DB records for a Message, if not present
   # (Message needs a ChatUser, which needs a User and Chat)
   module MessageStorage
@@ -56,12 +55,13 @@ class TelegramWebhooksController
     def create_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.build(api_id: message.message_id)
 
-      Message.attachment_types.each_key do |attachment_type|
-        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
-      end
+      attachment_type = TelegramTools.attachment_type(message)
+      db_message.attachment_type = attachment_type.to_sym if attachment_type
 
       db_message.date = Time.zone.at(message.date).to_datetime
-      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(api_id: message.reply_to_message&.message_id)&.id
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
+        api_id: message.reply_to_message&.message_id
+      )&.id
       db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
@@ -72,11 +72,12 @@ class TelegramWebhooksController
       db_message = db_chat_user.messages.find_by(api_id: message.message_id)
       return unless db_message
 
-      Message.attachment_types.each_key do |attachment_type|
-        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
-      end
+      attachment_type = TelegramTools.attachment_type(message)
+      db_message.attachment_type = attachment_type.to_sym if attachment_type
 
-      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(api_id: message.reply_to_message&.message_id)&.id
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
+        api_id: message.reply_to_message&.message_id
+      )&.id
       db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!

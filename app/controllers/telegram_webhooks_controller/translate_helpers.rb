@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
+# rubocop:disable Layout/LineContinuationLeadingSpace
 class TelegramWebhooksController
   module TranslateHelpers
-    extend self
+    module_function
 
     def detect_target_language(first_input_word)
       candidate = first_input_word&.downcase
@@ -44,3 +45,4 @@ class TelegramWebhooksController
     end
   end
 end
+# rubocop:enable Layout/LineContinuationLeadingSpace

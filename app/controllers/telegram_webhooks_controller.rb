@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
-# rubocop:disable Layout/LineContinuationLeadingSpace
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
+  include ChatStatsHelpers
   include MessageStorage
+  include ReplyHelpers
   include SummarizeHelpers
   include TranslateHelpers
 
@@ -66,7 +67,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       protect_content: true,
       text: output
     )
-    TelegramTools.store_bot_output(db_chat, output) # TODO: anywhere else?
+    TelegramTools.store_bot_output(db_chat, output)
   end
 
   def start!(*)
@@ -79,8 +80,6 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       sticker: :heck
     ), 'Not saving message from non-group chat: ' \
        "chat api_id=#{chat.id} username=@#{chat.username}"
-
-    # Don't bother saving calls to start command idc about it
   end
 
   ### Handle unknown commands
@@ -94,7 +93,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def message(message)
     authorize_message_storage!(message)
     store_message(message)
-    reply_when_mentioned if bot_mentioned? || replied_to_bot?
+    reply_when_mentioned(message) if bot_mentioned? || replied_to_bot?
   end
 
   ### Handle incoming edited message
@@ -109,18 +108,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     @db_chat ||= Chat.find_by(api_id: chat.id)
   end
 
-  def bot_mentioned?
-    TelegramTools.extract_message_text(payload).downcase.include?("@#{
-      Rails.application.credentials.telegram.bot.username.downcase
-    }")
-  end
-
-  def replied_to_bot?
-    payload.reply_to_message.present?
-  end
-
-  def reply_when_mentioned
-    puts '=================== should send reply!'
+  def reply_when_mentioned(message)
+    serialized_message = TelegramTools.serialize_api_message(message)
+    LLM::ReplyJob.perform_later(db_chat, serialized_message)
   end
 
   def run_summarize(summary_type)
@@ -146,50 +136,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
                                     parent_message_from)
   end
 
-  def chat_stats_text
-    chat_users = ChatUser.joins(:user).where(chat_id: db_chat.id)
-
-    if chat_users.blank?
-      raise FuckyWuckies::NotAGroupChatError.new(
-        severity: Logger::Severity::ERROR
-      ), 'No chat_users exist yet in this chat: ' \
-         ""
-    end
-
-    # total count of messages seen in chat (including deleted from db)
-    count_total_messages = db_chat.num_messages_total
-
-    top_5_all_time = chat_users.order(num_chatuser_messages: :desc)
-                               .limit(5)
-                               .includes(:user)
-
-    top_yappers_all_time = top_5_all_time.map.with_index do |cu, i|
-      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_chatuser_messages} msgs " \
-        "(#{((cu.num_chatuser_messages.to_f / count_total_messages) * 100).round(1)}%)"
-    end.join("\n")
-
-    # count of messages currently stored in db
-    count_db_messages = db_chat.num_messages_in_db
-    percent_db_messages = ((count_db_messages.to_f / count_total_messages) * 100).round(3)
-
-    top_5_in_db = chat_users.order(num_stored_messages: :desc)
-                            .limit(5)
-                            .includes(:user)
-
-    top_yappers_db = top_5_in_db.map.with_index do |cu, i|
-      "  #{i + 1}. #{cu.user.first_name} / #{cu.num_stored_messages} msgs " \
-        "(#{((cu.num_stored_messages.to_f / count_db_messages) * 100).round(1)}%)"
-    end.join("\n")
-
-    "📊 Chat Stats\n" \
-      "  • Total Messages: #{count_total_messages}\n" \
-      "  • Last 2 days: #{count_db_messages} (#{percent_db_messages}%)\n\n" \
-      "🗣 Top Yappers - 2 days\n#{top_yappers_db}\n\n" \
-      "⭐️ Top Yappers - all time\n#{top_yappers_all_time}"
-  end
-
   def handle_error(error)
     TelegramTools.send_error_message(error, chat.id)
   end
 end
-# rubocop:enable Layout/LineContinuationLeadingSpace
