@@ -5,5 +5,6 @@ FactoryBot.define do
     api_id { Faker::Number.between(from: 0, to: 2147483647) }
     first_name { Faker::Name.first_name }
     username { Faker::Internet.username }
+    is_this_bot { false }
   end
 end

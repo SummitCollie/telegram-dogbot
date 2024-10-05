@@ -99,9 +99,6 @@ module LLM
 
     def api_message_to_yaml(message)
       yaml = {
-        # TODO: figure out what to do about this situation:
-        #       user sends reply to bot message, user's message has valid api_id
-        #       but bot is -1 in YAML, meaning LLM can't see that the user was replying
         id: message.message_id == -1 ? '?' : message.message_id,
         user: "#{message.from.first_name} (@#{message.from.username})",
         text: message.text

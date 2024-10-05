@@ -380,7 +380,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         end
       end
 
-      context 'when a SummarizeChatJob is already running for this chat' do
+      context 'when a SummarizeChatJob has been running for this chat for < 1 min' do
         let(:chat) { create(:chat, api_id: 12345) }
         let(:messages) do
           Array.new(100) do
@@ -410,6 +410,39 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
               title: chat.title
             ) })
           end.not_to change(ChatSummary, :count)
+        end
+      end
+
+      context 'when a SummarizeChatJob has been running for this chat for > 1 min' do
+        let(:chat) { create(:chat, api_id: 12345) }
+        let(:messages) do
+          Array.new(100) do
+            create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+          end.sort_by(&:date)
+        end
+
+        it 'deletes existing timed-out SummarizeChatJob' do
+          old_summary = create(:chat_summary, chat:, status: :running, created_at: 2.minutes.ago)
+
+          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+            id: chat.api_id,
+            type: 'supergroup',
+            title: chat.title
+          ) })
+
+          expect { old_summary.reload }.to raise_error(ActiveRecord::RecordNotFound)
+        end
+
+        it 'enqueues a new SummarizeChatJob' do
+          create(:chat_summary, chat:, status: :running, created_at: 2.minutes.ago)
+
+          expect do
+            dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+              id: chat.api_id,
+              type: 'supergroup',
+              title: chat.title
+            ) })
+          end.to have_enqueued_job(LLM::SummarizeChatJob)
         end
       end
     end
