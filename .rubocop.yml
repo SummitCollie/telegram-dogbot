@@ -68,3 +68,6 @@ RSpec/DescribeClass:
 
 RSpec/MultipleMemoizedHelpers:
   Enabled: false
+
+RSpec/SpecFilePathFormat:
+  Exclude: [ "**/spec/requests/telegram_webhooks_controller/*" ]
