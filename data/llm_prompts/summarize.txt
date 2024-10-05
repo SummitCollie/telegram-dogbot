@@ -3,8 +3,3 @@ Highlight each member's stories and main subjects discussed.
 List key points and themes in bullet points without opinions or suggestions.
 Messages are in YAML format (don't mention this).
 Only provide bullet points, no preface.
-
-EXAMPLE OUTPUT:
-• Josh shared a story about a frightening experience where a random man started following him on his way home from work. His friends April and Emma expressed their concern and relief at his safety.
-
-• The conversation then shifted to planning a movie night for the weekend. Josh, Emma, April, and Emily discussed watching a light movie, with "Zootopia" being the chosen film. They agreed to meet at 7 PM.
