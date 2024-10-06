@@ -96,7 +96,21 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message1.reload.text).to eq(options[:sticker][:emoji])
       end
 
-      it 'saves known bot commands' do
+      it 'saves messages from other bots' do
+        expect do
+          dispatch_message 'text', { from: Telegram::Bot::Types::User.new(
+            id: 9999999,
+            is_bot: true,
+            first_name: 'Botty',
+            username: 'tgBotUsername',
+            language_code: 'en'
+          ) }
+        end.to change(Message, :count)
+           .and change(User, :count)
+           .and change(Chat, :count)
+      end
+
+      it 'saves commands for this bot' do
         chat = create(:chat, api_id: 12345)
 
         known_commands.each do |command|
@@ -230,20 +244,6 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
             id: 34567,
             type: 'channel',
             title: 'Some channel'
-          ) }
-        end.to not_change(Message, :count)
-           .and not_change(User, :count)
-           .and not_change(Chat, :count)
-      end
-
-      it 'does not store messages from other bots' do
-        expect do
-          dispatch_message 'text', { from: Telegram::Bot::Types::User.new(
-            id: 9999999,
-            is_bot: true,
-            first_name: 'Botty',
-            username: 'tgBotUsername',
-            language_code: 'en'
           ) }
         end.to not_change(Message, :count)
            .and not_change(User, :count)

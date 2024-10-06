@@ -147,6 +147,40 @@ RSpec.describe LLM::SummarizeChatJob do
 
         described_class.perform_now(summary)
       end
+
+      it 'saves LLM output text on ChatSummary in DB' do
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
+
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:)
+        Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end
+
+        described_class.perform_now(summary)
+
+        expect(summary.reload.text).to eq 'summary text'
+      end
+
+      it 'saves bot output as a Message in DB' do
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_return('summary text')
+
+        chat = create(:chat)
+        summary = create(:chat_summary, chat:)
+        Array.new(100) do
+          create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
+        end
+
+        described_class.perform_now(summary)
+
+        bot_user = User.find_by(is_this_bot: true)
+        bot_chat_user = ChatUser.find_by(chat:, user: bot_user)
+
+        expect(Message.last).to have_attributes(
+          text: 'summary text',
+          chat_user: bot_chat_user
+        )
+      end
     end
   end
 

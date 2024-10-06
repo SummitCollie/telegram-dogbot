@@ -49,9 +49,10 @@ class TelegramWebhooksController
     end
 
     def authorize_message_storage!(message)
-      if from_bot?
-        raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
-      end
+      ### Actually I do want to save messages from bots now.
+      # if from_bot?
+      #   raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
+      # end
 
       # Blank text?
       if TelegramTools.extract_message_text(message).blank?
