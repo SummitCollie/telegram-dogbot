@@ -18,13 +18,18 @@ module LLM
       # prepend_missing_reply_context(messages, api_message.reply_to_message)
 
       # Messages sent before bot was mentioned
-      past_db_messages = Message.where(date: ...db_message.date).order(:date).last(100)
+      past_db_messages = @db_chat.messages.where(date: ...db_message.date).order(:date).last(100)
 
       # Message which mentioned the bot, optionally preceded by `message.reply_to_message`
       # (if the reply_to_message doesn't already exist within the context of past_db_messages)
       last_api_messages = get_last_messages(past_db_messages, api_message)
 
       result_text = llm_generate_reply(past_db_messages, last_api_messages)
+      if result_text.blank?
+        raise FuckyWuckies::ReplyJobFailure.new,
+              "Blank output when generating reply to message_id=#{db_message.id}"
+      end
+
       send_output_message(result_text, reply_to: db_message)
     rescue Faraday::Error => e
       raise FuckyWuckies::ReplyJobFailure.new(
