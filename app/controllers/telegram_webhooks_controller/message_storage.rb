@@ -41,6 +41,7 @@ class TelegramWebhooksController
       db_user = User.find_or_initialize_by(api_id: from.id)
       db_user.username = from.username
       db_user.first_name = from.first_name
+      db_user.is_bot = from.is_bot
       db_user.save!
       db_user
     end

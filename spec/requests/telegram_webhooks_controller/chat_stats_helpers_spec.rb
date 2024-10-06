@@ -63,6 +63,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                                  title: chat.title),
             from: Telegram::Bot::Types::User.new(
               id: user1.api_id,
+              is_bot: false,
               first_name: user1.first_name,
               username: user1.username
             )
@@ -80,6 +81,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                                title: chat.title),
           from: Telegram::Bot::Types::User.new(
             id: user1.api_id,
+            is_bot: false,
             first_name: user1.first_name,
             username: user1.username
           )

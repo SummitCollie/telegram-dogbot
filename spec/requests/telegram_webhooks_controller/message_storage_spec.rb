@@ -26,6 +26,54 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         end.not_to change(User, :count)
       end
 
+      context 'when user is a bot' do
+        it 'creates User record & sets flag `is_bot` to true' do
+          dispatch_message(
+            'message from a bot',
+            Telegram::Bot::Types::Message.new(
+              from: Telegram::Bot::Types::User.new(
+                id: 23456,
+                is_bot: true,
+                first_name: 'Bot Name String',
+                username: 'tgBotNameString',
+                language_code: 'en'
+              )
+            )
+          )
+
+          expect(User.last).to have_attributes(
+            api_id: 23456,
+            is_bot: true,
+            first_name: 'Bot Name String',
+            username: 'tgBotNameString'
+          )
+        end
+      end
+
+      context 'when user is NOT a bot' do
+        it 'creates User record with correct attributes' do
+          dispatch_message(
+            'message from a human',
+            Telegram::Bot::Types::Message.new(
+              from: Telegram::Bot::Types::User.new(
+                id: 123456789,
+                is_bot: false,
+                first_name: 'First Name String',
+                username: 'tgUsernameString',
+                language_code: 'en'
+              )
+            )
+          )
+
+          expect(User.last).to have_attributes(
+            api_id: 123456789,
+            is_bot: false,
+            first_name: 'First Name String',
+            username: 'tgUsernameString'
+          )
+        end
+      end
+
       it 'creates Chat record if missing' do
         expect do
           dispatch_message 'text'

@@ -65,6 +65,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_10_02_225411) do
     t.string "username"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "is_bot", default: false, null: false
     t.boolean "is_this_bot", default: false, null: false
     t.index ["api_id"], name: "index_users_on_api_id"
   end
