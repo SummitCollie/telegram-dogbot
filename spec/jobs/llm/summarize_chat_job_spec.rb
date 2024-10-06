@@ -29,6 +29,22 @@ RSpec.describe LLM::SummarizeChatJob do
         }.to_json)
       end
 
+      it 'does not include messages from other chats' do
+        chat2 = create(:chat)
+        create_list(:message, 100, chat: chat2, date: Faker::Time.unique.backward(days: 0.5))
+
+        # First create an old ChatSummary so all messages since then are selected
+        create(:chat_summary, chat:, summary_type: :vibe_check, status: :complete, created_at: 5.days.ago)
+        chat1_summary = create(:chat_summary, chat:, summary_type: :vibe_check, status: :running,
+                                              created_at: Time.current)
+
+        expect_any_instance_of(described_class).to receive(
+          :llm_summarize
+        ).with(messages, chat1_summary.summary_type)
+
+        described_class.perform_now(chat1_summary)
+      end
+
       context 'when previous summary of same type exists' do
         it 'attempts to summarize all messages since last summary' do
           summary_time = messages[49].date

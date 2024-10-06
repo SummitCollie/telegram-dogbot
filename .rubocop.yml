@@ -71,3 +71,6 @@ RSpec/MultipleMemoizedHelpers:
 
 RSpec/SpecFilePathFormat:
   Exclude: [ "**/spec/requests/telegram_webhooks_controller/*" ]
+
+FactoryBot/ExcessiveCreateList:
+  Enabled: false
