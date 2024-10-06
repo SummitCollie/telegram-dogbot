@@ -19,6 +19,8 @@ class Chat < ApplicationRecord
                    .order(:created_at).last
 
     if last_summary
+      # not_from_bot because we don't know api_id of bot messages so they're kinda wasted space.
+      # plus who cares what the bot was doing, we're summarizing the chat not the bot's lengthy outputs.
       message_count = messages.not_from_bot.where('date > ?', last_summary.created_at).count
 
       if message_count < MIN_MESSAGES_BETWEEN_SUMMARIES

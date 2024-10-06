@@ -56,10 +56,12 @@ class TelegramWebhooksController
     def create_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.build(api_id: message.message_id)
 
+      db_message.date = Time.zone.at(message.date).to_datetime
+
       attachment_type = TelegramTools.attachment_type(message)
       db_message.attachment_type = attachment_type.to_sym if attachment_type
 
-      db_message.date = Time.zone.at(message.date).to_datetime
+      # not_from_bot because we don't know api_id of messages sent by this bot
       db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
         api_id: message.reply_to_message&.message_id
       )&.id
@@ -76,6 +78,7 @@ class TelegramWebhooksController
       attachment_type = TelegramTools.attachment_type(message)
       db_message.attachment_type = attachment_type.to_sym if attachment_type
 
+      # not_from_bot because we don't know api_id of messages sent by this bot
       db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
         api_id: message.reply_to_message&.message_id
       )&.id
