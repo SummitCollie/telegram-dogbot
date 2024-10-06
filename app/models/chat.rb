@@ -19,25 +19,28 @@ class Chat < ApplicationRecord
                    .order(:created_at).last
 
     if last_summary
-      # not_from_bot because we don't know api_id of bot messages so they're kinda wasted space.
-      # plus who cares what the bot was doing, we're summarizing the chat not the bot's lengthy outputs.
-      message_count = messages.not_from_bot.where('date > ?', last_summary.created_at).count
+      message_count = messages.where('date > ?', last_summary.created_at).count
 
-      if message_count < MIN_MESSAGES_BETWEEN_SUMMARIES
+      if message_count < min_messages_between_summaries
         raise FuckyWuckies::SummarizeJobFailure.new(
           db_chat: self,
-          frontend_message: "Less than #{MIN_MESSAGES_BETWEEN_SUMMARIES} messages " \
+          frontend_message: "Less than #{min_messages_between_summaries} messages " \
                             'since last summary. Read them yourself!',
           sticker: :no_u
         ), 'Not enough messages since last summary of this type: ' \
            "chat api_id=#{id} summary type=#{summary_type}"
       end
 
-      messages.not_from_bot.where('date > ?', last_summary.created_at).order(:date)
+      messages.where('date > ?', last_summary.created_at).order(:date)
     else
       # No summaries yet so just grab the last 200 messages
-      messages.not_from_bot.includes(:user).order(:date).last(200)
+      messages.includes(:user).order(:date).last(200)
     end
+  end
+
+  # Between summaries of same type (nicely, vibe_check, etc)
+  def min_messages_between_summaries
+    100
   end
 
   # Count of messages from this chat currently stored in DB

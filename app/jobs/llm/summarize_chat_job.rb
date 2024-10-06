@@ -35,13 +35,16 @@ module LLM
     def self.messages_to_yaml(messages)
       messages.map do |message|
         result = {
-          id: message.api_id,
+          id: message.api_id == -1 ? '?' : message.api_id,
           user: message.user.first_name,
           text: message.text
         }
 
-        result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
         result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
+
+        if !message.reply_to_message&.from_this_bot? && messages.include?(message.reply_to_message)
+          result[:reply_to] = message.reply_to_message.api_id
+        end
 
         # avoids ':' prefix on every key in the resulting YAML
         # https://stackoverflow.com/a/53093339

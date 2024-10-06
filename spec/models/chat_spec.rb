@@ -5,37 +5,53 @@ require 'rails_helper'
 RSpec.describe Chat do
   describe '#messages_since_last_summary' do
     let(:chat) { create(:chat) }
-    let(:human1) { create(:user) }
-    let(:human2) { create(:user) }
+    let(:human) { create(:user) }
     let(:bot) { create(:user, is_this_bot: true) }
+    let(:other_bot) { create(:user, is_bot: true) }
 
     before do
+      allow_any_instance_of(described_class).to receive(:min_messages_between_summaries).and_return(5)
+
       # create an old ChatSummary older than all the messages so results contain everything since then
       create(:chat_summary, chat:, status: :complete,
-                            summary_type: 'vibe_check', created_at: 2.days.ago)
+                            summary_type: :vibe_check, created_at: 2.days.ago)
 
-      [human1, human2, bot].each do |u|
+      [human, bot, other_bot].each do |u|
         cu = create(:chat_user, chat:, user: u)
-        50.times { create(:message, chat_user: cu) } # rubocop:disable FactoryBot/CreateList
+        10.times { create(:message, chat_user: cu) } # rubocop:disable FactoryBot/CreateList
       end
     end
 
-    it 'gets all messages sent by humans, not ones from this bot' do
-      human1_cu = chat.chat_users.find_by(user: human1)
-      human2_cu = chat.chat_users.find_by(user: human2)
+    it 'includes all messages sent by humans, this bot, and other bots' do
+      human_cu = chat.chat_users.find_by(user: human)
+      bot_cu = chat.chat_users.find_by(user: bot)
+      other_bot_cu = chat.chat_users.find_by(user: other_bot)
 
       results = chat.messages_since_last_summary(:vibe_check)
 
-      expect(results.size).to eq 100
-      expect(results).to match_array(human1_cu.messages + human2_cu.messages)
+      expect(results.size).to eq 30
+      expect(results).to match_array(human_cu.messages + bot_cu.messages + other_bot_cu.messages)
     end
 
-    it 'excludes messages sent by this bot' do
-      bot_cu = chat.chat_users.find_by(user: bot)
+    it 'includes messages sent before a ChatSummary of a different type' do
+      create(:chat_summary, chat:, status: :complete,
+                            summary_type: :nice, created_at: 1.minute.ago)
 
       results = chat.messages_since_last_summary(:vibe_check)
 
-      expect(results).not_to include(*bot_cu.messages)
+      expect(results.size).to eq 30
+    end
+
+    it 'excludes messages sent before the last ChatSummary of same type' do
+      human_cu = chat.chat_users.find_by(user: human)
+      older_message = create(:message, chat_user: human_cu, date: 24.hours.ago)
+      create(:chat_summary, chat:, status: :complete,
+                            summary_type: :vibe_check, created_at: 23.hours.ago)
+
+      results = chat.messages_since_last_summary(:vibe_check)
+
+      expect(results.size).to be < 30
+      expect(results).not_to include older_message
     end
   end
 end

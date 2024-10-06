@@ -213,6 +213,17 @@ RSpec.describe LLM::SummarizeChatJob do
       expect(results.last['text']).to eq messages.last.text
     end
 
+    it 'sets `id` to `?` for messages sent by this bot' do
+      chat = create(:chat)
+      bot_user = create(:user, is_this_bot: true)
+      bot_cu = create(:chat_user, chat:, user: bot_user)
+      messages = [create(:message, chat_user: bot_cu, date: 2.minutes.ago)]
+
+      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+
+      expect(results.first['id']).to eq '?'
+    end
+
     it 'sets `reply_to` to parent message ID when parent message within context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 2.minutes.ago)
@@ -230,6 +241,21 @@ RSpec.describe LLM::SummarizeChatJob do
       response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
       create(:message, chat:, date: 1.minute.ago)
       messages = [response_message]
+
+      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+
+      expect(results.last.key?('reply_to')).to be false
+    end
+
+    it 'omits `reply_to` when parent message was sent by this bot' do
+      # because we don't know the ID of outgoing messages, so can't match against them
+      chat = create(:chat)
+      bot_user = create(:user, is_this_bot: true)
+      bot_cu = create(:chat_user, chat:, user: bot_user)
+
+      parent_message = create(:message, chat_user: bot_cu, date: 2.minutes.ago)
+      response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
+      messages = [parent_message, response_message]
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 

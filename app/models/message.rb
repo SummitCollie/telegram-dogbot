@@ -15,13 +15,17 @@ class Message < ApplicationRecord
   scope :from_this_bot, -> { joins(:user).where(user: { is_this_bot: true }) }
   scope :not_from_bot, -> { where.not(id: from_this_bot) }
 
+  def from_this_bot?
+    user.is_this_bot
+  end
+
   private
 
   # Because the production bot runs in webhook mode, it can never know telegram's API IDs
   # for the messages it sends (see TelegramTools#store_bot_output):
   # https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#async-mode
   def stub_api_id_for_own_messages
-    return unless user.is_this_bot
+    return unless from_this_bot?
 
     self.api_id = -1
   end
