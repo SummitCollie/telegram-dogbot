@@ -56,7 +56,7 @@ module LLM
 
     def llm_summarize(db_messages, summary_type)
       system_prompt = LLMTools.prompt_for_style(summary_type)
-      user_prompt = SummarizeChatJob.messages_to_yaml(db_messages)
+      user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 

@@ -55,7 +55,7 @@ module LLM
     def llm_generate_reply(past_db_messages, last_api_messages)
       system_prompt = "#{LLMTools.prompt_for_style(:reply_when_mentioned)}\n" \
                       "Chatroom title: #{@db_chat.title}"
-      user_prompt = messages_to_yaml(past_db_messages, last_api_messages)
+      user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
 
       puts "================== system prompt:\n#{system_prompt}"
       puts "================== user prompt:\n#{user_prompt}"
@@ -80,6 +80,8 @@ module LLM
       reply_to_message = api_message&.reply_to_message
       return [api_message] if reply_to_message.blank?
 
+      return [api_message] if reply_to_message.message_id == past_db_messages.first.api_id
+
       reply_to_message_date = Time.zone.at(reply_to_message.date).to_datetime
       return [api_message] if past_db_messages.first.date < reply_to_message_date
 
@@ -89,7 +91,7 @@ module LLM
 
     def db_message_to_yaml(db_messages, message)
       yaml = {
-        id: message.api_id,
+        id: message.api_id == -1 ? '?' : message.api_id,
         user: "#{message.user.first_name} (@#{message.user.username})",
         text: message.text
       }
