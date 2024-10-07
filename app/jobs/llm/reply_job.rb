@@ -14,9 +14,6 @@ module LLM
       api_message = TelegramTools.deserialize_api_message(serialized_message)
       db_message = @db_chat.messages.find_by(api_id: api_message.message_id)
 
-      # messages = db_chat.messages.includes(:user).order(:date).last(100)
-      # prepend_missing_reply_context(messages, api_message.reply_to_message)
-
       # Messages sent before bot was mentioned
       past_db_messages = @db_chat.messages.where(date: ...db_message.date).order(:date).last(100)
 
@@ -76,7 +73,7 @@ module LLM
       output
     end
 
-    # Since we can't know the telegram API IDs of messages sent by this bot,
+    # Since we can't know the telegram message_ids of messages sent by this bot,
     # need extra logic to test whether `message.reply_to_message` already exists
     # within context and therefore shouldn't be added to the prompt again.
     def get_last_messages(past_db_messages, api_message)
