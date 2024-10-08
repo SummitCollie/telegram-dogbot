@@ -1,12 +1,11 @@
 # frozen_string_literal: true
 
 class TelegramWebhooksController
+  # Auto-creates prerequisite DB records for a Message, if not present
+  # (Message needs a ChatUser, which needs a User and Chat)
   module MessageStorage
     extend self
 
-    ###
-    ### Store messages & edits
-    ###
     def store_message(message)
       db_chat = create_or_update_chat
       db_user = create_or_update_user
@@ -30,9 +29,6 @@ class TelegramWebhooksController
 
     private
 
-    ###
-    ### Create/update DB records
-    ###
     def create_or_update_chat
       db_chat = Chat.find_or_initialize_by(api_id: chat.id)
       db_chat.title = chat.title
@@ -45,6 +41,7 @@ class TelegramWebhooksController
       db_user = User.find_or_initialize_by(api_id: from.id)
       db_user.username = from.username
       db_user.first_name = from.first_name
+      db_user.is_bot = from.is_bot
       db_user.save!
       db_user
     end
@@ -59,13 +56,16 @@ class TelegramWebhooksController
     def create_message(db_chat, db_chat_user, message)
       db_message = db_chat_user.messages.build(api_id: message.message_id)
 
-      Message.attachment_types.each_key do |attachment_type|
-        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
-      end
-
       db_message.date = Time.zone.at(message.date).to_datetime
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
-      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
+
+      attachment_type = TelegramTools.attachment_type(message)
+      db_message.attachment_type = attachment_type.to_sym if attachment_type
+
+      # not_from_bot because we don't know api_id of messages sent by this bot
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
+        api_id: message.reply_to_message&.message_id
+      )&.id
+      db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
       db_message
@@ -75,23 +75,17 @@ class TelegramWebhooksController
       db_message = db_chat_user.messages.find_by(api_id: message.message_id)
       return unless db_message
 
-      Message.attachment_types.each_key do |attachment_type|
-        db_message.attachment_type = attachment_type.to_sym if message[attachment_type]
-      end
+      attachment_type = TelegramTools.attachment_type(message)
+      db_message.attachment_type = attachment_type.to_sym if attachment_type
 
-      db_message.reply_to_message_id = db_chat.messages.find_by(api_id: message.reply_to_message&.message_id)&.id
-      db_message.text = determine_message_text(db_message.attachment_type.present?, message)
+      # not_from_bot because we don't know api_id of messages sent by this bot
+      db_message.reply_to_message_id = db_chat.messages.not_from_bot.find_by(
+        api_id: message.reply_to_message&.message_id
+      )&.id
+      db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
       db_message
-    end
-
-    def determine_message_text(has_attached_media, message)
-      if message.sticker&.emoji
-        message.sticker&.emoji
-      else
-        has_attached_media ? message.caption : message.text
-      end
     end
   end
 end

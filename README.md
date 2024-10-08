@@ -10,7 +10,7 @@ Summarize group chat messages sent since the last summary (or as many as possibl
 >
 > • The conversation shifted to the topic of creativity, with AnonFur suggesting that everyone has some form of creative expression.
 >
-> `...`
+> • `...`
 
 ## <p align="center">/summarize_nicely</p>
 Like above but be very nice about it
@@ -18,18 +18,17 @@ Like above but be very nice about it
 > • Summit diligently worked on testing and improving
 their knowledge, inquiring about statistics multiple times to better comprehend the data.
 >
-> • Summit aesthetically shared a minimalist design element, adding a touch of simplicity and elegance to the conversation. ` // I posted a single emoji in the chat lol`
+> • Summit aesthetically shared a minimalist design element, adding a touch of simplicity and elegance to the conversation. `// I posted a single emoji in the chat lol`
 >
-> `...`
+> • `...`
 
 ## <p align="center">/vibe_check</p>
 Analyze chat members' moods
 
-> • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant
->
-> • SomeUser: 😍 ✨ 💖 / enamored, zealous, effusive
->
-> • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable
+> • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant\
+> • SomeUser: 😍 ✨ 💖 / enamored, zealous, effusive\
+> • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable\
+> • `...`
 
 ## <p align="center">/translate `french hola mi amigo`</p>
 Translates the text to requested language, or English by default.
@@ -48,11 +47,11 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   • Total Messages: 100
   • Last 2 days: 40 (40%)
 
-🗣 Top Yappers (last 2 days):
+🗣 Top Yappers - 2 days
   1. SomeUser / 30 msgs (75%)
   2. Summit / 10 msgs (25%)
 
-⭐ Top Yappers (all time):
+⭐ Top Yappers - all time
   1. Summit / 70 msgs (70%)
   2. SomeUser / 30 msgs (30%)
 ```
@@ -62,8 +61,9 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [x] Aware of reply threads
   - [x] Aware of media presence (photo/video/etc) & captions on media
   - [x] "Vibe check" summary of users' moods
-- [x] Rake task to auto-delete chat data > 2 days old
 - [x] Translate messages & replied messages between different languages
+- [x] Talk to the bot - send a message tagging bot using `@itsUsername`
+- [x] Rake task to auto-delete chat data > 2 days old
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.

@@ -1,10 +1,28 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
 class TelegramWebhooksController
   module AuthorizationHandler
     extend self
 
     def authorize_command!
+      if db_chat.blank?
+        raise FuckyWuckies::MessageFilterError.new(
+          severity: Logger::Severity::ERROR
+        ), 'Refusing command (Chat not initialized?? weird error alert!!!) - ' \
+           "chat api_id=#{chat&.id || '?'} title=#{chat&.title || '?'}"
+      end
+
+      if from.blank? || chat.blank?
+        # All the updates we care about will have `chat` and `from` attrs.
+        # If not (polls etc), discard with a warning so I remember to set up `allowed_updates`:
+        # https://core.telegram.org/bots/api#setwebhook
+        raise FuckyWuckies::MessageFilterError.new(
+          severity: Logger::Severity::WARN
+        ), 'Ignoring update (missing params I want): ' \
+           "chat api_id=#{db_chat.id} title=#{db_chat.title}"
+      end
+
       if from_bot?
         raise FuckyWuckies::AuthorizationError.new(
           frontend_message: 'begone bot',
@@ -31,11 +49,13 @@ class TelegramWebhooksController
     end
 
     def authorize_message_storage!(message)
-      if from_bot?
-        raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
-      end
+      ### Actually I do want to save messages from bots now.
+      # if from_bot?
+      #   raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
+      # end
 
-      if empty_text?(message)
+      # Blank text?
+      if TelegramTools.extract_message_text(message).blank?
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
                                                     "message api_id=#{message.try(:message_id) || '?'}"
       end
@@ -62,19 +82,7 @@ class TelegramWebhooksController
     private
 
     def from_bot?
-      from&.is_bot
-    end
-
-    def empty_text?(message)
-      return false if message.try(:text).present?
-
-      # Sticker message with emoji we can log as message text
-      return false if message.try(:sticker).try(:emoji).present?
-
-      # Caption is used when message has an attachment (photo, video, ...)
-      return false if message.try(:caption).present?
-
-      true
+      from.is_bot
     end
 
     def group_chat?
@@ -90,3 +98,4 @@ class TelegramWebhooksController
     end
   end
 end
+# rubocop:enable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity

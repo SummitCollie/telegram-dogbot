@@ -17,7 +17,6 @@ module LLM
       target_language ||= 'english'
 
       result_text = llm_translate(text_to_translate, target_language)
-
       send_output_message(result_text)
     rescue Faraday::Error => e
       model_loading_time = e&.response&.dig(
@@ -27,12 +26,12 @@ module LLM
       if model_loading_time
         raise FuckyWuckies::TranslateJobFailure.new(
           db_chat: @db_chat,
-          severity: Logger::Severity::ERROR,
+          severity: Logger::Severity::WARN,
           frontend_message: "--- Model Loading! ---\n" \
                             "API claims it should be ready in ~#{model_loading_time} mins.\n" \
                             'But the API frequently lies so just try again later.'
         ), "Translation model loading, supposedly ready in #{model_loading_time}s: " \
-           "chat api_id=#{@db_chat.id} title=#{@db_chat.title}\n#{e}"
+           "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
       end
 
       raise FuckyWuckies::TranslateJobFailure.new(
@@ -41,33 +40,26 @@ module LLM
         frontend_message: "#{username_header}\n❌ Translation failed :(",
         sticker: :no_french
       ), 'Translation failed: ' \
-         "chat api_id=#{@db_chat.id} title=#{@db_chat.title}\n#{e}"
+         "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
     # rubocop:enable Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity
 
     private
 
     def llm_translate(text, target_language)
-      client = OpenAI::Client.new
-      # client.add_headers('x-wait-for-model' => 'true')
+      system_prompt = LLMTools.prompt_for_style(:translate)
+      user_prompt = "Translate into #{target_language.capitalize}:\n#{text}"
 
-      messages = [
-        { role: 'system', content: LLMTools.prompt_for_style(:translate) },
-        { role: 'user', content: "Translate into #{target_language.capitalize}:\n#{text}" }
-      ]
-
-      result = StringIO.new
-      client.chat(parameters: {
-                    model: Rails.application.credentials.openai.translate_model ||
+      output = LLMTools.run_chat_completion(
+        system_prompt:,
+        user_prompt:,
+        model_params: {
+          model: Rails.application.credentials.openai.translate_model ||
                            Rails.application.credentials.openai.model,
-                    max_tokens: 512,
-                    temperature: 0.3,
-                    messages:,
-                    stream: proc do |chunk, _bytesize|
-                              result << chunk.dig('choices', 0, 'delta', 'content')
-                            end
-                  })
-      output = result.string.strip
+          max_tokens: 512,
+          temperature: 0.3
+        }
+      )
 
       if output.blank?
         raise FuckyWuckies::TranslateJobFailure.new(
@@ -89,12 +81,15 @@ module LLM
       "<#{@command_message_from}>"
     end
 
-    def send_output_message(text)
+    def send_output_message(translated_text)
+      output = "#{username_header}\n#{translated_text}"
+
       Telegram.bot.send_message(
         chat_id: @db_chat.api_id,
         protect_content: false,
-        text: "#{username_header}\n#{text}"
+        text: output
       )
+      TelegramTools.store_bot_output(@db_chat, output)
     end
   end
 end

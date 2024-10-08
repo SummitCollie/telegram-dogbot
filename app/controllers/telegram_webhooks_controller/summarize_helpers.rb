@@ -4,7 +4,10 @@ class TelegramWebhooksController
   module SummarizeHelpers
     extend self
 
-    def ensure_summarize_allowed!(db_chat:)
+    def ensure_summarize_allowed!
+      # Delete old ChatSummaries that aren't complete after 1 minute
+      db_chat.chat_summaries.where(status: :running, created_at: ...1.minute.ago).destroy_all
+
       return unless db_chat&.summarize_job_running?
 
       raise FuckyWuckies::SummarizeJobFailure.new(

@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-MIN_MESSAGES_BETWEEN_SUMMARIES = 100
-
-client = Telegram::Bot::Client.new(
+temp_tg_client = Telegram::Bot::Client.new(
   Rails.application.credentials.telegram.bot.token,
   Rails.application.credentials.telegram.bot.username,
   async: false
@@ -10,7 +8,7 @@ client = Telegram::Bot::Client.new(
 
 # Set slash commands available from telegram UI
 # https://core.telegram.org/bots/features#commands
-client.set_my_commands(
+temp_tg_client.set_my_commands(
   commands: [
     { command: 'summarize',
       description: 'Summarize messages since last summary (or as many as possible)' },
@@ -21,3 +19,5 @@ client.set_my_commands(
   ],
   language_code: 'en'
 )
+
+temp_tg_client = nil # rubocop:disable Lint/UselessAssignment

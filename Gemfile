@@ -46,7 +46,7 @@ group :development, :test do
   gem 'debug', platforms: %i[mri windows]
   gem 'factory_bot_rails'
   gem 'faker'
-  gem 'ostruct' # undeclared dependency of pry
+  gem 'ostruct'
   gem 'pry'
   gem 'pry-byebug'
   gem 'rspec-rails', '~> 6.1.3'

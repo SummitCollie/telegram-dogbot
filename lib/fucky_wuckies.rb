@@ -21,4 +21,5 @@ module FuckyWuckies
   class SummarizeJobError < BaseError; end
   class SummarizeJobFailure < BaseError; end
   class TranslateJobFailure < BaseError; end
+  class ReplyJobFailure < BaseError; end
 end
