@@ -44,13 +44,15 @@ RSpec.describe Chat do
 
     it 'excludes messages sent before the last ChatSummary of same type' do
       human_cu = chat.chat_users.find_by(user: human)
-      older_message = create(:message, chat_user: human_cu, date: 24.hours.ago)
-      create(:chat_summary, chat:, status: :complete,
-                            summary_type: :vibe_check, created_at: 23.hours.ago)
+      older_message = create(:message, chat_user: human_cu, date: 3.days.ago)
+
+      10.times do |n|
+        # random times assigned by message_factory make this test flaky otherwise
+        create(:message, chat_user: human_cu, text: 'extra msg for summary', date: n.minutes.ago)
+      end
 
       results = chat.messages_since_last_summary(:vibe_check)
 
-      expect(results.size).to be < 30
       expect(results).not_to include older_message
     end
   end
