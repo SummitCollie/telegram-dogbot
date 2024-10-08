@@ -80,10 +80,8 @@ module LLM
       reply_to_message = api_message&.reply_to_message
       return [api_message] if reply_to_message.blank?
 
-      return [api_message] if reply_to_message.message_id == past_db_messages.first.api_id
-
       reply_to_message_date = Time.zone.at(reply_to_message.date).to_datetime
-      return [api_message] if past_db_messages.first.date < reply_to_message_date
+      return [api_message] if past_db_messages.first.date.floor <= reply_to_message_date
 
       # reply_to_message not in context, so add it above the user's message
       [reply_to_message, api_message]

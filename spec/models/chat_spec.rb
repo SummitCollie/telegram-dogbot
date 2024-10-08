@@ -10,7 +10,7 @@ RSpec.describe Chat do
     let(:other_bot) { create(:user, is_bot: true) }
 
     before do
-      allow_any_instance_of(described_class).to receive(:min_messages_between_summaries).and_return(5)
+      allow_any_instance_of(described_class).to receive(:min_messages_between_summaries).and_return(2)
 
       # create an old ChatSummary older than all the messages so results contain everything since then
       create(:chat_summary, chat:, status: :complete,
