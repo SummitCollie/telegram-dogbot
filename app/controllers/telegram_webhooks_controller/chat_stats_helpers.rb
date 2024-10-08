@@ -5,7 +5,9 @@ class TelegramWebhooksController
     module_function
 
     def chat_stats_text
-      chat_users = ChatUser.joins(:user).where(chat_id: db_chat.id)
+      chat_users = ChatUser.joins(:user)
+                           .where(chat_id: db_chat.id)
+                           .where(user: { is_this_bot: false })
 
       if chat_users.blank?
         raise FuckyWuckies::NotAGroupChatError.new(

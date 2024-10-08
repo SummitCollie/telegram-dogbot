@@ -45,11 +45,15 @@ class Chat < ApplicationRecord
 
   # Count of messages from this chat currently stored in DB
   def num_messages_in_db
-    chat_users&.pluck(:num_stored_messages)&.reduce(:+)
+    chat_users.joins(:user)
+              .where(user: { is_this_bot: false })
+              .sum(:num_stored_messages)
   end
 
   # Count of messages seen in chat (including ones no longer in DB)
   def num_messages_total
-    chat_users&.pluck(:num_chatuser_messages)&.reduce(:+)
+    chat_users.joins(:user)
+              .where(user: { is_this_bot: false })
+              .sum(:num_chatuser_messages)
   end
 end

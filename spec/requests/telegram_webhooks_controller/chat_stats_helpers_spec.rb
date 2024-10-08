@@ -50,6 +50,13 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
 
         # User 3: no messages in DB, but racked up a message count of 4 earlier
         create(:chat_user, chat:, user: user3, num_chatuser_messages: 4)
+
+        # This bot: 5 messages which shouldn't be included in chat stats
+        bot_user = create(:user, is_this_bot: true)
+        bot_cu = create(:chat_user, chat:, user: bot_user)
+        5.times do
+          create(:message, chat_user: bot_cu, date: Faker::Time.backward(days: 1))
+        end
       end
     end
 
