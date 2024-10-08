@@ -3,10 +3,7 @@
 module LLM
   class ReplyJob < ApplicationJob
     discard_on(FuckyWuckies::ReplyJobFailure) do |_job, error|
-      db_chat = error.db_chat
-      raise error if db_chat.blank?
-
-      TelegramTools.send_error_message(error, db_chat.api_id)
+      raise error
     end
 
     def perform(db_chat, serialized_message)
@@ -57,9 +54,6 @@ module LLM
                       "Chatroom title: #{@db_chat.title}"
       user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
 
-      puts "================== system prompt:\n#{system_prompt}"
-      puts "================== user prompt:\n#{user_prompt}"
-
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 128 })
 
       if output.blank?
@@ -67,7 +61,7 @@ module LLM
           severity: Logger::Severity::ERROR,
           db_chat: @db_chat
         ), 'Blank LLM output generating reply to message: ' \
-           "chat api_id=#{db_chat.id} title=#{db_chat.title}"
+           "chat api_id=#{@db_chat.id} title=#{@db_chat.title}"
       end
 
       output

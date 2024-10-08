@@ -309,22 +309,115 @@ RSpec.describe LLM::ReplyJob do
       end
 
       context 'when message being replied to is NOT from this bot' do
-        it 'puts actual `api_id` value into YAML `id` & `reply_to`'
+        it 'puts actual `api_id` value into YAML `id` & `reply_to`' do
+          described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
+
+          expected_prompt = <<~PROMPT.strip
+            ---
+            - id: #{other_human_message.api_id}
+              user: #{other_human_message.user.first_name} (@#{other_human_message.user.username})
+              text: #{other_human_message.text}
+            - id: #{reply_to_human.api_id}
+              user: #{human.first_name} (@#{human.username})
+              text: #{reply_to_human.text}
+              reply_to: #{other_human_message.api_id}
+          PROMPT
+
+          expect(LLMTools).to have_received(:run_chat_completion).with(
+            model_params: anything,
+            system_prompt: anything,
+            user_prompt: expected_prompt
+          )
+        end
       end
     end
 
     context 'when message mentioning bot is NOT a reply to another message' do
-      it 'adds nothing to YAML above user message'
+      it 'adds nothing to YAML above user message' do
+        older_msg = create(:message, chat:, date: 3.minutes.ago)
+
+        described_class.perform_now(chat, TelegramTools.serialize_api_message(api_human_msg))
+
+        expected_prompt = <<~PROMPT.strip
+          ---
+          - id: #{older_msg.api_id}
+            user: #{older_msg.user.first_name} (@#{older_msg.user.username})
+            text: #{older_msg.text}
+          - id: #{human_message.api_id}
+            user: #{human.first_name} (@#{human.username})
+            text: #{human_message.text}
+        PROMPT
+
+        expect(LLMTools).to have_received(:run_chat_completion).with(
+          model_params: anything,
+          system_prompt: anything,
+          user_prompt: expected_prompt
+        )
+      end
     end
 
     context 'when LLM output is blank' do
-      it 'raises error'
-      it 'does not send response message'
+      before do
+        allow(TelegramTools).to receive(:send_error_message)
+        allow(LLMTools).to receive(:run_chat_completion).and_return ''
+      end
+
+      it 'raises error' do
+        serialized_message = TelegramTools.serialize_api_message(api_reply_to_bot)
+
+        expect do
+          described_class.perform_now(chat, serialized_message)
+        end.to raise_error(FuckyWuckies::ReplyJobFailure, /Blank LLM output/)
+      end
+
+      it 'does not send response message' do
+        serialized_message = TelegramTools.serialize_api_message(api_reply_to_bot)
+
+        expect do
+          described_class.perform_now(chat, serialized_message)
+        end.to raise_error(FuckyWuckies::ReplyJobFailure, /Blank LLM output/)
+
+        expect(TelegramTools).not_to have_received(:send_error_message)
+      end
+    end
+
+    context 'when LLM output is NOT blank' do
+      it 'does not raise error' do
+        serialized_message = TelegramTools.serialize_api_message(api_reply_to_bot)
+
+        expect do
+          described_class.perform_now(chat, serialized_message)
+        end.not_to raise_error
+      end
     end
 
     context 'when LLM reply generation successful' do
-      it 'sends output in telegram message'
-      it 'saves bot output as a Message id DB'
+      it 'sends output in telegram reply to mention' do
+        serialized_message = TelegramTools.serialize_api_message(api_reply_to_human)
+
+        described_class.perform_now(chat, serialized_message)
+
+        expect(Telegram.bot).to have_received(:send_message).with(
+          chat_id: chat.api_id,
+          protect_content: false,
+          text: 'LLM generated reply text',
+          reply_parameters: {
+            message_id: reply_to_human.api_id,
+            allow_sending_without_reply: true
+          }
+        )
+      end
+
+      it 'saves bot output as a Message in DB' do
+        serialized_message = TelegramTools.serialize_api_message(api_reply_to_bot)
+
+        described_class.perform_now(chat, serialized_message)
+
+        expect(Message.last).to have_attributes(
+          text: 'LLM generated reply text',
+          chat_user: bot_cu
+        )
+      end
     end
   end
 end
