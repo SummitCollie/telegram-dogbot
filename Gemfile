@@ -37,6 +37,7 @@ gem 'bootsnap', require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 
+gem 'ostruct'
 gem 'ruby-openai'
 gem 'telegram-bot'
 gem 'telegram-bot-types'
@@ -46,7 +47,6 @@ group :development, :test do
   gem 'debug', platforms: %i[mri windows]
   gem 'factory_bot_rails'
   gem 'faker'
-  gem 'ostruct'
   gem 'pry'
   gem 'pry-byebug'
   gem 'rspec-rails', '~> 6.1.3'
