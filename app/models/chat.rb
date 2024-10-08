@@ -31,10 +31,16 @@ class Chat < ApplicationRecord
            "chat api_id=#{id} summary type=#{summary_type}"
       end
 
-      messages.where('date > ?', last_summary.created_at).order(:date)
+      messages.includes(:user, reply_to_message: [:user])
+              .where('messages.date > ?', last_summary.created_at)
+              .references(:user, :message)
+              .order('messages.date')
     else
       # No summaries yet so just grab the last 200 messages
-      messages.includes(:user).order(:date).last(200)
+      messages.includes(:user, reply_to_message: [:user])
+              .references(:user, :message)
+              .order('messages.date')
+              .last(200)
     end
   end
 

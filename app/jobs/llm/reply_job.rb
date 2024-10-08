@@ -12,7 +12,11 @@ module LLM
       db_message = @db_chat.messages.find_by(api_id: api_message.message_id)
 
       # Messages sent before bot was mentioned
-      past_db_messages = @db_chat.messages.where(date: ...db_message.date).order(:date).last(100)
+      past_db_messages = @db_chat.messages.includes(:user, :reply_to_message)
+                                 .where(date: ...db_message.date)
+                                 .references(:user, :message)
+                                 .order(:date)
+                                 .last(100)
 
       # Message which mentioned the bot, optionally preceded by `message.reply_to_message`
       # (if the reply_to_message doesn't already exist within the context of past_db_messages)
