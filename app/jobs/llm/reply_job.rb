@@ -58,7 +58,7 @@ module LLM
                       "Chatroom title: #{@db_chat.title}"
       user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 128 })
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 256 })
 
       if output.blank?
         raise FuckyWuckies::ReplyJobFailure.new(
