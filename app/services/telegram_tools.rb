@@ -18,7 +18,9 @@ class TelegramTools
     # - Sticker messages have an emoji we can log as message text
     # - Messages with media attached (photo, video, ...) use `caption` instead of `text`
     def extract_message_text(api_message)
-      api_message.text.presence || api_message.sticker&.emoji.presence || api_message.caption.presence
+      api_message.try(:text).presence ||
+        api_message.try(:sticker).try(:emoji).presence ||
+        api_message.try(:caption).presence
     end
 
     def attachment_type(api_message)
