@@ -31,15 +31,18 @@ class TelegramTools
     end
 
     def serialize_api_message(message)
-      {
+      serialized = {
         message_id: message.message_id,
-        text: message.text,
+        text: TelegramTools.extract_message_text(message),
         date: message.date,
         from: {
           first_name: message.from.first_name,
           username: message.from.username
-        },
-        reply_to_message: message.reply_to_message.present? && {
+        }
+      }
+
+      if message.reply_to_message.present?
+        serialized[:reply_to_message] = {
           message_id: message.reply_to_message.message_id,
           text: message.reply_to_message.text,
           date: message.reply_to_message.date,
@@ -48,7 +51,9 @@ class TelegramTools
             username: message.reply_to_message.from.username
           }
         }
-      }.to_json
+      end
+
+      serialized.to_json
     end
 
     def deserialize_api_message(json)

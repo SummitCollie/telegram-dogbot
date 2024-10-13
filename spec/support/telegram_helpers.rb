@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.shared_context 'with telegram_webhooks_controller_helpers' do
+RSpec.shared_context 'with telegram_helpers' do
   let(:known_commands) { %w[summarize summarize_nicely vibe_check translate].freeze }
 
   let(:photo_message_options) do

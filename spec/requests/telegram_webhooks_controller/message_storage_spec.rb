@@ -2,11 +2,11 @@
 
 require 'rails_helper'
 require 'telegram/bot/rspec/integration/rails'
-require 'support/telegram_webhooks_controller_helpers'
+require 'support/telegram_helpers'
 
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   include ActiveJob::TestHelper
-  include_context 'with telegram_webhooks_controller_helpers'
+  include_context 'with telegram_helpers'
 
   describe 'TelegramWebhooksController::MessageStorage' do
     before do
