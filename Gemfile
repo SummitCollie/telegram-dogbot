@@ -41,6 +41,7 @@ gem 'ostruct'
 gem 'ruby-openai'
 gem 'telegram-bot'
 gem 'telegram-bot-types'
+gem 'unicode-name'
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

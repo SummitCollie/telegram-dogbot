@@ -300,6 +300,9 @@ GEM
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (2.6.0)
+    unicode-name (1.13.3)
+      unicode-types (~> 1.10)
+    unicode-types (1.10.0)
     uri (0.13.1)
     webrick (1.8.2)
     websocket-driver (0.7.6)
@@ -336,6 +339,7 @@ DEPENDENCIES
   telegram-bot
   telegram-bot-types
   tzinfo-data
+  unicode-name
 
 RUBY VERSION
    ruby 3.3.5p100
