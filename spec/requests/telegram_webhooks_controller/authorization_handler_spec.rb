@@ -15,7 +15,7 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           )
 
           expect do
-            dispatch_command summarize: { from: Telegram::Bot::Types::User.new(
+            dispatch_command summarize_chat: { from: Telegram::Bot::Types::User.new(
               id: 9999999,
               is_bot: true,
               first_name: 'Botty',
@@ -31,7 +31,7 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           )
 
           expect do
-            dispatch_command summarize: { chat: Telegram::Bot::Types::Chat.new(
+            dispatch_command summarize_chat: { chat: Telegram::Bot::Types::Chat.new(
               id: 23456,
               type: 'private',
               title: "Someone's DMs"
@@ -39,7 +39,7 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           end.to raise_error(FuckyWuckies::AuthorizationError)
 
           expect do
-            dispatch_command summarize: { chat: Telegram::Bot::Types::Chat.new(
+            dispatch_command summarize_chat: { chat: Telegram::Bot::Types::Chat.new(
               id: 34567,
               type: 'channel',
               title: 'Some channel'
@@ -53,7 +53,7 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           )
 
           expect do
-            dispatch_command summarize: { chat: Telegram::Bot::Types::Chat.new(
+            dispatch_command summarize_chat: { chat: Telegram::Bot::Types::Chat.new(
               id: 23456,
               type: 'group',
               title: 'Some group'
@@ -61,7 +61,7 @@ RSpec.describe TelegramWebhooksController, type: :telegram_bot_controller do
           end.to raise_error(FuckyWuckies::AuthorizationError)
 
           expect do
-            dispatch_command summarize: { chat: Telegram::Bot::Types::Chat.new(
+            dispatch_command summarize_chat: { chat: Telegram::Bot::Types::Chat.new(
               id: 34567,
               type: 'supergroup',
               title: 'Some supergroup'

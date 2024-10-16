@@ -20,7 +20,7 @@ class TelegramWebhooksController
       command_message_text = if target_language
                                payload.text.gsub(%r{^/translate(\S?)+ #{Regexp.escape(first_input_word)}}, '').strip
                              else
-                               payload.text.gsub(%r{^/translate(\S?)+}, '').strip
+                               TelegramTools.strip_bot_command('translate', payload.text)
                              end
 
       text_to_translate = reply_parent_text || command_message_text

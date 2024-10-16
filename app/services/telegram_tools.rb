@@ -8,11 +8,26 @@ class TelegramTools
       @logger ||= Logger.new(Rails.env.test? ? '/dev/null' : $stderr)
     end
 
+    # rubocop:disable Style/GuardClause
     def send_error_message(error, chat_api_id)
       logger.log(error.severity, error.message)
-      Telegram.bot.send_sticker(chat_id: chat_api_id, sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]) if error.sticker
-      Telegram.bot.send_message(chat_id: chat_api_id, text: error.frontend_message) if error.frontend_message
+
+      if error.sticker
+        Telegram.bot.send_sticker(
+          chat_id: chat_api_id,
+          sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[error.sticker]
+        )
+      end
+
+      if error.frontend_message
+        Telegram.bot.send_message(
+          chat_id: chat_api_id,
+          text: error.frontend_message,
+          parse_mode: error.parse_mode
+        )
+      end
     end
+    # rubocop:enable Style/GuardClause
 
     # Returns the thing from the message that we want to save in the DB, or nil if missing.
     # - Sticker messages have an emoji we can log as message text
@@ -25,6 +40,10 @@ class TelegramTools
 
     def attachment_type(api_message)
       Message.attachment_types.keys.find { |type| !!api_message[type] }
+    end
+
+    def strip_bot_command(command_name, str)
+      str.gsub(%r{^/#{command_name}(\S?)+}, '').strip
     end
 
     def serialize_api_message(message)

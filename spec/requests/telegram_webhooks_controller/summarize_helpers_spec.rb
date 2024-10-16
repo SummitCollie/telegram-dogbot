@@ -27,7 +27,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
 
       it 'enqueues a SummarizeChatJob' do
         expect do
-          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+          dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
             id: chat.api_id,
             type: 'supergroup',
             title: chat.title
@@ -37,7 +37,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
 
       it 'creates a ChatSummary record' do
         expect do
-          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+          dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
             id: chat.api_id,
             type: 'supergroup',
             title: chat.title
@@ -51,7 +51,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         create(:chat_summary, chat:, status: :running)
 
         expect do
-          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+          dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
             id: chat.api_id,
             type: 'supergroup',
             title: chat.title
@@ -63,7 +63,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         create(:chat_summary, chat:, status: :running)
 
         expect do
-          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+          dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
             id: chat.api_id,
             type: 'supergroup',
             title: chat.title
@@ -76,7 +76,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       it 'deletes existing timed-out SummarizeChatJob' do
         old_summary = create(:chat_summary, chat:, status: :running, created_at: 2.minutes.ago)
 
-        dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+        dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
           id: chat.api_id,
           type: 'supergroup',
           title: chat.title
@@ -89,7 +89,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         create(:chat_summary, chat:, status: :running, created_at: 2.minutes.ago)
 
         expect do
-          dispatch_command(:summarize, { chat: Telegram::Bot::Types::Chat.new(
+          dispatch_command(:summarize_chat, { chat: Telegram::Bot::Types::Chat.new(
             id: chat.api_id,
             type: 'supergroup',
             title: chat.title
