@@ -92,9 +92,7 @@ Rails.application.configure do
   routes.default_url_options = { host: Rails.application.credentials.host_url, protocol: 'https' }
 
   # Register callback url for telegram webhook events when production server starts
-  if Rails.const_defined?('Server')
-    config.after_routes_loaded do
-      TelegramTools.set_webhook
-    end
+  config.after_routes_loaded do
+    TelegramTools.set_webhook
   end
 end
