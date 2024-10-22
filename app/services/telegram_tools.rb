@@ -14,7 +14,7 @@ class TelegramTools
       logger.info('Setting DogBot webhook...')
 
       Telegram.bot.set_webhook(
-        url,
+        url:,
         drop_pending_updates: false,
         secret_token: Rails.application.credentials.telegram_secret_token
       )
@@ -45,9 +45,12 @@ class TelegramTools
     # - Sticker messages have an emoji we can log as message text
     # - Messages with media attached (photo, video, ...) use `caption` instead of `text`
     def extract_message_text(api_message)
-      api_message.try(:text).presence ||
-        api_message.try(:sticker).try(:emoji).presence ||
-        api_message.try(:caption).presence
+      if (emoji = api_message.try(:sticker).try(:emoji).presence)
+        # Save textual description of emoji because it helps LLM understand it
+        return "#{emoji} (#{Unicode::Name.of(emoji).downcase})"
+      end
+
+      api_message.try(:text).presence || api_message.try(:caption).presence
     end
 
     def attachment_type(api_message)
@@ -59,15 +62,18 @@ class TelegramTools
     end
 
     def serialize_api_message(message)
-      {
+      serialized = {
         message_id: message.message_id,
-        text: message.text,
+        text: TelegramTools.extract_message_text(message),
         date: message.date,
         from: {
           first_name: message.from.first_name,
           username: message.from.username
-        },
-        reply_to_message: message.reply_to_message.present? && {
+        }
+      }
+
+      if message.reply_to_message.present?
+        serialized[:reply_to_message] = {
           message_id: message.reply_to_message.message_id,
           text: message.reply_to_message.text,
           date: message.reply_to_message.date,
@@ -76,7 +82,9 @@ class TelegramTools
             username: message.reply_to_message.from.username
           }
         }
-      }.to_json
+      end
+
+      serialized.to_json
     end
 
     def deserialize_api_message(json)

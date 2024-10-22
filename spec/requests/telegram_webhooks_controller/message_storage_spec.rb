@@ -2,11 +2,11 @@
 
 require 'rails_helper'
 require 'telegram/bot/rspec/integration/rails'
-require 'support/telegram_webhooks_controller_helpers'
+require 'support/telegram_helpers'
 
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   include ActiveJob::TestHelper
-  include_context 'with telegram_webhooks_controller_helpers'
+  include_context 'with telegram_helpers'
 
   describe 'TelegramWebhooksController::MessageStorage' do
     before do
@@ -134,14 +134,15 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message2.reply_to_message).to eq message1
       end
 
-      it 'saves related emoji from sticker messages as message text' do
+      it 'saves related emoji (and unicode name) from sticker messages as message text' do
         options = default_message_options.merge(sticker_message_options)
         dispatch_message nil, options
 
         user = User.find_by(api_id: options[:from].id)
         message1 = user.messages.last
 
-        expect(message1.reload.text).to eq(options[:sticker][:emoji])
+        emoji = options[:sticker][:emoji]
+        expect(message1.reload.text).to eq "#{emoji} (#{Unicode::Name.of(emoji).downcase})"
       end
 
       it 'saves messages from other bots' do
