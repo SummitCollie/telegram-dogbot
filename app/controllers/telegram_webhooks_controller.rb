@@ -18,6 +18,20 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::SummarizeJobFailure,
               FuckyWuckies::TranslateJobFailure, with: :handle_error
 
+  # Validate `telegram_secret_token` from rails credentials
+  def initialize(bot = nil, update = nil, webhook_request = nil)
+    if webhook_request && !Rails.env.test?
+      secret_token_header = webhook_request.headers.fetch('X-Telegram-Bot-Api-Secret-Token')
+      if secret_token_header != Rails.application.credentials.telegram_secret_token
+        raise FuckyWuckies::AuthorizationError.new(
+          severity: Logger::Severity::ERROR
+        ), "Unauthorized webhook request: ip=#{webhook_request.ip}"
+      end
+    end
+
+    super
+  end
+
   ### Handle commands
   # Be sure to add any new ones in config/initializers/telegram_bot.rb
   def summarize!(*)
@@ -105,7 +119,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   private
 
   def db_chat
-    @db_chat ||= Chat.find_by(api_id: chat.id)
+    @db_chat ||= Chat.find_by(api_id: chat&.id)
   end
 
   def reply_when_mentioned(message)

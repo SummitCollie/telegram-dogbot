@@ -95,17 +95,17 @@ Add the free Heroku Scheduler addon to your app and then configure it with:
     - `config/credentials/production.yml.enc` (`config/credentials/production.key`) is for production only
     - `config/credentials.yml.enc` (`config/master.key`) is for dev & test
 
-### Optional: justfile convenience scripts
-1. Install just
-2. Copy `/justfile.sample` to `/justfile`, then edit any indicated values.
-3. Or just copy the scripts from it into your favorite tool.
-
 ## Run local dev env (bot listener polls telegram, no webhook)
 * `just run`
 
   aka
 
 * `heroku local --procfile=Procfile.dev`
+
+## Run local dev env in async/webhook mode
+* Add your `ngrok_url` and `telegram_secret_token` to rails development credentials
+* Start server with `rails s`
+* After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poller works again
 
 ## Run linter & tests
 * `just test`
