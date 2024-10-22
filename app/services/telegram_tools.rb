@@ -8,6 +8,18 @@ class TelegramTools
       @logger ||= Logger.new(Rails.env.test? ? '/dev/null' : $stderr)
     end
 
+    def set_webhook
+      routes = Rails.application.routes.url_helpers
+      url = routes.send('telegram_webhook_url')
+      logger.info('Setting DogBot webhook...')
+
+      Telegram.bot.set_webhook(
+        url,
+        drop_pending_updates: false,
+        secret_token: Rails.application.credentials.telegram_secret_token
+      )
+    end
+
     # rubocop:disable Style/GuardClause
     def send_error_message(error, chat_api_id)
       logger.log(error.severity, error.message)

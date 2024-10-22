@@ -38,8 +38,8 @@ gem 'bootsnap', require: false
 # gem "rack-cors"
 
 gem 'ostruct'
-gem "ruby-readability", require: 'readability'
 gem 'ruby-openai'
+gem 'ruby-readability', require: 'readability'
 gem 'telegram-bot'
 gem 'telegram-bot-types'
 

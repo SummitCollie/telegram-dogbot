@@ -43,8 +43,8 @@ class TelegramWebhooksController
           payload.text[..offset - 1],
           payload.text[(offset + length)..]
         ].map(&:strip)
-         .reject(&:blank?)
-         .join(', ')
+                     .compact_blank
+                     .join(', ')
       else
         # No URL in command msg, so use the one from the replied msg
         offset = replied_entity.offset
@@ -64,7 +64,7 @@ class TelegramWebhooksController
     def summarize_url_help_text
       <<~HELPINFO.strip
         <blockquote>This command now summarizes URLs -- chat summarization has moved to the <code>/summarize_chat</code> command.
-      
+
         <code>/summarize_nicely</code> has been removed: both <code>/summarize</code> and <code>/summarize_chat</code> now support custom summary styles (see below).
         </blockquote>
         📝 <b><u>Summarize URL</u></b>

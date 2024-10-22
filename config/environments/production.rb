@@ -90,4 +90,11 @@ Rails.application.configure do
   # Set in `rails credentials:edit --environment=production`
   # https://github.com/telegram-bot-rb/telegram-bot/wiki/Deployment#webhooks
   routes.default_url_options = { host: Rails.application.credentials.host_url, protocol: 'https' }
+
+  # Register callback url for telegram webhook events when production server starts
+  if Rails.const_defined?('Server')
+    config.after_routes_loaded do
+      TelegramTools.set_webhook
+    end
+  end
 end

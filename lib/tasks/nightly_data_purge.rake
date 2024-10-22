@@ -5,6 +5,7 @@ require 'logger'
 # Intended to be run by Heroku Scheduler (set that up manually like below)
 # [Every day at 12:00 UTC / Run Command `rake nightly_data_purge`]
 desc 'Deletes old telegram messages & other data from database'
+
 task nightly_data_purge: :environment do
   logger = Logger.new(Rails.env.test? ? '/dev/null' : $stdout)
 
