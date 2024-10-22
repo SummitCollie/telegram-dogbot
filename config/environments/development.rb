@@ -2,6 +2,7 @@
 
 require 'active_support/core_ext/integer/time'
 
+# rubocop:disable Metrics/BlockLength
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
@@ -69,4 +70,20 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # For registering telegram bot webhook.
+  # Set ngrok_url in `rails credentials:edit`
+  # https://github.com/telegram-bot-rb/telegram-bot/wiki/Deployment#webhooks
+  ngrok_url = Rails.application.credentials.ngrok_url
+  if ngrok_url
+    routes.default_url_options = { host: ngrok_url, protocol: 'https' }
+    config.hosts << ngrok_url
+
+    if Rails.const_defined?('Server')
+      config.after_routes_loaded do
+        TelegramTools.set_webhook
+      end
+    end
+  end
 end
+# rubocop:enable Metrics/BlockLength

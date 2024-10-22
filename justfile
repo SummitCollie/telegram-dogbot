@@ -9,3 +9,7 @@ edit-creds-dev:
 
 edit-creds-prod:
   rails credentials:edit --environment=production
+
+# For debugging webhooks/async mode locally (use `rails s` to start server)
+start-ngrok:
+  ngrok http --url $(rails runner "puts Rails.application.credentials.ngrok_url") 3000
