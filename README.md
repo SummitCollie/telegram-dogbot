@@ -13,8 +13,6 @@ Defaults to a neutral style, but a custom style can be provided:
 ### Custom style
 > /summarize_chat `as a script for a podcast hosted by talking dogs`
 
-<br />
-
 # <p align="center">/summarize_url</p>
 Attempts to summarize the main content of a web page.
 
@@ -32,8 +30,6 @@ Defaults to a neutral style, but a custom style can be provided:
 >
 > `...`
 
-<br />
-
 # <p align="center">/vibe_check</p>
 Analyze chat members' moods
 
@@ -41,8 +37,6 @@ Analyze chat members' moods
 > • SomeUser: 😍 ✨ 💖 / enamored, zealous, effusive\
 > • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable\
 > • `...`
-
-<br />
 
 # <p align="center">/translate `french hola mi amigo`</p>
 Translates the text to requested language, or English by default.
@@ -52,8 +46,6 @@ Alternatively, just reply to any message from the chat and type `/translate` to 
 Supported languages (using suggested model Aya-23):
 
 > Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
-
-<br />
 
 # <p align="center">/chat_stats</p>
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
@@ -91,18 +83,25 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
   - [ ] Customizable old-message-deletion timeframe
 
+<br />
+
 # Deployment
 Designed to be deployed on Heroku, but should be adaptable to any service.
 
+Runs on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively). HuggingFace Pro hosts an OpenAI-compatible API for $9/month.
+
+### Steps
 1. Copy the master key encrypting your rails prod credentials [config/credentials/production.key](config/credentials/production.key) and make it available on your server as an environment variable `RAILS_MASTER_KEY`.
 2. You can also set `RAILS_SERVE_STATIC_FILES` to `disabled` if you want.
 
 ## Purge data > 2 days old from DB using Heroku Scheduler
-A rake task [`rake nightly_data_purge`](lib/tasks/nightly_data_purge.rake) is set up to purge old messages/users/other data from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
+A rake task [`rake nightly_data_purge`](lib/tasks/nightly_data_purge.rake) is set up to purge old messages & other data from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
 
 Add the free Heroku Scheduler addon to your app and then configure it with:
-1. Run every day at 12:00am UTC
+1. Run every day at 12:00am UTC (or whenever)
 2. Run command: `rake nightly_data_purge`
+
+<br />
 
 # Local Development
 ## Install
@@ -114,7 +113,7 @@ Add the free Heroku Scheduler addon to your app and then configure it with:
     - `config/credentials/production.yml.enc` (`config/credentials/production.key`) is for production only
     - `config/credentials.yml.enc` (`config/master.key`) is for dev & test
 
-## Run local dev env (bot listener polls telegram, no webhook)
+## Run local dev env in poll mode (no webhook)
 * `just run`
 
   aka
@@ -122,9 +121,11 @@ Add the free Heroku Scheduler addon to your app and then configure it with:
 * `heroku local --procfile=Procfile.dev`
 
 ## Run local dev env in async/webhook mode
-* Add your `ngrok_url` and `telegram_secret_token` to rails development credentials
-* Start server with `rails s`
-* After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poller works again
+Only use this if you want to locally test the webhooks mode used in production for some reason (requires ngrok).
+
+1. Add your `ngrok_url` and `telegram_secret_token` to rails development credentials.
+2. Start server with `rails s`.
+3. After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poll mode works again.
 
 ## Run linter & tests
 * `just test`
