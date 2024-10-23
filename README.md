@@ -1,28 +1,40 @@
 # <p align="center">DogBot 🐶</p>
 
 <p align="center"><img src="README-image.png" /></p>
+<p align="center">art by <a href="https://www.furaffinity.net/user/yookie/">Yookie</a></p>
 
-# Commands
-## <p align="center">/summarize</p>
-Summarize group chat messages sent since the last summary (or as many as possible)
+<br />
 
-> • The group discussed Nick's hilarious experience while watching the film "Zootopia" in a movie theater.
+# <p align="center">/summarize_chat</p>
+Summarize recent messages sent in a group chat.
+
+Defaults to a neutral style, but a custom style can be provided:
+
+### Custom style
+> /summarize_chat `as a script for a podcast hosted by talking dogs`
+
+<br />
+
+# <p align="center">/summarize_url</p>
+Attempts to summarize the main content of a web page.
+
+Defaults to a neutral style, but a custom style can be provided:
+
+### Custom style
+> /summarize_url `https://example.com/news_article` `as though it's being presented as evidence in a court case`
+
+>**EXHIBIT A: E. coli Outbreak Linked to McDonald's Quarter Pounders**
 >
-> • The conversation shifted to the topic of creativity, with AnonFur suggesting that everyone has some form of creative expression.
+>**SUMMARY OF KEY FINDINGS**
 >
-> • `...`
-
-## <p align="center">/summarize_nicely</p>
-Like above but be very nice about it
-
-> • Summit diligently worked on testing and improving
-their knowledge, inquiring about statistics multiple times to better comprehend the data.
+>1. **Outbreak Overview**: An E. coli outbreak linked to McDonald's Quarter Pounders has led to at least 49 illnesses across 10 states, including one death.
+>2. **Source of Contamination**: A specific ingredient has not been confirmed as the source of the outbreak,
 >
-> • Summit aesthetically shared a minimalist design element, adding a touch of simplicity and elegance to the conversation. `// I posted a single emoji in the chat lol`
->
-> • `...`
+> `...`
 
-## <p align="center">/vibe_check</p>
+<br />
+
+# <p align="center">/vibe_check</p>
 Analyze chat members' moods
 
 > • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant\
@@ -30,7 +42,9 @@ Analyze chat members' moods
 > • AnotherUser: 😩 📉 😒 / despondent, lethargic, irritable\
 > • `...`
 
-## <p align="center">/translate `french hola mi amigo`</p>
+<br />
+
+# <p align="center">/translate `french hola mi amigo`</p>
 Translates the text to requested language, or English by default.
 
 Alternatively, just reply to any message from the chat and type `/translate` to translate that message.
@@ -39,7 +53,9 @@ Supported languages (using suggested model Aya-23):
 
 > Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
 
-## <p align="center">/chat_stats</p>
+<br />
+
+# <p align="center">/chat_stats</p>
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ```
@@ -55,22 +71,25 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   1. Summit / 70 msgs (70%)
   2. SomeUser / 30 msgs (30%)
 ```
+<br />
 
 # Features & Ideas
 - [x] LLM chatroom summarization
   - [x] Aware of reply threads
   - [x] Aware of media presence (photo/video/etc) & captions on media
+  - [ ] Aware of current date/time and times of chat messages
   - [x] "Vibe check" summary of users' moods
 - [x] Translate messages & replied messages between different languages
+- [x] Summarize URLs
+  - [x] If `/summarize_url` command is followed by a URL
+  - [x] or `/summarize_url` command is a reply to another msg containing a URL
 - [x] Talk to the bot - send a message tagging bot using `@itsUsername`
-- [x] Rake task to auto-delete chat data > 2 days old
+  - [ ] Aware of current date/time and times of chat messages
+- [x] Nightly auto-delete of all chat data > 2 days old
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
   - [ ] Customizable old-message-deletion timeframe
-- [ ] Summarize links somehow?
-  - [ ] Maybe if `/summarize` command is followed by a URL
-  - [ ] or `/summarize` command is a reply to another msg containing a URL
 
 # Deployment
 Designed to be deployed on Heroku, but should be adaptable to any service.
