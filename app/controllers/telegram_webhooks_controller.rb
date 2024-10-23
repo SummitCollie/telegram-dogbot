@@ -145,8 +145,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   def run_summarize_url
     url, style_text = parse_summarize_url_command
-    puts "-----------result:\n\nurl: #{url}\nstyle: #{style_text}"
-    # LLM::SummarizeUrlJob.perform_later(url_to_summarize)
+    puts "-----------command:\n\nurl: #{url}\nstyle: #{style_text}"
+    LLM::SummarizeUrlJob.perform_later(db_chat, url, style_text)
   end
 
   def run_translate(first_input_word, command_message_from, parent_message_from)

@@ -58,7 +58,7 @@ class TelegramWebhooksController
     end
 
     def first_url_entity(api_message)
-      payload.try(:entities)&.find { |e| e.type == 'url' }
+      api_message.try(:entities)&.find { |e| e.type == 'url' }
     end
 
     def summarize_url_help_text

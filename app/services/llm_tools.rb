@@ -6,8 +6,8 @@ class LLMTools
       case summary_type.to_sym
       when :default
         @summarize_prompt ||= File.read('data/llm_prompts/summarize.txt')
-      when :nice
-        @nice_summarize_prompt ||= File.read('data/llm_prompts/summarize_nicely.txt')
+      when :url_default
+        @nice_summarize_prompt ||= File.read('data/llm_prompts/summarize_url.txt')
       when :vibe_check
         @vibe_check_prompt ||= File.read('data/llm_prompts/vibe_check.txt')
       when :translate
