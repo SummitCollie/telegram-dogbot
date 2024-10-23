@@ -63,17 +63,17 @@ class TelegramWebhooksController
 
     def summarize_url_help_text
       <<~HELPINFO.strip
+        📝 <b><u>Summarize URL</u></b>
+              <i>Error: no URL provided</i>
+
         <blockquote>This command now summarizes URLs -- chat summarization has moved to the <code>/summarize_chat</code> command.
 
         <code>/summarize_nicely</code> has been removed: both <code>/summarize</code> and <code>/summarize_chat</code> now support custom summary styles (see below).
         </blockquote>
-        📝 <b><u>Summarize URL</u></b>
-              <i>Error: no URL provided</i>
-
         • <b>Default neutral style:</b> <pre>/summarize https://example.com/article</pre>
 
         • <b>Custom style:</b>
-          (URL/style order doesn't matter) <pre>/summarize https://example.com/article in the form of a love letter</pre>
+          (URL/style order doesn't matter) <pre>/summarize https://example.com/article as though the summary was written by an FBI agent keeping tabs</pre>
       HELPINFO
     end
   end

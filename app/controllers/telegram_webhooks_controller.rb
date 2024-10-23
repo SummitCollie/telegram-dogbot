@@ -131,15 +131,15 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def run_summarize_chat(summary_type)
     ensure_summarize_allowed!
 
-    db_summary = ChatSummary.create!(
+    summary = ChatSummary.create!(
       summary_type:,
       status: 'running',
       chat: db_chat
     )
 
-    LLM::SummarizeChatJob.perform_later(db_summary)
+    LLM::SummarizeChatJob.perform_later(summary)
   rescue StandardError => e
-    db_summary&.destroy!
+    summary&.destroy!
     raise e
   end
 

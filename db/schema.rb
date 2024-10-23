@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_10_19_030801) do
+ActiveRecord::Schema[7.1].define(version: 2024_10_23_051322) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -20,7 +20,8 @@ ActiveRecord::Schema[7.1].define(version: 2024_10_19_030801) do
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "style", comment: "User-provided style text like 'as a love letter'"
+    t.integer "summary_type", comment: "0=default 1=custom 2=vibe_check"
+    t.string "style", comment: "User-provided style like 'as a love letter'"
     t.index ["chat_id"], name: "index_chat_summaries_on_chat_id"
     t.index ["created_at"], name: "index_chat_summaries_on_created_at"
   end

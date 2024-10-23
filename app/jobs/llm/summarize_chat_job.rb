@@ -5,8 +5,8 @@ module LLM
     retry_on FuckyWuckies::SummarizeJobError
     rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
-    def perform(db_summary)
-      @db_chat = db_summary.chat
+    def perform(summary)
+      @db_chat = summary.chat
 
       if executions > 4
         raise FuckyWuckies::SummarizeJobFailure.new(
@@ -18,7 +18,7 @@ module LLM
            "chat api_id=#{@db_chat.id} title=#{@db_chat.title}"
       end
 
-      messages_to_summarize = @db_chat.messages_since_last_summary(db_summary.summary_type)
+      messages_to_summarize = @db_chat.messages_to_summarize(summary.summary_type)
 
       # Each retry, since input didn't fit in LLM context, discard oldest 25% of messages
       if executions > 1
@@ -26,10 +26,10 @@ module LLM
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = llm_summarize(messages_to_summarize, db_summary.summary_type)
+      result_text = llm_summarize(messages_to_summarize, summary.summary_type)
 
       send_output_message(result_text)
-      db_summary.update!(text: result_text, status: 'complete')
+      summary.update!(text: result_text, status: 'complete')
     end
 
     def self.messages_to_yaml(messages)
