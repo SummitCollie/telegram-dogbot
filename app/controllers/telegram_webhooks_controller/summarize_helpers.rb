@@ -26,7 +26,9 @@ class TelegramWebhooksController
         raise FuckyWuckies::MissingArgsError.new(
           severity: Logger::Severity::INFO,
           db_chat:,
-          frontend_message: summarize_url_help_text,
+          frontend_message: "📝 <b><u>Summarize URL</u></b>\n      " \
+                            "<i>Error: no URL provided</i>\n\n" \
+                            "#{summarize_help_text}",
           parse_mode: 'HTML'
         ), 'Aborting URL summarization, no URL found: ' \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}"
@@ -54,26 +56,25 @@ class TelegramWebhooksController
         style_text = payload.text
       end
 
-      [url, TelegramTools.strip_bot_command('summarize', style_text)]
+      [url, TelegramTools.strip_bot_command('summarize_url', style_text)]
     end
 
     def first_url_entity(api_message)
       api_message.try(:entities)&.find { |e| e.type == 'url' }
     end
 
-    def summarize_url_help_text
+    def summarize_help_text
       <<~HELPINFO.strip
-        📝 <b><u>Summarize URL</u></b>
-              <i>Error: no URL provided</i>
+        <blockquote><code>/summarize</code> has split into <code>/summarize_chat</code> and <code>/summarize_url</code>!
 
-        <blockquote>This command now summarizes URLs -- chat summarization has moved to the <code>/summarize_chat</code> command.
-
-        <code>/summarize_nicely</code> has been removed: both <code>/summarize</code> and <code>/summarize_chat</code> now support custom summary styles (see below).
+        <code>/summarize_nicely</code> was removed because both <code>/summarize_url</code> and <code>/summarize_chat</code> now support custom summary styles (see below).
         </blockquote>
-        • <b>Default neutral style:</b> <pre>/summarize https://example.com/article</pre>
+        • <b>Default neutral style:</b> <pre>/summarize_url https://example.com/article</pre>
 
         • <b>Custom style:</b>
-          (URL/style order doesn't matter) <pre>/summarize https://example.com/article as though the summary was written by an FBI agent keeping tabs</pre>
+          (URL/style order doesn't matter) <pre>/summarize_url https://example.com/article as though it's being presented as evidence in a court case</pre>
+
+        <code>/summarize_chat</code> works the same way.
       HELPINFO
     end
   end

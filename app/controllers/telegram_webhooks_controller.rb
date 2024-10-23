@@ -40,6 +40,19 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      protect_content: false,
+      text: summarize_help_text,
+      parse_mode: 'HTML'
+    )
+  end
+
+  def summarize_url!(*)
+    authorize_command!
+    authorize_message_storage!(payload)
+    store_message(payload)
+
     run_summarize_url
   end
 

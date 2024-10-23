@@ -11,12 +11,17 @@ temp_tg_client = Telegram::Bot::Client.new(
 temp_tg_client.set_my_commands(
   commands: [
     { command: 'summarize',
-      description: 'Summarize content from a URL, optionally using a custom style' },
+      description: 'Show help for summarize features' },
+    { command: 'summarize_url',
+      description: 'Summarize content from a URL, optional custom style' },
     { command: 'summarize_chat',
-      description: 'Summarize messages since last summary (or as many as possible)' },
-    { command: 'vibe_check', description: 'Run vibe analysis' },
-    { command: 'translate', description: 'Translate text from your message or replied message' },
-    { command: 'chat_stats', description: 'Show stats about this chat' }
+      description: 'Summarize recent chat messages, optional custom style' },
+    { command: 'vibe_check',
+      description: 'Run vibe analysis' },
+    { command: 'translate',
+      description: 'Translate text from your message or replied message' },
+    { command: 'chat_stats',
+      description: 'Show stats about this chat' }
   ],
   language_code: 'en'
 )

@@ -86,15 +86,17 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 <br />
 
 # Deployment
-Designed to be deployed on Heroku, but should be adaptable to any service.
+Designed to be deployed on Heroku with HuggingFace as the LLM API provider, but should be adaptable to anything.
 
-Runs on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively). HuggingFace Pro hosts an OpenAI-compatible API for $9/month.
+* Handles 5000+ messages/day on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively).
+* HuggingFace Pro offers an OpenAI-compatible API for $9/month.
 
-### Steps
+## Steps
 1. Copy the master key encrypting your rails prod credentials [config/credentials/production.key](config/credentials/production.key) and make it available on your server as an environment variable `RAILS_MASTER_KEY`.
 2. You can also set `RAILS_SERVE_STATIC_FILES` to `disabled` if you want.
+3. Set up nightly data auto-delete:
 
-## Purge data > 2 days old from DB using Heroku Scheduler
+### Auto-delete old data nightly
 A rake task [`rake nightly_data_purge`](lib/tasks/nightly_data_purge.rake) is set up to purge old messages & other data from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
 
 Add the free Heroku Scheduler addon to your app and then configure it with:
