@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'htmlcompressor'
 require 'open-uri'
 require 'rubygems'
 require 'readability'
@@ -10,9 +11,11 @@ module LLM
 
     def perform(db_chat, url, style)
       @db_chat = db_chat
+      @url = url
+      @style = style
 
       title, author, html = parse_page(url)
-      result_text = llm_summarize(title, author, html, style)
+      result_text = llm_summarize(title, author, html)
 
       send_output_message(result_text)
     end
@@ -21,7 +24,12 @@ module LLM
 
     def parse_page(url)
       source = OpenURI.open_uri(url).read
-      result = Readability::Document.new(source, remove_empty_nodes: true)
+      result = Readability::Document.new(source,
+                                         remove_empty_nodes: true,
+                                         tags: %w[div span p br table
+                                                  tr td b i u blockquote
+                                                  h1 h2 h3 h4 h5
+                                                  ul ol li a])
       [result.title, result.author, result.content]
     rescue OpenURI::HTTPError => e
       code, err_message = e.io.status
@@ -42,18 +50,26 @@ module LLM
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
 
-    def llm_summarize(title, author, html, style)
-      system_prompt = style.blank? ? LLMTools.prompt_for_style(:url_default) : custom_style_system_prompt(style)
+    def llm_summarize(title, author, html)
+      system_prompt = @style.blank? ? LLMTools.prompt_for_style(:url_default) : custom_style_system_prompt
       system_prompt = "#{system_prompt.strip}\n\n" \
                       "Guessed title: #{title.presence || '?'}\n" \
                       "Guessed author: #{author.presence || '?'}"
 
+      user_prompt = minify_html(html)
+
       puts "----------system prompt:\n#{system_prompt}"
-      puts "----------user_prompt:\n#{html}"
+      puts "----------user_prompt:\n#{user_prompt}"
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt: html)
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
-      raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
+      if output.blank?
+        raise FuckyWuckies::SummarizeJobFailure.new(
+          severity: Logger::Severity::ERROR,
+          db_chat: @db_chat,
+          frontend_message: 'Error: blank LLM output :('
+        ), "Blank LLM output summarizing URL: url=#{@url}"
+      end
 
       output
     rescue Faraday::Error => e
@@ -66,8 +82,31 @@ module LLM
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
 
-    def custom_style_system_prompt(style)
-      # TODO
+    def custom_style_system_prompt
+      <<~PROMPT.strip
+        SUMMARY STYLE: #{@style}
+        Summarize the main content of the provided HTML in the specified style.
+        Focus on key ideas and important details, ignoring ads, links, and unrelated sections.
+        If unreadable (e.g., paywalls, errors), respond with "Error loading URL: [reason]."
+      PROMPT
+    end
+
+    def minify_html(html)
+      compressor = HtmlCompressor::Compressor.new(
+        remove_comments: true,
+        remove_multi_spaces: true,
+        remove_spaces_inside_tags: true,
+        remove_intertag_spaces: true,
+        remove_quotes: true,
+        remove_script_attributes: true,
+        remove_style_attributes: true,
+        remove_link_attributes: true,
+        remove_http_protocol: true,
+        remove_https_protocol: true,
+        preserve_line_breaks: false,
+        simple_boolean_attributes: true
+      )
+      compressor.compress(html)
     end
 
     def send_output_message(text)

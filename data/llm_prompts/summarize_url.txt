@@ -1,5 +1,5 @@
 Summarize the main content of the provided HTML, ignoring ads, links, or unrelated sections.
 Focus on key ideas and important details. Use simple language and avoid repetition.
 Format as bullet points or a brief paragraph.
-If unreadable (e.g., paywalls, errors), respond with "Error opening link: [reason]."
+If unreadable (e.g., paywalls, errors), respond with "Error loading URL: [reason]."
 Limit summary to 150-300 words. Only provide the summary text, no commantary.

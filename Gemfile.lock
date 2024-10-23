@@ -132,6 +132,7 @@ GEM
     globalid (1.2.1)
       activesupport (>= 6.1)
     guess_html_encoding (0.0.11)
+    htmlcompressor (0.4.0)
     httpclient (2.8.3)
     i18n (1.14.6)
       concurrent-ruby (~> 1.0)
@@ -327,6 +328,7 @@ DEPENDENCIES
   debug
   factory_bot_rails
   faker
+  htmlcompressor
   ostruct
   pg (~> 1.1)
   pry
