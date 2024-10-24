@@ -10,5 +10,6 @@ TG_🐺♋🖼️_STICKERS_🌶️🍆💦 = {
   heavy_typing: 'CAACAgEAAxkBAAIBAAFmpdChTN5xtn7HNy_W7HSmNPYB_gACFgsAAtfwRQYp-cuh4VUs8DUE',
   no_u: 'CAACAgEAAxkBAAIBAWal1Z02uwToDFSVSyGfWB3IhJstAAKAAAPkD6kfAl9QuSb85pU1BA',
   dead: 'CAACAgEAAxkBAAIBBman_aXRjMpviX5q3ukfBlLjISEYAAICBAACw8HgRNg3QX67Z___NQQ',
+  dead_two: 'CAACAgEAAxkBAAIF1WcYp8YOn3S7YtKJP0NxQQPNLd7FAALaCgAC1_BFBhK2qhjtk8P6NgQ',
   no_french: 'CAACAgEAAxkBAAIB-mbvQaV8H6WepAJVaptawMmNgzReAAJgAgAC3DFgRNr7aVIoRluSNgQ'
 }.freeze

@@ -13,38 +13,25 @@ class Chat < ApplicationRecord
     chat_summaries.exists?(status: :running)
   end
 
-  def messages_since_last_summary(summary_type)
-    last_summary = chat_summaries
-                   .where(summary_type:, status: :complete)
-                   .order(:created_at).last
+  def messages_to_summarize(summary_type)
+    last_summary = last_summary_of_type(summary_type)
 
-    if last_summary
-      message_count = messages.where('date > ?', last_summary.created_at).count
+    # If no summaries of this type yet, just grab the last 200 messages
+    return last_n_messages(200) unless last_summary
 
-      if message_count < min_messages_between_summaries
-        raise FuckyWuckies::SummarizeJobFailure.new(
-          db_chat: self,
-          frontend_message: "Less than #{min_messages_between_summaries} messages " \
-                            'since last summary. Read them yourself!',
-          sticker: :no_u
-        ), 'Not enough messages since last summary of this type: ' \
-           "chat api_id=#{id} summary type=#{summary_type}"
-      end
+    num_msgs_since_summary = messages.where('date > ?', last_summary.created_at).count
 
-      messages.includes(:user, reply_to_message: [:user])
-              .where('messages.date > ?', last_summary.created_at)
-              .references(:user, :message)
-              .order('messages.date')
-    else
-      # No summaries yet so just grab the last 200 messages
-      messages.includes(:user, reply_to_message: [:user])
-              .references(:user, :message)
-              .order('messages.date')
-              .last(200)
-    end
+    # Plenty of messages -- ignore msgs older than last summary
+    return messages_since_summary(last_summary) if num_msgs_since_summary >= min_messages_between_summaries
+
+    # Not really enough messages to ignore msgs older than last summary,
+    # so just grab the last 200
+    last_n_messages(200)
   end
 
-  # Between summaries of same type (nicely, vibe_check, etc)
+  # Threshold between summaries of same type (default, vibe_check, etc):
+  # if we have more messages than this number, ignore any messages sent
+  # before the last summary
   def min_messages_between_summaries
     100
   end
@@ -61,5 +48,27 @@ class Chat < ApplicationRecord
     chat_users.joins(:user)
               .where(user: { is_this_bot: false })
               .sum(:num_chatuser_messages)
+  end
+
+  private
+
+  def last_summary_of_type(summary_type)
+    chat_summaries
+      .where(summary_type:, status: :complete)
+      .order(:created_at).last
+  end
+
+  def messages_since_summary(chat_summary)
+    messages.includes(:user, reply_to_message: [:user])
+            .where('messages.date > ?', chat_summary.created_at)
+            .references(:user, :message)
+            .order('messages.date')
+  end
+
+  def last_n_messages(n) # rubocop:disable Naming/MethodParameterName
+    messages.includes(:user, reply_to_message: [:user])
+            .references(:user, :message)
+            .order('messages.date')
+            .last(n)
   end
 end

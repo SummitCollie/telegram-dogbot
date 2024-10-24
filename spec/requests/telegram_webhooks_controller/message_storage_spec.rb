@@ -179,7 +179,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                              )
                            })
 
-          new_message = chat.messages.order(:date).reload.last
+          new_message = chat.messages.not_from_bot.order(:date).reload.last
 
           expect(new_message.text).to match %r{^/#{command}?+}
         end

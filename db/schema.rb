@@ -10,17 +10,18 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_10_02_225411) do
+ActiveRecord::Schema[7.1].define(version: 2024_10_23_051322) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "chat_summaries", force: :cascade do |t|
     t.bigint "chat_id", null: false
     t.integer "status", default: 0, null: false, comment: "0=running 1=complete"
-    t.integer "summary_type", null: false, comment: "0=default 1=nice 2=vibe_check"
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "summary_type", comment: "0=default 1=custom 2=vibe_check"
+    t.string "style", comment: "User-provided style like 'as a love letter'"
     t.index ["chat_id"], name: "index_chat_summaries_on_chat_id"
     t.index ["created_at"], name: "index_chat_summaries_on_created_at"
   end

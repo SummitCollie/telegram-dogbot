@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe Chat do
-  describe '#messages_since_last_summary' do
+  describe '#messages_to_summarize' do
     let(:chat) { create(:chat) }
     let(:human) { create(:user) }
     let(:bot) { create(:user, is_this_bot: true) }
@@ -27,7 +27,7 @@ RSpec.describe Chat do
       bot_cu = chat.chat_users.find_by(user: bot)
       other_bot_cu = chat.chat_users.find_by(user: other_bot)
 
-      results = chat.messages_since_last_summary(:vibe_check)
+      results = chat.messages_to_summarize(:vibe_check)
 
       expect(results.size).to eq 30
       expect(results).to match_array(human_cu.messages + bot_cu.messages + other_bot_cu.messages)
@@ -35,9 +35,10 @@ RSpec.describe Chat do
 
     it 'includes messages sent before a ChatSummary of a different type' do
       create(:chat_summary, chat:, status: :complete,
-                            summary_type: :nice, created_at: 1.minute.ago)
+                            summary_type: :custom, style: 'as a poem written by a dog',
+                            created_at: 1.minute.ago)
 
-      results = chat.messages_since_last_summary(:vibe_check)
+      results = chat.messages_to_summarize(:vibe_check)
 
       expect(results.size).to eq 30
     end
@@ -51,7 +52,7 @@ RSpec.describe Chat do
         create(:message, chat_user: human_cu, text: 'extra msg for summary', date: n.minutes.ago)
       end
 
-      results = chat.messages_since_last_summary(:vibe_check)
+      results = chat.messages_to_summarize(:vibe_check)
 
       expect(results).not_to include older_message
     end

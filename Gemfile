@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-ruby '3.3.5'
+ruby File.read('.ruby-version').strip
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem 'rails', '~> 7.1.3', '>= 7.1.3.4'
@@ -37,8 +37,10 @@ gem 'bootsnap', require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 
+gem 'htmlcompressor'
 gem 'ostruct'
 gem 'ruby-openai'
+gem 'ruby-readability', require: 'readability'
 gem 'telegram-bot'
 gem 'telegram-bot-types'
 gem 'unicode-name'
