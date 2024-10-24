@@ -27,7 +27,7 @@ RSpec.describe LLM::SummarizeUrlJob do
     end
 
     context 'when provided with a custom style' do
-      it 'chooses prompt for custom style and injects it properly'
+      it 'chooses prompt for custom style and injects style properly'
     end
 
     context 'when NOT provided with a custom style' do
