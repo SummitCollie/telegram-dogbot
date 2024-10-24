@@ -97,5 +97,38 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         end.to have_enqueued_job(LLM::SummarizeChatJob)
       end
     end
+
+    context 'when summarize_chat command is provided with a custom style' do
+      it 'sets summary_type to :custom and saves style text to DB'
+    end
+
+    context 'when summarize_chat command is NOT provided with a custom style' do
+      it 'sets summary_type to :default and leaves DB style text as nil'
+    end
+
+    describe '#parse_summarize_url_command' do
+      it 'enqueues a SummarizeUrlJob'
+
+      context 'when URL is present in command message' do
+        it 'prioritizes command message URL over any URL in the message it was replying to'
+      end
+
+      context 'when URL is not present in command message' do
+        it 'uses the first URL from the msg which command msg was replying to'
+        it 'shows help info when no URL in command or replied message'
+      end
+
+      context 'when style text comes before URL' do
+        it 'correctly parses URL and style text'
+      end
+
+      context 'when style text comes after URL' do
+        it 'also correctly parses URL and style text'
+      end
+
+      context 'when style text exists before and after URL' do
+        it 'correctly parses URL and joins style text with a comma'
+      end
+    end
   end
 end

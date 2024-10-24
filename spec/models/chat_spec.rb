@@ -33,28 +33,39 @@ RSpec.describe Chat do
       expect(results).to match_array(human_cu.messages + bot_cu.messages + other_bot_cu.messages)
     end
 
-    it 'includes messages sent before a ChatSummary of a different type' do
-      create(:chat_summary, chat:, status: :complete,
-                            summary_type: :custom, style: 'as a poem written by a dog',
-                            created_at: 1.minute.ago)
-
-      results = chat.messages_to_summarize(:vibe_check)
-
-      expect(results.size).to eq 30
+    context 'when no prior ChatSummary with same summary_type exists' do
+      it 'just grabs the last 200 messages'
     end
 
-    it 'excludes messages sent before the last ChatSummary of same type' do
-      human_cu = chat.chat_users.find_by(user: human)
-      older_message = create(:message, chat_user: human_cu, date: 3.days.ago)
+    # based on number of messages since last ChatSummary (see Chat#min_messages_between_summaries)
+    context 'when last ChatSummary was too recent to ignore older messages' do
+      it 'defaults to the last 200 messages'
+    end
 
-      10.times do |n|
-        # random times assigned by message_factory make this test flaky otherwise
-        create(:message, chat_user: human_cu, text: 'extra msg for summary', date: n.minutes.ago)
+    context 'when last ChatSummary is old enough that we can ignore older messages' do
+      it 'excludes messages sent before the last ChatSummary of same type' do
+        human_cu = chat.chat_users.find_by(user: human)
+        older_message = create(:message, chat_user: human_cu, date: 3.days.ago)
+
+        10.times do |n|
+          # random times assigned by message_factory make this test flaky otherwise
+          create(:message, chat_user: human_cu, text: 'extra msg for summary', date: n.minutes.ago)
+        end
+
+        results = chat.messages_to_summarize(:vibe_check)
+
+        expect(results).not_to include older_message
       end
 
-      results = chat.messages_to_summarize(:vibe_check)
+      it 'includes messages sent before a more recent ChatSummary of a different type' do
+        create(:chat_summary, chat:, status: :complete,
+                              summary_type: :custom, style: 'as a poem written by a dog',
+                              created_at: 1.minute.ago)
 
-      expect(results).not_to include older_message
+        results = chat.messages_to_summarize(:vibe_check)
+
+        expect(results.size).to eq 30
+      end
     end
   end
 end

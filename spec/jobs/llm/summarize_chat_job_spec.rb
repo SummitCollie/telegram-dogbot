@@ -198,6 +198,14 @@ RSpec.describe LLM::SummarizeChatJob do
         )
       end
     end
+
+    context 'when provided with a custom style' do
+      it 'chooses prompt for custom style and injects it properly'
+    end
+
+    context 'when NOT provided with a custom style' do
+      it 'uses prompt for default neutral style'
+    end
   end
 
   describe '.messages_to_yaml' do
