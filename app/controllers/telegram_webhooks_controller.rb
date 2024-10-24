@@ -61,7 +61,10 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(payload)
     store_message(payload)
 
-    run_summarize_chat(:default)
+    style = TelegramTools.strip_bot_command('summarize_chat', payload.text)
+    summary_type = if style.blank? then :default else :custom end # rubocop:disable Style/OneLineConditional
+
+    run_summarize_chat(summary_type, style:)
   end
 
   def vibe_check!(*)
@@ -141,13 +144,14 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     LLM::ReplyJob.perform_later(db_chat, serialized_message)
   end
 
-  def run_summarize_chat(summary_type)
+  def run_summarize_chat(summary_type, style: nil)
     ensure_summarize_allowed!
 
     summary = ChatSummary.create!(
-      summary_type:,
+      chat: db_chat,
       status: 'running',
-      chat: db_chat
+      summary_type:,
+      style: style.presence
     )
 
     LLM::SummarizeChatJob.perform_later(summary)

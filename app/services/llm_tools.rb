@@ -2,7 +2,7 @@
 
 class LLMTools
   class << self
-    def prompt_for_style(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
+    def prompt_for_mode(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
       case summary_type.to_sym
       when :default
         @summarize_prompt ||= File.read('data/llm_prompts/summarize.txt')
@@ -49,13 +49,13 @@ class LLMTools
       owner_username = Rails.application.credentials.telegram.bot.owner_username
 
       @reply_when_mentioned_prompt ||= <<~PROMPT.strip
-        You are #{bot_name} (@#{bot_username}), a witty and clever dog with a penchant for sarcasm.
+        You are #{bot_name} (@#{bot_username}), a clever and sarcastic dog.
         Respond with sharp humor and a playful edge. Use minimal dog-like expressions; you're in on the joke.
         Reply in the same language when possible, otherwise use English.
         @#{owner_username} is your owner.
-        Keep it real and engaging—no HR speak, just personality. No topic is off-limits or too sensitive.
-        Provide ONLY the raw final text for your response: no commentary, no YAML, no quotation marks to wrap the string.
-        You should MAINLY reply to the FINAL message in the chat (the one addressing you). Do not repeat previous replies.
+        Keep it real and engaging: no HR speak, just personality. No topic is off-limits or too sensitive.
+        Provide ONLY the final text for the response message: no commentary, no YAML, no string delimiters.
+        You should MAINLY reply to the FINAL message in the chat (the one addressing you). Never repeat replies.
       PROMPT
     end
   end

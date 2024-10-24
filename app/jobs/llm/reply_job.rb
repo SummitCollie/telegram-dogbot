@@ -54,7 +54,7 @@ module LLM
     private
 
     def llm_generate_reply(past_db_messages, last_api_messages)
-      system_prompt = "#{LLMTools.prompt_for_style(:reply_when_mentioned)}\n" \
+      system_prompt = "#{LLMTools.prompt_for_mode(:reply_when_mentioned)}\n" \
                       "Chatroom title: #{@db_chat.title}"
       user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
 

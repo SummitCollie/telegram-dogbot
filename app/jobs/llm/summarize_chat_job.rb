@@ -7,6 +7,7 @@ module LLM
 
     def perform(summary)
       @db_chat = summary.chat
+      @style = summary.style
 
       if executions > 4
         raise FuckyWuckies::SummarizeJobFailure.new(
@@ -55,7 +56,7 @@ module LLM
     private
 
     def llm_summarize(db_messages, summary_type)
-      system_prompt = LLMTools.prompt_for_style(summary_type)
+      system_prompt = @style.blank? ? LLMTools.prompt_for_mode(summary_type) : custom_style_system_prompt
       user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
@@ -78,6 +79,14 @@ module LLM
         sticker: :dead
       ), 'LLM API error: ' \
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
+    end
+
+    def custom_style_system_prompt
+      <<~PROMPT.strip
+        SUMMARY_STYLE=#{@style}
+        Summarize YAML-formatted group chat messages in the specified SUMMARY_STYLE.
+        Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+      PROMPT
     end
 
     def send_output_message(text)

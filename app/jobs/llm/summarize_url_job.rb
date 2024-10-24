@@ -51,7 +51,7 @@ module LLM
     end
 
     def llm_summarize(title, author, html)
-      system_prompt = @style.blank? ? LLMTools.prompt_for_style(:url_default) : custom_style_system_prompt
+      system_prompt = @style.blank? ? LLMTools.prompt_for_mode(:url_default) : custom_style_system_prompt
       system_prompt = "#{system_prompt.strip}\n\n" \
                       "Guessed title: #{title.presence || '?'}\n" \
                       "Guessed author: #{author.presence || '?'}"
@@ -84,10 +84,11 @@ module LLM
 
     def custom_style_system_prompt
       <<~PROMPT.strip
-        SUMMARY STYLE: #{@style}
-        Summarize the main content of the provided HTML in the specified style.
+        SUMMARY_STYLE=#{@style}
+        Summarize the main content of the provided HTML in the specified SUMMARY_STYLE.
         Focus on key ideas and important details, ignoring ads, links, and unrelated sections.
         If unreadable (e.g., paywalls, errors), respond with "Error loading URL: [reason]."
+        Limit summary to 150-300 words. Only provide the summary text, no commantary.
       PROMPT
     end
 

@@ -79,6 +79,9 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [ ] Aware of current date/time and times of chat messages
 - [x] Nightly auto-delete of all chat data > 2 days old
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
+- [ ] User settings/personalization
+  - [ ] Allow users to add a very short "bio" to be included with their messages in prompts
+        so LLM functions use correct pronouns etc.
 - [ ] Jannie features
   - [ ] Granular authorization: only admins/mods can execute commands, etc.
   - [ ] Customizable old-message-deletion timeframe
