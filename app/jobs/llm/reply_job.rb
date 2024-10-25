@@ -58,6 +58,10 @@ module LLM
                       "Chatroom title: #{@db_chat.title}"
       user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
 
+      TelegramTools.logger.debug("\n##### Reply to message:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
+
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 256 })
 
       if output.blank?

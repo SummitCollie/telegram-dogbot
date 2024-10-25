@@ -32,19 +32,18 @@ module LLM
                                                   ul ol li a])
       [result.title, result.author, result.content]
     rescue OpenURI::HTTPError => e
-      code, err_message = e.io.status
-
-      message = case code.to_i
-                when 403
-                  'DogBot server was blocked from accessing the URL :('
-                else
-                  'Unable to load URL :('
-                end
+      err_code, err_message = e.io.status
+      my_message = case err_code.to_i
+                   when 403
+                     'HTTPError: DogBot server was blocked from accessing the URL :('
+                   else
+                     'HTTPError: Unable to load URL :('
+                   end
 
       raise FuckyWuckies::SummarizeJobFailure.new(
         severity: Logger::Severity::ERROR,
         db_chat: @db_chat,
-        frontend_message: "#{message}\n(#{code}: #{err_message.downcase})",
+        frontend_message: "#{my_message}\n(#{err_code}: #{err_message.downcase})",
         sticker: :dead_two
       ), 'LLM API error: ' \
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
@@ -55,11 +54,11 @@ module LLM
       system_prompt = "#{system_prompt.strip}\n\n" \
                       "Guessed title: #{title.presence || '?'}\n" \
                       "Guessed author: #{author.presence || '?'}"
-
       user_prompt = minify_html(html)
 
-      puts "----------system prompt:\n#{system_prompt}"
-      puts "----------user_prompt:\n#{user_prompt}"
+      TelegramTools.logger.debug("\n##### Summarize URL:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 

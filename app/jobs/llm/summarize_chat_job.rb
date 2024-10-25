@@ -59,6 +59,10 @@ module LLM
       system_prompt = @style.blank? ? LLMTools.prompt_for_mode(summary_type) : custom_style_system_prompt
       user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
 
+      TelegramTools.logger.debug("\n##### Summarize chat:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
+
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
       raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
