@@ -19,6 +19,7 @@ class LLMTools
 
     def run_chat_completion(system_prompt:, user_prompt:, model_params: {})
       client = OpenAI::Client.new
+      client.add_headers('x-use-cache' => '0')
       # client.add_headers('x-wait-for-model' => 'true')
 
       messages = [
