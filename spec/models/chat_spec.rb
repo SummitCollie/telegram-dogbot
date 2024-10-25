@@ -34,12 +34,29 @@ RSpec.describe Chat do
     end
 
     context 'when no prior ChatSummary with same summary_type exists' do
-      it 'just grabs the last 200 messages'
+      it 'just grabs the last 200 messages' do
+        create_list(:message, 205, chat:)
+        messages = chat.messages.order(:date)
+
+        results = chat.messages_to_summarize(:custom)
+
+        expect(results).to match_array(messages.last(200))
+      end
     end
 
     # based on number of messages since last ChatSummary (see Chat#min_messages_between_summaries)
     context 'when last ChatSummary was too recent to ignore older messages' do
-      it 'defaults to the last 200 messages'
+      it 'defaults to the last 200 messages' do
+        create_list(:message, 205, chat:)
+        messages = chat.messages.order(:date)
+        create(:chat_summary,
+               summary_type: :custom, style: 'as a scene from Zootopia',
+               created_at: messages.last.date - 1.second)
+
+        results = chat.messages_to_summarize(:custom)
+
+        expect(results).to match_array(messages.last(200))
+      end
     end
 
     context 'when last ChatSummary is old enough that we can ignore older messages' do
@@ -59,7 +76,7 @@ RSpec.describe Chat do
 
       it 'includes messages sent before a more recent ChatSummary of a different type' do
         create(:chat_summary, chat:, status: :complete,
-                              summary_type: :custom, style: 'as a poem written by a dog',
+                              summary_type: :custom, style: 'as a poem written for a dog',
                               created_at: 1.minute.ago)
 
         results = chat.messages_to_summarize(:vibe_check)
