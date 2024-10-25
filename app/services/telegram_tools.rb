@@ -5,7 +5,10 @@ require 'logger'
 class TelegramTools
   class << self
     def logger
-      @logger ||= Logger.new(Rails.env.test? ? '/dev/null' : $stderr)
+      @logger ||= Logger.new(
+        Rails.env.test? ? '/dev/null' : $stderr,
+        level: ENV.fetch('RAILS_LOG_LEVEL', Rails.env.production? ? 'info' : 'debug')
+      )
     end
 
     def set_webhook
