@@ -54,9 +54,13 @@ module LLM
     private
 
     def llm_generate_reply(past_db_messages, last_api_messages)
-      system_prompt = "#{LLMTools.prompt_for_style(:reply_when_mentioned)}\n" \
+      system_prompt = "#{LLMTools.prompt_for_mode(:reply_when_mentioned)}\n" \
                       "Chatroom title: #{@db_chat.title}"
       user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
+
+      TelegramTools.logger.debug("\n##### Reply to message:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 256 })
 

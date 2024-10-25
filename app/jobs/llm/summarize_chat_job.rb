@@ -5,8 +5,9 @@ module LLM
     retry_on FuckyWuckies::SummarizeJobError
     rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
-    def perform(db_summary)
-      @db_chat = db_summary.chat
+    def perform(summary)
+      @db_chat = summary.chat
+      @style = summary.style
 
       if executions > 4
         raise FuckyWuckies::SummarizeJobFailure.new(
@@ -18,7 +19,7 @@ module LLM
            "chat api_id=#{@db_chat.id} title=#{@db_chat.title}"
       end
 
-      messages_to_summarize = @db_chat.messages_since_last_summary(db_summary.summary_type)
+      messages_to_summarize = @db_chat.messages_to_summarize(summary.summary_type)
 
       # Each retry, since input didn't fit in LLM context, discard oldest 25% of messages
       if executions > 1
@@ -26,10 +27,10 @@ module LLM
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = llm_summarize(messages_to_summarize, db_summary.summary_type)
+      result_text = llm_summarize(messages_to_summarize, summary.summary_type)
 
       send_output_message(result_text)
-      db_summary.update!(text: result_text, status: 'complete')
+      summary.update!(text: result_text, status: 'complete')
     end
 
     def self.messages_to_yaml(messages)
@@ -55,8 +56,12 @@ module LLM
     private
 
     def llm_summarize(db_messages, summary_type)
-      system_prompt = LLMTools.prompt_for_style(summary_type)
+      system_prompt = @style.blank? ? LLMTools.prompt_for_mode(summary_type) : custom_style_system_prompt
       user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
+
+      TelegramTools.logger.debug("\n##### Summarize chat:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
 
       output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
@@ -78,6 +83,14 @@ module LLM
         sticker: :dead
       ), 'LLM API error: ' \
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
+    end
+
+    def custom_style_system_prompt
+      <<~PROMPT.strip
+        SUMMARY_STYLE=#{@style}
+        Summarize YAML-formatted group chat messages in the specified SUMMARY_STYLE.
+        Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+      PROMPT
     end
 
     def send_output_message(text)

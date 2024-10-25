@@ -198,6 +198,54 @@ RSpec.describe LLM::SummarizeChatJob do
         )
       end
     end
+
+    context 'when provided with a custom style' do
+      let(:chat) { create(:chat) }
+
+      before do
+        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
+      end
+
+      it 'chooses prompt for custom style and injects style properly' do
+        style = 'as a love letter'
+        summary = create(:chat_summary, chat:, summary_type: :custom, style:)
+
+        expected_system_prompt = <<~PROMPT.strip
+          SUMMARY_STYLE=#{style}
+          Summarize YAML-formatted group chat messages in the specified SUMMARY_STYLE.
+          Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+        PROMPT
+
+        described_class.perform_now(summary)
+
+        expect(LLMTools).to have_received(:run_chat_completion).with(
+          system_prompt: expected_system_prompt,
+          user_prompt: anything
+        )
+      end
+    end
+
+    context 'when NOT provided with a custom style' do
+      let(:chat) { create(:chat) }
+
+      before do
+        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
+      end
+
+      it 'uses prompt for default neutral style' do
+        summary = create(:chat_summary, chat:, summary_type: :default, style: nil)
+        expected_system_prompt = File.read('data/llm_prompts/summarize.txt')
+
+        described_class.perform_now(summary)
+
+        expect(LLMTools).to have_received(:run_chat_completion).with(
+          system_prompt: expected_system_prompt,
+          user_prompt: anything
+        )
+      end
+    end
   end
 
   describe '.messages_to_yaml' do

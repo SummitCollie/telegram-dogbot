@@ -54,7 +54,6 @@ class TelegramWebhooksController
       #   raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
       # end
 
-      # Blank text?
       if TelegramTools.extract_message_text(message).blank?
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
                                                     "message api_id=#{message.try(:message_id) || '?'}"

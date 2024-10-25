@@ -47,8 +47,12 @@ module LLM
     private
 
     def llm_translate(text, target_language)
-      system_prompt = LLMTools.prompt_for_style(:translate)
+      system_prompt = LLMTools.prompt_for_mode(:translate)
       user_prompt = "Translate into #{target_language.capitalize}:\n#{text}"
+
+      TelegramTools.logger.debug("\n##### Translate:\n" \
+                                 "### System prompt:\n#{system_prompt}\n" \
+                                 "### User prompt:\n#{user_prompt}")
 
       output = LLMTools.run_chat_completion(
         system_prompt:,

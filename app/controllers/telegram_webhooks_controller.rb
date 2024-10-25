@@ -15,6 +15,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
               FuckyWuckies::NotAGroupChatError,
               FuckyWuckies::ChatNotWhitelistedError,
               FuckyWuckies::MessageFilterError,
+              FuckyWuckies::MissingArgsError,
               FuckyWuckies::SummarizeJobFailure,
               FuckyWuckies::TranslateJobFailure, with: :handle_error
 
@@ -35,33 +36,49 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   ### Handle commands
   # Be sure to add any new ones in config/initializers/telegram_bot.rb
   def summarize!(*)
-    authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
 
-    run_summarize(:default)
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      protect_content: false,
+      text: summarize_help_text,
+      parse_mode: 'HTML'
+    )
   end
 
-  def summarize_nicely!(*)
-    authorize_command!
+  def summarize_url!(*)
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
 
-    run_summarize(:nice)
+    run_summarize_url
+  end
+
+  def summarize_chat!(*)
+    authorize_message_storage!(payload)
+    store_message(payload)
+    authorize_command!
+
+    style = TelegramTools.strip_bot_command('summarize_chat', payload.text)
+    summary_type = if style.blank? then :default else :custom end # rubocop:disable Style/OneLineConditional
+
+    run_summarize_chat(summary_type, style:)
   end
 
   def vibe_check!(*)
-    authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
 
-    run_summarize(:vibe_check)
+    run_summarize_chat(:vibe_check)
   end
 
   def translate!(first_input_word = nil, *)
-    authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
 
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
@@ -70,9 +87,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   def chat_stats!(*)
-    authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
 
     output = chat_stats_text
 
@@ -98,9 +115,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle unknown commands
   def action_missing(_action, *_args)
-    authorize_command!
     authorize_message_storage!(payload)
     store_message(payload)
+    authorize_command!
   end
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
@@ -127,19 +144,25 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     LLM::ReplyJob.perform_later(db_chat, serialized_message)
   end
 
-  def run_summarize(summary_type)
+  def run_summarize_chat(summary_type, style: nil)
     ensure_summarize_allowed!
 
-    db_summary = ChatSummary.create!(
-      summary_type:,
+    summary = ChatSummary.create!(
+      chat: db_chat,
       status: 'running',
-      chat: db_chat
+      summary_type:,
+      style: style.presence
     )
 
-    LLM::SummarizeChatJob.perform_later(db_summary)
+    LLM::SummarizeChatJob.perform_later(summary)
   rescue StandardError => e
-    db_summary&.destroy!
+    summary&.destroy!
     raise e
+  end
+
+  def run_summarize_url
+    url, style_text = parse_summarize_url_command
+    LLM::SummarizeUrlJob.perform_later(db_chat, url, style_text)
   end
 
   def run_translate(first_input_word, command_message_from, parent_message_from)
