@@ -19,7 +19,8 @@ class TelegramTools
       Telegram.bot.set_webhook(
         url:,
         drop_pending_updates: false,
-        secret_token: Rails.application.credentials.telegram_secret_token
+        secret_token: Rails.application.credentials.telegram_secret_token,
+        allowed_updates: %w[message edited_message my_chat_member]
       )
     end
 
