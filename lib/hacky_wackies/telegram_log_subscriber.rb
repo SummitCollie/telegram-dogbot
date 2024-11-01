@@ -13,7 +13,8 @@ module HackyWackies
     def start_processing(event)
       info do
         payload = event.payload
-        update = sanitize_sensitive_data(payload[:update]) # unless Rails.env.local?
+        update = payload[:update].to_h
+        update = sanitize_sensitive_data(update) unless Rails.env.local?
         "Processing by #{payload[:controller]}##{payload[:action]}\n  " \
           "Update: #{update.to_json}"
       end
