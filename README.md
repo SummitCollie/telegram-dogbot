@@ -91,7 +91,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 # Deployment
 Designed to be deployed on Heroku with HuggingFace as the LLM API provider, but should be adaptable to anything.
 
-* Handles 5000+ messages/day on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively).
+* Handles 8000+ messages/day on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively).
 * HuggingFace Pro offers an OpenAI-compatible API for $9/month.
 
 ## Steps
