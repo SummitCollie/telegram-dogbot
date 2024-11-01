@@ -8,7 +8,7 @@
 # https://github.com/telegram-bot-rb/telegram-bot/issues/239#issuecomment-2242341493
 module HackyWackies
   module TelegramLogSubscriber
-    FILTERED_PARAMS = %i[text]
+    FILTERED_PARAMS = %i[text].freeze
 
     def start_processing(event)
       info do
