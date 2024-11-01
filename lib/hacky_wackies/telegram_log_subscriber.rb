@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-# TODO: also sanitize text from ActiveJob logs
-
 # TODO: remove this when supported upstream
 # Patch telegram-bot gem to filter text from messages in prod logs
 # Adapted from comment on GitHub issue:
