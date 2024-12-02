@@ -106,11 +106,54 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     raise FuckyWuckies::AuthorizationError.new(
       severity: Logger::Severity::INFO,
-      frontend_message: 'You start! By adding this bot to a group chat ' \
-                        'because it has no functionality in DMs or channels.',
+      frontend_message: "This bot only functions in group chats!\n\n" \
+                        'The only thing you can do in DMs is use the /opt_out command, ' \
+                        'if you want the bot to ignore you globally across every chat.',
       sticker: :heck
     ), 'Not saving message from non-group chat: ' \
        "chat api_id=#{chat.id} username=@#{chat.username}"
+  end
+
+  def opt_out!(*)
+    return unless chat.type == 'private'
+
+    db_user = User.find_or_initialize_by(api_id: from.id)
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      parse_mode: 'HTML',
+      text: UserOptOut.infotext(db_user),
+      link_preview_options: { is_disabled: true }
+    )
+  end
+
+  def really_opt_out_for_real_im_not_kidding!(*)
+    return unless chat.type == 'private'
+
+    db_user = User.find_or_create_by(api_id: from.id)
+    UserOptOut.opt_out(db_user)
+
+    Telegram.bot.send_sticker(
+      chat_id: chat_api_id,
+      sticker: TG_🐺♋🖼️_STICKERS_🌶️🍆💦[:cry]
+    )
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      parse_mode: 'HTML',
+      text: "You have opted out and are now invisible to the bot across every chat.\n\n" \
+            "You can use <code>/opt_in</code> to opt back in anytime."
+    )
+  end
+
+  def opt_in!(*)
+    return unless chat.type == 'private'
+
+    db_user = User.find_by(api_id: from.id)
+    UserOptOut.opt_in(db_user)
+
+    Telegram.bot.send_message(
+      chat_id: chat.id,
+      text: 'You have opted in and are now visible to the bot!'
+    )
   end
 
   ### Handle unknown commands

@@ -78,6 +78,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 - [x] Talk to the bot - send a message tagging bot using `@itsUsername`
   - [ ] Aware of current date/time and times of chat messages
 - [x] Nightly auto-delete of all chat data > 2 days old
+- [x] Opt-out feature: globally ignores a given user across all chatrooms (no fun)
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] User settings/personalization
   - [ ] Allow users to add a very short "bio" to be included with their messages in prompts

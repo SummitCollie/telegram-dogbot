@@ -24,6 +24,8 @@ class TelegramWebhooksController
       end
 
       if from_bot?
+        # Found out after writing this that bots can't see each other's messages anyway lol.
+        # Oh well, I'll leave this here in case that changes in the future.
         raise FuckyWuckies::AuthorizationError.new(
           frontend_message: 'begone bot',
           sticker: :gun
@@ -45,6 +47,14 @@ class TelegramWebhooksController
           frontend_message: "This chat isn't whitelisted; contact this bot's owner.",
           sticker: :bonk
         ), "Chat not in whitelist: chat api_id=#{chat.id} title=#{chat.title}"
+      end
+
+      # Ignore commands from users who've opted out
+      db_user = User.find_by(api_id: from.id)
+      if db_user&.opt_out
+        raise FuckyWuckies::AuthorizationError.new(
+          severity: Logger::Severity::INFO,
+        ), "Ignoring command from opted-out user: api_id=#{from.id} username=@#{from.username}"
       end
     end
 

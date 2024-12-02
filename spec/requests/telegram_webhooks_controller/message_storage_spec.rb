@@ -311,7 +311,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
       end
     end
 
-    context 'when whitelist is disabled' do
+    context 'when chat whitelist is disabled' do
       before do
         Rails.application.credentials.whitelist_enabled = false
       end
@@ -334,6 +334,10 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message.date.to_i).to eq options[:date]
         expect(message.attachment_type).to be_nil
       end
+    end
+
+    context 'when a user has opted out (user.opt_out == true)' do
+      it 'stops saving messages from opted-out user'
     end
   end
 end
