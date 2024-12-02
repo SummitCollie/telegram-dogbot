@@ -13,14 +13,18 @@ class UserOptOut
 
     def infotext(db_user)
       <<~INFOTEXT.strip
-        <b>You are currently #{db_user.opt_out ? 'opted-out and invisible' : 'opted-in and visible'} to this bot.</b>
+        <b>#{if db_user.opt_out
+          '⭕️ You are currently opted-out and invisible to this bot.'
+        else
+          '🟢 You are currently opted-in and visible to this bot.'
+        end}</b>
 
-        <blockquote><i>Please note: I care about privacy!! This bot is not designed to spy or collect data on you, it's just for fun and \
+        <blockquote>😿 <i>I care about privacy!! This bot isn't designed to spy or collect data on you, it's just for fun and \
         <a href="https://github.com/SummitCollie/telegram-dogbot">fully open-source.</a>
 
         Even if you remain opted-in, all messages older than 48 hours are deleted on a nightly basis \
-        (<a href="https://github.com/SummitCollie/telegram-dogbot/blob/master/lib/tasks/nightly_data_purge.rake">\
-        source code for proof</a>).
+        (see <a href="https://github.com/SummitCollie/telegram-dogbot/blob/master/lib/tasks/nightly_data_purge.rake">\
+        this code</a>).
 
         The only reason it stores messages for 48 hours is because it's necessary to provide chat/summarization features.</i></blockquote>
 
@@ -28,18 +32,20 @@ class UserOptOut
           • Your messages will never be stored by this bot.
           • Any commands you run will be ignored.
           • The bot will never reply to you.
-          • You won't show up in chat summaries, chat stats, vibe checks, etc.
-          • All of the above applies globally, in every chatroom where the bot is present.
-          • All messages from you will immediately be deleted from the bot's DB.
+          • You won't show up in summaries, stats, vibe checks, etc.
+          • All of the above applies globally (all chatrooms).
+          • You will start saying things like "bah humbug" in your daily life.
+          • All of your messages will be deleted from the bot's DB immediately.
 
-        In certain situations, like if another user tags the bot in a reply to one of your messages, \
-        or translates one of your messages, the bot will see that single message but it won't be stored \
-        (it will only be used to generate that single response).
+        Some edge cases: in certain situations, for example if another user tags the bot in a reply to one of your messages, \
+        or if they translate one of your messages, the bot will still see your message while generating a response. \
+        It won't store your message directly, but it'll store the other user's message and its own reply, \
+        so little bits of your data could leak into LLM prompts that way I suppose. Take it up with the other user.
 
         #{if db_user.opt_out
-            'Use <code>/opt_in</code> to make yourself visible to the bot again.'
+            'Use <code>/im_deeply_sorry_please_take_me_back</code> to opt back in and make yourself visible to the bot again.'
           else
-            'To confirm opt-out, run <code>/really_opt_out_for_real_im_not_kidding</code>'
+            'To confirm opt-out, run <code>/i_hate_you_and_never_want_to_see_you_again</code>'
           end}
       INFOTEXT
     end

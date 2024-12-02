@@ -126,7 +126,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     )
   end
 
-  def really_opt_out_for_real_im_not_kidding!(*)
+  def i_hate_you_and_never_want_to_see_you_again!(*)
     return unless chat.type == 'private'
 
     db_user = User.find_or_create_by(api_id: from.id)
@@ -139,12 +139,12 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     Telegram.bot.send_message(
       chat_id: chat.id,
       parse_mode: 'HTML',
-      text: "You have opted out and are now invisible to the bot across every chat.\n\n" \
-            "You can use <code>/opt_in</code> to opt back in anytime."
+      text: "⭕️ You have opted out and are now invisible to the bot across every chat.\n\n" \
+            "Use <code>/im_deeply_sorry_please_take_me_back</code> to opt back in anytime."
     )
   end
 
-  def opt_in!(*)
+  def im_deeply_sorry_please_take_me_back!(*)
     return unless chat.type == 'private'
 
     db_user = User.find_by(api_id: from.id)
@@ -152,7 +152,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     Telegram.bot.send_message(
       chat_id: chat.id,
-      text: 'You have opted in and are now visible to the bot!'
+      text: "🟢 I think I can forgive you just this once! [opt-in success]"
     )
   end
 

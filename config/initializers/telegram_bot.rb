@@ -16,12 +16,14 @@ temp_tg_client.set_my_commands(
       description: 'Summarize content from a URL, optional custom style' },
     { command: 'summarize_chat',
       description: 'Summarize recent chat messages, optional custom style' },
-    { command: 'vibe_check',
-      description: 'Run vibe analysis' },
     { command: 'translate',
       description: 'Translate text from your message or replied message' },
+    { command: 'vibe_check',
+      description: 'Advanced computer vibe analysis' },
     { command: 'chat_stats',
-      description: 'Show stats about this chat' }
+      description: 'Show stats about this chat' },
+    { command: 'opt_out',
+      description: '(send in bot DMs)'}
   ],
   language_code: 'en'
 )

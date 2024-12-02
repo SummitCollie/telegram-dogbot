@@ -49,11 +49,11 @@ class TelegramWebhooksController
         ), "Chat not in whitelist: chat api_id=#{chat.id} title=#{chat.title}"
       end
 
-      # Ignore commands from users who've opted out
+      # Ignore commands from users who've opted out (user.opt_out == true)
       db_user = User.find_by(api_id: from.id)
       if db_user&.opt_out
         raise FuckyWuckies::AuthorizationError.new(
-          severity: Logger::Severity::INFO,
+          severity: Logger::Severity::INFO
         ), "Ignoring command from opted-out user: api_id=#{from.id} username=@#{from.username}"
       end
     end
