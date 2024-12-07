@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class UserOptOut
+class UserOptOutMgr
   class << self
     def opt_out(db_user)
       db_user.update!(opt_out: true)

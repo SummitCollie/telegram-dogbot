@@ -121,7 +121,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     Telegram.bot.send_message(
       chat_id: chat.id,
       parse_mode: 'HTML',
-      text: UserOptOut.infotext(db_user),
+      text: UserOptOutMgr.infotext(db_user),
       link_preview_options: { is_disabled: true }
     )
   end
@@ -130,7 +130,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     return unless chat.type == 'private'
 
     db_user = User.find_or_create_by(api_id: from.id)
-    UserOptOut.opt_out(db_user)
+    UserOptOutMgr.opt_out(db_user)
 
     Telegram.bot.send_sticker(
       chat_id: chat_api_id,
@@ -148,7 +148,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     return unless chat.type == 'private'
 
     db_user = User.find_by(api_id: from.id)
-    UserOptOut.opt_in(db_user)
+    UserOptOutMgr.opt_in(db_user)
 
     Telegram.bot.send_message(
       chat_id: chat.id,

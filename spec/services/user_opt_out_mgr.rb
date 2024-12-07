@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-Rspec.describe UserOptOut do
+Rspec.describe UserOptOutMgr do
   describe '#opt_out' do
     it 'sets user.opt_out flag to true'
     it 'deletes all saved messages from user'
