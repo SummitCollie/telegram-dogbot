@@ -85,7 +85,7 @@ class TelegramWebhooksController
     end
 
     def group_chat?
-      chat.type == 'group' || chat.type == 'supergroup'
+      %w[group supergroup].include?(chat.type)
     end
 
     def whitelist_enabled?

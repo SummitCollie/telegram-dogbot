@@ -7,7 +7,7 @@ require 'logger'
 desc 'Deletes old telegram messages & other data from database'
 
 task nightly_data_purge: :environment do
-  logger = Logger.new(Rails.env.test? ? '/dev/null' : $stdout)
+  logger = Logger.new(Rails.env.test? ? File::NULL : $stdout)
 
   delete_older_than = 2.days.ago
 

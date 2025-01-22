@@ -18,7 +18,10 @@ class LLMTools
     end
 
     def run_chat_completion(system_prompt:, user_prompt:, model_params: {})
-      client = OpenAI::Client.new
+      # TODO: seems to break without log_errors: true for some reason
+      # OpenAI HTTP Error (spotted in ruby-openai 7.3.1): Invalid URL: missing field `name`
+      client = OpenAI::Client.new(log_errors: true)
+
       client.add_headers('x-use-cache' => 'false')
       # client.add_headers('x-wait-for-model' => 'true')
 

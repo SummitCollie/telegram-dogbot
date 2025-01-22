@@ -16,15 +16,20 @@ Style/Documentation:
   Enabled: false
 
 Style/IfUnlessModifier:
-  Exclude: ['app/controllers/telegram_webhooks_controller/authorization_handler.rb']
+  Exclude:
+    ["app/controllers/telegram_webhooks_controller/authorization_handler.rb"]
 
 Style/GuardClause:
-  Exclude: ['app/controllers/telegram_webhooks_controller/authorization_handler.rb']
+  Exclude:
+    ["app/controllers/telegram_webhooks_controller/authorization_handler.rb"]
 
 Style/ModuleFunction:
-  Exclude: ['app/controllers/telegram_webhooks_controller/summarize_helpers.rb']
+  Exclude: ["app/controllers/telegram_webhooks_controller/summarize_helpers.rb"]
 
 Style/OpenStructUse:
+  Enabled: false
+
+Style/SafeNavigationChainLength:
   Enabled: false
 
 Layout/LineLength:
@@ -43,7 +48,7 @@ Naming/AsciiIdentifiers:
   AsciiConstants: false
 
 Style/NumericLiterals:
-  Exclude: ['spec/**/*']
+  Exclude: ["spec/**/*"]
 
 RSpec/MultipleExpectations:
   Enabled: false
@@ -70,10 +75,10 @@ RSpec/MultipleMemoizedHelpers:
   Enabled: false
 
 RSpec/SpecFilePathFormat:
-  Exclude: [ "**/spec/requests/telegram_webhooks_controller/*" ]
+  Exclude: ["**/spec/requests/telegram_webhooks_controller/*"]
 
 RSpec/VerifiedDoubleReference:
-  EnforcedStyle: string
+  Enabled: false
 
 FactoryBot/ExcessiveCreateList:
   Enabled: false

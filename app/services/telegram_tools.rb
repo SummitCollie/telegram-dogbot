@@ -6,7 +6,7 @@ class TelegramTools
   class << self
     def logger
       @logger ||= Logger.new(
-        Rails.env.test? ? '/dev/null' : $stderr,
+        Rails.env.test? ? File::NULL : $stderr,
         level: ENV.fetch('RAILS_LOG_LEVEL', Rails.env.production? ? 'info' : 'debug')
       )
     end
