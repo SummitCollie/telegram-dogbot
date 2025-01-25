@@ -1,11 +1,18 @@
 {
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
+
+  "direnv.restart.automatic": true, // makes solargraph work on NixOS
   "solargraph.diagnostics": true,
-  "files.watcherExclude": {
+  "solargraph.formatting": true,
+  "solargraph.useBundler": true,
+
+  "files.exclude": {
     "**/.git/objects/**": true,
     "**/.git/subtree-cache/**": true,
-    "**/node_modules/*/**": true,
-    "**/.hg/store/**": true,
+    "**/node_modules": true,
+    ".devenv.flake.nix": true,
+    ".devenv": true,
+    ".direnv": true
   }
 }
