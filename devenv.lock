@@ -3,10 +3,10 @@
     "devenv": {
       "locked": {
         "dir": "src/modules",
-        "lastModified": 1737540480,
+        "lastModified": 1729641677,
         "owner": "cachix",
         "repo": "devenv",
-        "rev": "5cd6c94c7d6edf5dbf1c579de3c9db8fbd515a5f",
+        "rev": "4f634c92037d3fb7a7cc2feddc4d686ace83b57f",
         "type": "github"
       },
       "original": {
@@ -19,10 +19,10 @@
     "flake-compat": {
       "flake": false,
       "locked": {
-        "lastModified": 1733328505,
+        "lastModified": 1696426674,
         "owner": "edolstra",
         "repo": "flake-compat",
-        "rev": "ff81ac966bb2cae68946d5ed5fc4994f96d0ffec",
+        "rev": "0f9255e01c2351cc7d116c072cb317785dd33b33",
         "type": "github"
       },
       "original": {
@@ -34,10 +34,10 @@
     "flake-compat_2": {
       "flake": false,
       "locked": {
-        "lastModified": 1733328505,
+        "lastModified": 1696426674,
         "owner": "edolstra",
         "repo": "flake-compat",
-        "rev": "ff81ac966bb2cae68946d5ed5fc4994f96d0ffec",
+        "rev": "0f9255e01c2351cc7d116c072cb317785dd33b33",
         "type": "github"
       },
       "original": {
@@ -51,10 +51,10 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1731533236,
+        "lastModified": 1726560853,
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -85,10 +85,10 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1733477122,
+        "lastModified": 1716977621,
         "owner": "cachix",
         "repo": "devenv-nixpkgs",
-        "rev": "7bd9e84d0452f6d2e63b6e6da29fe73fac951857",
+        "rev": "4267e705586473d3e5c8d50299e71503f16a6fb6",
         "type": "github"
       },
       "original": {
@@ -107,10 +107,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1737352164,
+        "lastModified": 1729327104,
         "owner": "bobvanderlinden",
         "repo": "nixpkgs-ruby",
-        "rev": "45964bf9a4e568ffdc1d8ac38a2cbc398e454575",
+        "rev": "38d584e00a62b224abb22fffb41b179a21401bc8",
         "type": "github"
       },
       "original": {
@@ -119,12 +119,27 @@
         "type": "github"
       }
     },
-    "nixpkgs-unstable": {
+    "nixpkgs-stable": {
       "locked": {
-        "lastModified": 1737469691,
+        "lastModified": 1729449015,
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9e4d5190a9482a1fb9d18adf0bdb83c6e506eaab",
+        "rev": "89172919243df199fe237ba0f776c3e3e3d72367",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-24.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-unstable": {
+      "locked": {
+        "lastModified": 1729413321,
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "1997e4aa514312c1af7e2bda7fad1644e778ff26",
         "type": "github"
       },
       "original": {
@@ -140,13 +155,14 @@
         "gitignore": "gitignore",
         "nixpkgs": [
           "nixpkgs"
-        ]
+        ],
+        "nixpkgs-stable": "nixpkgs-stable"
       },
       "locked": {
-        "lastModified": 1737465171,
+        "lastModified": 1729104314,
         "owner": "cachix",
         "repo": "pre-commit-hooks.nix",
-        "rev": "9364dc02281ce2d37a1f55b6e51f7c0f65a75f17",
+        "rev": "3c3e88f0f544d6bb54329832616af7eb971b6be6",
         "type": "github"
       },
       "original": {
