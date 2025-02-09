@@ -6,6 +6,7 @@
   "solargraph.diagnostics": true,
   "solargraph.formatting": true,
   "solargraph.useBundler": true,
+  "solargraph.checkGemVersion": false,
 
   "files.exclude": {
     "**/.git/objects/**": true,
