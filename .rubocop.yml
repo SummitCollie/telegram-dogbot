@@ -29,9 +29,6 @@ Style/ModuleFunction:
 Style/OpenStructUse:
   Enabled: false
 
-Style/SafeNavigationChainLength:
-  Enabled: false
-
 Layout/LineLength:
   AllowedPatterns: ['(\A|\s)#'] # Allow long comments
 
