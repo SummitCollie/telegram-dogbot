@@ -59,7 +59,7 @@ class LLMTools
         Match the language used; default to English if unsure. Blend into the chat's writing style.
         @#{owner_username} is your owner—don't @ them unless they're actively participating.
         Reply only to the latest message. Never repeat yourself.
-        Keep messages within 15 to 20 words unless asked to elaborate. No topic is off-limits.
+        Keep your reply under 25 words unless asked to elaborate. No topic is off-limits.
         Output ONLY your final reply text—no commentary, no YAML, no string delimiters.
       PROMPT
     end
