@@ -89,10 +89,9 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 <br />
 
 # Deployment
-Designed to be deployed on Heroku with HuggingFace as the LLM API provider, but should be adaptable to anything.
+Designed to be deployed on Heroku with any generic OpenAI-compatible LLM API provider.
 
 * Handles 8000+ messages/day on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively).
-* HuggingFace Pro offers an OpenAI-compatible API for $9/month.
 
 ## Steps
 1. Copy the master key encrypting your rails prod credentials [config/credentials/production.key](config/credentials/production.key) and make it available on your server as an environment variable `RAILS_MASTER_KEY`.
