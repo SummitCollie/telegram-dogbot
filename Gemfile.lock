@@ -329,7 +329,7 @@ GEM
       rbs (>= 3, < 5)
     ruby-lsp-rspec (0.1.28)
       ruby-lsp (~> 0.26.0)
-    ruby-openai (7.4.0)
+    ruby-openai (8.3.0)
       event_stream_parser (>= 0.3.0, < 2.0.0)
       faraday (>= 1)
       faraday-multipart (>= 1)
@@ -360,7 +360,7 @@ GEM
     unicode-name (1.14.0)
       unicode-types (~> 1.11)
     unicode-types (1.11.0)
-    uri (0.13.3)
+    uri (1.1.1)
     websocket-driver (0.8.0)
       base64
       websocket-extensions (>= 0.1.0)
