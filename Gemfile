@@ -61,5 +61,10 @@ group :development do
   gem 'rubocop-rails', require: false
   gem 'rubocop-rspec', require: false
   gem 'rubocop-rspec_rails', require: false
-  gem 'solargraph', require: false
+  gem 'ruby-lsp', require: false
+  gem 'ruby-lsp-rspec', require: false
+end
+
+group :test do
+  gem 'simplecov', require: false
 end

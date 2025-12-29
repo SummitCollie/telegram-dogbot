@@ -16,6 +16,8 @@ devenv.local.nix
 ### rails section
 ###
 
+coverage/*
+
 # Ignore bundler config.
 /.bundle
 

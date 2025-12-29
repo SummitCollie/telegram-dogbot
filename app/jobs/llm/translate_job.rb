@@ -19,8 +19,8 @@ module LLM
       result_text = llm_translate(text_to_translate, target_language)
       send_output_message(result_text)
     rescue Faraday::Error => e
-      model_loading_time = e&.response&.dig(
-        :body, 'estimated_time'
+      model_loading_time = e&.response&.dig( # rubocop:disable Style/SafeNavigationChainLength
+        :body, 'estimated_time'              # stfu
       )&.seconds&.in_minutes&.round
 
       if model_loading_time
@@ -61,7 +61,7 @@ module LLM
           model: Rails.application.credentials.openai.translate_model ||
                            Rails.application.credentials.openai.model,
           max_tokens: 512,
-          temperature: 0.3
+          temperature: 0.9
         }
       )
 

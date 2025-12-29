@@ -14,8 +14,8 @@ class GenericInferenceApi
       client.chat(parameters: {
         model: Rails.application.credentials.openai.model,
         max_tokens: 512,
-        temperature: 0.7,
-        top_p: 0.9,
+        temperature: 1.0,
+        top_p: 1,
         messages:,
         stream: proc do |chunk, _bytesize|
           result << chunk.dig('choices', 0, 'delta', 'content')

@@ -1,12 +1,10 @@
 {
   "editor.tabSize": 2,
+  "editor.codeLens": false,
   "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
 
-  "direnv.restart.automatic": true, // makes solargraph work on NixOS
-  "solargraph.diagnostics": true,
-  "solargraph.formatting": true,
-  "solargraph.useBundler": true,
-  "solargraph.checkGemVersion": false,
+  "direnv.restart.automatic": true, // NixOS
 
   "files.exclude": {
     "**/.git/objects/**": true,
@@ -15,5 +13,32 @@
     ".devenv.flake.nix": true,
     ".devenv": true,
     ".direnv": true
+  },
+  "files.readonlyInclude": {
+    "coverage/**/*": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/*.code-search": true,
+    "**/.ruby-lsp": true,
+    "coverage/**/*": true,
+    "spec/cassettes/**/*": true
+  },
+
+  "rubyLsp.indexing": {
+    "excludedGems": [
+      "rubocop",
+      "rubocop-factory_bot",
+      "rubocop-rails",
+      "rubocop-rspec_rails",
+      "ruby-lsp",
+      "ruby-lsp-rspec"
+    ]
+  },
+  "[ruby]": {
+    "editor.defaultFormatter": "Shopify.ruby-lsp"
+  },
+  "[yaml]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }

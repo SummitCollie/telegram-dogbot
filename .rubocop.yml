@@ -1,4 +1,4 @@
-require:
+plugins:
   - rubocop-factory_bot
   - rubocop-rails
   - rubocop-rspec
@@ -7,6 +7,7 @@ require:
 AllCops:
   NewCops: enable
   Exclude:
+    - .devenv/**/*
     - bin/**/*
     - vendor/**/*
     - db/schema.rb

@@ -6,6 +6,7 @@ require 'support/telegram_helpers'
 
 RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
   include ActiveJob::TestHelper
+
   include_context 'with telegram_helpers'
 
   describe 'TelegramWebhooksController::TranslateHelpers' do

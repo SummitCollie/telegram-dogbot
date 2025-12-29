@@ -136,7 +136,9 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   private
 
   def db_chat
-    @db_chat ||= Chat.find_by(api_id: chat&.id)
+    return @db_chat if defined?(@db_chat)
+
+    @db_chat = Chat.find_by(api_id: chat&.id)
   end
 
   def reply_when_mentioned(message)

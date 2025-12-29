@@ -4,10 +4,6 @@ run:
 test:
   rubocop & rspec & wait
 
-# Solargraph
-rebuild-gem-documentation:
-  bundle exec yard gems
-
 edit-creds-dev:
   rails credentials:edit
 

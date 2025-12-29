@@ -167,7 +167,6 @@ RSpec.describe LLM::SummarizeUrlJob do
       end
     end
 
-    # rubocop:disable RSpec/VerifiedDoubles
     context 'when URL loading fails' do
       before do
         io_double = double(status: %w[403 Forbidden])
@@ -190,7 +189,6 @@ RSpec.describe LLM::SummarizeUrlJob do
         )
       end
     end
-    # rubocop:enable RSpec/VerifiedDoubles
   end
   # rubocop:enable RSpec/InstanceVariable
 end

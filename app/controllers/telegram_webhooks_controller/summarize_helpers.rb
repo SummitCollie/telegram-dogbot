@@ -42,7 +42,7 @@ class TelegramWebhooksController
         url = payload.text[offset, length]
 
         style_text = [
-          payload.text[..offset - 1],
+          payload.text[..(offset - 1)],
           payload.text[(offset + length)..]
         ].map(&:strip)
                      .compact_blank

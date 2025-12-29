@@ -12,9 +12,9 @@ class TelegramWebhooksController
       db_chat_user = create_or_update_chat_user(db_chat, db_user)
       db_message = create_message(db_chat, db_chat_user, message)
 
-      # rubocop:disable Rails::SkipsModelValidations
+      # rubocop:disable Rails/SkipsModelValidations
       ChatUser.increment_counter :num_chatuser_messages, db_chat_user.id
-      # rubocop:enable Rails::SkipsModelValidations
+      # rubocop:enable Rails/SkipsModelValidations
 
       db_message
     end
