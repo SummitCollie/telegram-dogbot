@@ -60,7 +60,6 @@ module LLM
         model_params: {
           model: Rails.application.credentials.openai.translate_model ||
                            Rails.application.credentials.openai.model,
-          max_tokens: 512,
           temperature: 0.9
         }
       )

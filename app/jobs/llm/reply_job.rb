@@ -62,7 +62,7 @@ module LLM
                                  "### System prompt:\n#{system_prompt}\n" \
                                  "### User prompt:\n#{user_prompt}")
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, model_params: { max_tokens: 256 })
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
 
       if output.blank?
         raise FuckyWuckies::ReplyJobFailure.new(

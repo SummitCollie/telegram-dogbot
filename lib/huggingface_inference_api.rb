@@ -18,7 +18,6 @@ class HuggingfaceInferenceApi
       result = StringIO.new
       client.chat(parameters: {
         model: Rails.application.credentials.openai.model,
-        max_tokens: 512,
         temperature: 0.7,
         top_p: 0.9,
         messages:,
