@@ -200,7 +200,6 @@ RSpec.describe LLM::ReplyJob do
       described_class.perform_now(chat, TelegramTools.serialize_api_message(api_bot_mention))
 
       expect(LLMTools).to have_received(:run_chat_completion).with(
-        model_params: anything,
         system_prompt: anything,
         user_prompt: expected_prompt
       )
@@ -235,7 +234,6 @@ RSpec.describe LLM::ReplyJob do
           PROMPT
 
           expect(LLMTools).to have_received(:run_chat_completion).with(
-            model_params: anything,
             system_prompt: anything,
             user_prompt: expected_prompt
           )
@@ -301,7 +299,6 @@ RSpec.describe LLM::ReplyJob do
           PROMPT
 
           expect(LLMTools).to have_received(:run_chat_completion).with(
-            model_params: anything,
             system_prompt: anything,
             user_prompt: expected_prompt
           )
@@ -324,7 +321,6 @@ RSpec.describe LLM::ReplyJob do
           PROMPT
 
           expect(LLMTools).to have_received(:run_chat_completion).with(
-            model_params: anything,
             system_prompt: anything,
             user_prompt: expected_prompt
           )
@@ -349,7 +345,6 @@ RSpec.describe LLM::ReplyJob do
         PROMPT
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
-          model_params: anything,
           system_prompt: anything,
           user_prompt: expected_prompt
         )
