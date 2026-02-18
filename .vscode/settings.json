@@ -3,6 +3,7 @@
   "editor.codeLens": false,
   "editor.detectIndentation": false,
   "editor.formatOnSave": true,
+  "editor.semanticHighlighting.enabled": true,
 
   "direnv.restart.automatic": true, // NixOS
 
