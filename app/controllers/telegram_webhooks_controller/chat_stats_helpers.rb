@@ -13,7 +13,7 @@ class TelegramWebhooksController
         raise FuckyWuckies::NotAGroupChatError.new(
           severity: Logger::Severity::ERROR
         ), 'No chat_users exist yet in this chat: ' \
-           ''
+           "chat api_id=#{db_chat.id} title=#{db_chat.title}"
       end
 
       # total count of messages seen in chat (including deleted from db)

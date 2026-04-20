@@ -21,7 +21,13 @@ temp_tg_client.set_my_commands(
     { command: 'translate',
       description: 'Translate text from your message or replied message' },
     { command: 'chat_stats',
-      description: 'Show stats about this chat' }
+      description: 'Show stats about this chat' },
+    { command: 'locales',
+      description: 'Show time & weather for several places' },
+    { command: 'locales_add',
+      description: 'Add place to locales' },
+    { command: 'locales_remove',
+      description: 'guess' }
   ],
   language_code: 'en'
 )
