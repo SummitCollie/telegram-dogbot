@@ -111,8 +111,17 @@ Telegram only sends webhooks to `https` URLs on ports 443, 80, 88, or 8443, so p
 ```nix
 # flake.nix inputs
 telegram-dogbot.url = "github:SummitCollie/telegram-dogbot";
-telegram-dogbot.inputs.nixpkgs.follows = "nixpkgs";
+telegram-dogbot.inputs = {
+  nixpkgs.follows = "nixpkgs";
+
+  # Only used by the dev shell, not the NixOS module
+  bundix.follows = "";
+  process-compose.follows = "";
+  services-flake.follows = "";
+};
 ```
+
+The empty `follows` keep the dev-only inputs out of your `flake.lock`. If another flake in your config already pins `bob-ruby` or `ruby-nix`, you can also point those at its copies (e.g. `bob-ruby.follows = "other-flake/bob-ruby";`), as long as that pin still has the Ruby version from [.ruby-version](.ruby-version).
 ```nix
 { config, inputs, ... }:
 {
