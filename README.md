@@ -88,50 +88,90 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 
 <br />
 
-# Deployment
-Designed to be deployed on Heroku with any generic OpenAI-compatible LLM API provider.
+# Configuration
+All settings live in encrypted rails credentials (example: [credentials.sample.yml](./config/credentials.sample.yml)):
+- `config/credentials.yml.enc` (key: `config/master.key`) is for dev & test
+- `config/credentials/production.yml.enc` (key: `config/credentials/production.key`) is for production only
 
-* Handles 8000+ messages/day on 1x basic dyno with the cheapest Postgres ($7/month and $5/month respectively).
+Use separate bot tokens for dev & prod, otherwise the dev env will steal the prod bot's messages.
 
-## Steps
-1. Copy the master key encrypting your rails prod credentials [config/credentials/production.key](config/credentials/production.key) and make it available on your server as an environment variable `RAILS_MASTER_KEY`.
-2. You can also set `RAILS_SERVE_STATIC_FILES` to `disabled` if you want.
-3. Set up nightly data auto-delete:
+Works with any OpenAI-compatible LLM API provider (`openai.uri_base`).
 
-### Auto-delete old data nightly
-A rake task [`rake nightly_data_purge`](lib/tasks/nightly_data_purge.rake) is set up to purge old messages & other data from the DB. This is intended to be run nightly by a [Heroku Scheduler](https://devcenter.heroku.com/articles/scheduler) task, but you could use any task scheduling system to run it.
+<br />
 
-Add the free Heroku Scheduler addon to your app and then configure it with:
-1. Run every day at 12:00am UTC (or whenever)
-2. Run command: `rake nightly_data_purge`
+# Deployment (NixOS)
+The flake exports a NixOS module (`nixosModules.default`, see [nix/module.nix](nix/module.nix)) that runs the bot in webhook mode:
+- `telegram-dogbot.service` - puma server receiving telegram webhooks (runs `rails db:prepare` on start)
+- `telegram-dogbot-data-purge.timer` - runs [`rails nightly_data_purge`](lib/tasks/nightly_data_purge.rake) daily, deleting messages & other data older than 2 days
+- A `dogbot` postgres role & system user (the DB is accessed via unix socket w/ peer auth)
+
+Telegram only sends webhooks to `https` URLs on ports 443, 80, 88, or 8443, so put a TLS-terminating reverse proxy in front of it, and set `host_url` in the production credentials to its public hostname (`just edit-creds-prod`).
+
+## Example
+```nix
+# flake.nix inputs
+telegram-dogbot.url = "github:SummitCollie/telegram-dogbot";
+telegram-dogbot.inputs.nixpkgs.follows = "nixpkgs";
+```
+```nix
+{ config, inputs, ... }:
+{
+  imports = [ inputs.telegram-dogbot.nixosModules.default ];
+
+  # Should contain RAILS_MASTER_KEY=<contents of config/credentials/production.key>
+  age.secrets.telegram-dogbot-env.file = ../secrets/telegram-dogbot-env.age;
+
+  services.telegram-dogbot = {
+    enable = true;
+    port = 3001;
+    railsEnvFile = config.age.secrets.telegram-dogbot-env.path;
+  };
+}
+```
+
+See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data purge schedule, etc).
+
+## Useful commands (on the server)
+- Logs: `journalctl -fu telegram-dogbot`
+- Run purge now: `sudo systemctl start telegram-dogbot-data-purge`
+- DB shell: `sudo -u dogbot psql dogbot_production`
 
 <br />
 
 # Local Development
 ## Install
-1. Install postgres, ruby, bundler, heroku CLI.
-2. `bundle install`
-3. Setup database or whatever.
-4. Configure options in rails credentials (example: [credentials.sample.yml](./config/credentials.sample.yml)).
-  - App expects two credentials files:
-    - `config/credentials/production.yml.enc` (`config/credentials/production.key`) is for production only
-    - `config/credentials.yml.enc` (`config/master.key`) is for dev & test
+1. Install [Nix](https://nixos.org/download/) (with flakes enabled) and [direnv](https://direnv.net/) + [nix-direnv](https://github.com/nix-community/nix-direnv).
+2. `direnv allow` (or `nix develop`) - provides ruby, all gems, postgres client, bundix, etc.
+3. Configure dev credentials with `just edit-creds-dev` (see [Configuration](#configuration)).
 
 ## Run local dev env in poll mode (no webhook)
 * `just run`
 
   aka
 
-* `heroku local --procfile=Procfile.dev`
+* `nix run .#devenv`
+
+Starts a [process-compose](https://github.com/F1bonacc1/process-compose) TUI running postgres (port 5434, data in `.postgres/`) and the bot poller (`rails telegram:bot:poller`, after `rails db:prepare`).
+
+To debug with `binding.pry`, stop the `bot-poller` process in the TUI and run `rails telegram:bot:poller` in a separate terminal instead.
 
 ## Run local dev env in async/webhook mode
 Only use this if you want to locally test the webhooks mode used in production for some reason (requires ngrok).
 
 1. Add your `ngrok_url` and `telegram_secret_token` to rails development credentials.
-2. Start server with `rails s`.
-3. After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poll mode works again.
+2. Start postgres with `just run` and stop the `bot-poller` process.
+3. Start server with `rails s` (and `just start-ngrok`).
+4. After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poll mode works again.
 
 ## Run linter & tests
+Requires postgres to be running (`just run`).
+
 * `just test`
 
   (aka `rubocop` and `rspec` in parallel)
+
+## Managing gems
+Gems are provided by nix (via [ruby-nix](https://github.com/inscapist/ruby-nix)), not `bundle install`. After changing the Gemfile, update `Gemfile.lock` and regenerate [gemset.nix](gemset.nix) with the `bundle-*` recipes in the [justfile](justfile), e.g.:
+
+* `just bundle-add some-gem`
+* `just bundle-install-and-lock`

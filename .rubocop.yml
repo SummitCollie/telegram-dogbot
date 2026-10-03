@@ -7,7 +7,10 @@ plugins:
 AllCops:
   NewCops: enable
   Exclude:
-    - .devenv/**/*
+    - .direnv/**/*
+    - .postgres/**/*
+    - .ruby-lsp/**/*
+    - result/**/*
     - bin/**/*
     - vendor/**/*
     - db/schema.rb
