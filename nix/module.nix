@@ -108,9 +108,13 @@ in
     # Prod rails server (receives telegram webhooks)
     systemd.services.telegram-dogbot = {
       wantedBy = [ "multi-user.target" ];
-      after = [ "network-online.target" "postgresql.service" ];
+      after = [ "network-online.target" "postgresql.target" ];
       wants = [ "network-online.target" ];
-      requires = [ "postgresql.service" ];
+      requires = [ "postgresql.target" ];
+
+      # Give up after 10 failed starts within 10 minutes
+      startLimitBurst = 10;
+      startLimitIntervalSec = 600;
 
       environment = sharedEnvironment;
 
@@ -124,8 +128,8 @@ in
 
     # Deletes old messages & other data from the DB
     systemd.services.telegram-dogbot-data-purge = {
-      after = [ "postgresql.service" "telegram-dogbot.service" ];
-      requires = [ "postgresql.service" ];
+      after = [ "postgresql.target" "telegram-dogbot.service" ];
+      requires = [ "postgresql.target" ];
 
       environment = sharedEnvironment;
 
