@@ -1,0 +1,174 @@
+{
+  "nodes": {
+    "bob-ruby": {
+      "inputs": {
+        "flake-compat": "flake-compat",
+        "flake-utils": "flake-utils",
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790768362,
+        "narHash": "sha256-RuI5vvmuT/Md61Z8BHqzOGNRPYNi8yGe3Cyiach2aHA=",
+        "owner": "bobvanderlinden",
+        "repo": "nixpkgs-ruby",
+        "rev": "a8499626b627d88a91fa1ed43ef7868425ce766c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "bobvanderlinden",
+        "repo": "nixpkgs-ruby",
+        "type": "github"
+      }
+    },
+    "bundix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1762235257,
+        "narHash": "sha256-QyXFgaXQETr9BmwUbWM/2EtF+my6Arpt71xItZy3NL8=",
+        "owner": "inscapist",
+        "repo": "bundix",
+        "rev": "2233b24084316b4de1d55321483554f457a09cfc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "inscapist",
+        "ref": "main",
+        "repo": "bundix",
+        "type": "github"
+      }
+    },
+    "flake-compat": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767039857,
+        "narHash": "sha256-vNpUSpF5Nuw8xvDLj2KCwwksIbjua2LZCqhV1LNRDns=",
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "rev": "5edf11c44bc78a0d334f6334cdaf7d60d732daab",
+        "type": "github"
+      },
+      "original": {
+        "owner": "edolstra",
+        "repo": "flake-compat",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1790822859,
+        "narHash": "sha256-69xHQhAeMAD2wDXO7T2pcOZIF9Sga2W+JkmY2a11Ops=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "c59305bab2065cfecc4944690d9eedbb56f3a9fa",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "process-compose": {
+      "locked": {
+        "lastModified": 1782060835,
+        "narHash": "sha256-Q8HH2t1l3MITtWCWY4ytcH5F/Q7aAHo3Iq/QTMAKTe0=",
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "rev": "464ff6880737f063c3f0d3d2c7781fda9190868f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Platonic-Systems",
+        "repo": "process-compose-flake",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "bob-ruby": "bob-ruby",
+        "bundix": "bundix",
+        "nixpkgs": "nixpkgs",
+        "process-compose": "process-compose",
+        "ruby-nix": "ruby-nix",
+        "services-flake": "services-flake"
+      }
+    },
+    "ruby-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1755059052,
+        "narHash": "sha256-yUJmmNIw11ZEIAFogqcqNomk4YV3F/zjwI1f7bYzIyY=",
+        "owner": "inscapist",
+        "repo": "ruby-nix",
+        "rev": "86b498e80058a84461d1f533e121574d85d272d7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "inscapist",
+        "repo": "ruby-nix",
+        "type": "github"
+      }
+    },
+    "services-flake": {
+      "locked": {
+        "lastModified": 1790589337,
+        "narHash": "sha256-MYVOWl/+4wAGrWDMDrFWe3Iu6QvHGa2QVH4v77+FcFw=",
+        "owner": "juspay",
+        "repo": "services-flake",
+        "rev": "d439d48bc7de628281ff903491807b8056bd9b6c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "juspay",
+        "repo": "services-flake",
+        "type": "github"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

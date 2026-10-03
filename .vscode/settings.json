@@ -11,9 +11,8 @@
     "**/.git/objects/**": true,
     "**/.git/subtree-cache/**": true,
     "**/node_modules": true,
-    ".devenv.flake.nix": true,
-    ".devenv": true,
-    ".direnv": true
+    ".direnv": true,
+    ".postgres": true
   },
   "files.readonlyInclude": {
     "coverage/**/*": true
