@@ -183,14 +183,6 @@ RSpec.describe LLMTools do
         hash_including(messages: [{ role: 'system', content: 'prompt for cloud-model' }, *expected_messages[1..]])
       )
     end
-
-    it 'describes the cloud model given in model_params' do
-      allow(LocalInferenceApi).to receive(:available_model).and_return nil
-
-      described_class.chat_completion(system_prompt:, messages: args[:messages], model_params: { model: 'aya' })
-
-      expect(providers.last.model).to eq 'aya'
-    end
   end
 
   describe '.reply_prompt' do

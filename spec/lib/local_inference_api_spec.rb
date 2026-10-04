@@ -156,8 +156,8 @@ RSpec.describe LocalInferenceApi do
       )
     end
 
-    it 'merges model_params into options, ignoring cloud model name' do
-      run(model_params: { model: 'cloud-model', temperature: 0.9 })
+    it 'merges model_params into options' do
+      run(model_params: { temperature: 0.9 })
 
       expect(posted[:body]).to include(
         model: model_name,

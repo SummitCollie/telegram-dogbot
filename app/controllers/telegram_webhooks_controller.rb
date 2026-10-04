@@ -75,7 +75,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     run_summarize_chat(:vibe_check)
   end
 
-  def translate!(first_input_word = nil, *)
+  def translate!(*)
     authorize_message_storage!(payload)
     store_message(payload)
     authorize_command!
@@ -83,7 +83,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     command_message_from = payload.from.first_name
     parent_message_from = payload.reply_to_message&.from&.first_name
 
-    run_translate(first_input_word, command_message_from, parent_message_from)
+    run_translate(command_message_from, parent_message_from)
   end
 
   def chat_stats!(*)
@@ -171,9 +171,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     LLM::SummarizeUrlJob.perform_later(db_chat, url, style_text)
   end
 
-  def run_translate(first_input_word, command_message_from, parent_message_from)
-    target_language = detect_target_language(first_input_word)
-    text_to_translate = determine_text_to_translate(target_language, first_input_word)
+  def run_translate(command_message_from, parent_message_from)
+    target_language, text_to_translate = parse_translate_command
 
     LLM::TranslateJob.perform_later(db_chat, text_to_translate, target_language, command_message_from,
                                     parent_message_from)

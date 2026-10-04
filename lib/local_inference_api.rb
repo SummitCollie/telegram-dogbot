@@ -46,8 +46,7 @@ class LocalInferenceApi
       end
     end
 
-    # `model_params` are merged into Ollama's `options` (e.g. temperature), except for
-    # `model`, which is a cloud model name.
+    # `model_params` are merged into Ollama's `options` (e.g. temperature).
     # Yields each piece of streamed output content, if given a block.
     def run_chat_completion(model:, messages:, model_params:)
       result = +''
@@ -89,7 +88,7 @@ class LocalInferenceApi
     # `local_llm.request_params` holds model-specific Ollama params, e.g. { think: false, options: { num_ctx: ... } }
     def chat_request_body(model, messages, model_params)
       params = config.request_params.to_h.deep_symbolize_keys
-      options = { **params.fetch(:options, {}), **model_params.except(:model) }
+      options = { **params.fetch(:options, {}), **model_params }
 
       { **params, model:, messages:, stream: true, options: }
     end

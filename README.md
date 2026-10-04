@@ -6,31 +6,36 @@
 <br />
 
 # <p align="center">/summarize_chat</p>
+
 Summarize recent messages sent in a group chat.
 
 Defaults to a neutral style, but a custom style can be provided:
 
 ### Custom style
+
 > /summarize_chat `as a script for a podcast hosted by talking dogs`
 
 # <p align="center">/summarize_url</p>
+
 Attempts to summarize the main content of a web page.
 
 Defaults to a neutral style, but a custom style can be provided:
 
 ### Custom style
+
 > /summarize_url `https://example.com/news_article` `as though it's being presented as evidence in a court case`
 
->**EXHIBIT A: E. coli Outbreak Linked to McDonald's Quarter Pounders**
+> **EXHIBIT A: E. coli Outbreak Linked to McDonald's Quarter Pounders**
 >
->**SUMMARY OF KEY FINDINGS**
+> **SUMMARY OF KEY FINDINGS**
 >
->1. **Outbreak Overview**: An E. coli outbreak linked to McDonald's Quarter Pounders has led to at least 49 illnesses across 10 states, including one death.
->2. **Source of Contamination**: A specific ingredient has not been confirmed as the source of the outbreak,
+> 1.  **Outbreak Overview**: An E. coli outbreak linked to McDonald's Quarter Pounders has led to at least 49 illnesses across 10 states, including one death.
+> 2.  **Source of Contamination**: A specific ingredient has not been confirmed as the source of the outbreak,
 >
 > `...`
 
 # <p align="center">/vibe_check</p>
+
 Analyze chat members' moods
 
 > • Summit: 💻 📊 🤖 / inquisitive, methodical, redundant\
@@ -39,15 +44,13 @@ Analyze chat members' moods
 > • `...`
 
 # <p align="center">/translate `french hola mi amigo`</p>
-Translates the text to requested language, or English by default.
 
-Alternatively, just reply to any message from the chat and type `/translate` to translate that message.
+Translates the text to requested language, or English by default. Asking for it at the end works too: `/translate hola mi amigo into french`
 
-Supported languages (using suggested model Aya-23):
-
-> Arabic, Chinese (simplified & traditional), Czech, Dutch, English, French, German, Greek, Hebrew, Hindi, Indonesian, Italian, Japanese, Korean, Persian, Polish, Portuguese, Romanian, Russian, Spanish, Turkish, Ukrainian, and Vietnamese
+Alternatively, just reply to any message from the chat and type `/translate` (or `/translate french`) to translate that message.
 
 # <p align="center">/chat_stats</p>
+
 Print statistics about the chat (only knows about stuff that's happened since bot was added to room)
 
 ```
@@ -63,9 +66,11 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   1. Summit / 70 msgs (70%)
   2. SomeUser / 30 msgs (30%)
 ```
+
 <br />
 
 # Features & Ideas
+
 - [x] LLM chatroom summarization
   - [x] Aware of reply threads
   - [x] Aware of media presence (photo/video/etc) & captions on media
@@ -89,7 +94,9 @@ Print statistics about the chat (only knows about stuff that's happened since bo
 <br />
 
 # Configuration
+
 All settings live in encrypted rails credentials (example: [credentials.sample.yml](./config/credentials.sample.yml)):
+
 - `config/credentials.yml.enc` (key: `config/master.key`) is for dev & test
 - `config/credentials/production.yml.enc` (key: `config/credentials/production.key`) is for production only
 
@@ -100,7 +107,9 @@ Works with any OpenAI-compatible LLM API provider (`openai.uri_base`).
 <br />
 
 # Deployment (NixOS)
+
 The flake exports a NixOS module (`nixosModules.default`, see [nix/module.nix](nix/module.nix)) that runs the bot in webhook mode:
+
 - `telegram-dogbot.service` - puma server receiving telegram webhooks (runs `rails db:prepare` on start)
 - `telegram-dogbot-data-purge.timer` - runs [`rails nightly_data_purge`](lib/tasks/nightly_data_purge.rake) daily, deleting messages & other data older than 2 days
 - A `dogbot` postgres role & system user (the DB is accessed via unix socket w/ peer auth)
@@ -108,6 +117,7 @@ The flake exports a NixOS module (`nixosModules.default`, see [nix/module.nix](n
 Telegram only sends webhooks to `https` URLs on ports 443, 80, 88, or 8443, so put a TLS-terminating reverse proxy in front of it, and set `host_url` in the production credentials to its public hostname (`just edit-creds-prod`).
 
 ## Example
+
 ```nix
 # flake.nix inputs
 telegram-dogbot.url = "github:SummitCollie/telegram-dogbot";
@@ -122,6 +132,7 @@ telegram-dogbot.inputs = {
 ```
 
 The empty `follows` keep the dev-only inputs out of your `flake.lock`. If another flake in your config already pins `bob-ruby` or `ruby-nix`, you can also point those at its copies (e.g. `bob-ruby.follows = "other-flake/bob-ruby";`), as long as that pin still has the Ruby version from [.ruby-version](.ruby-version).
+
 ```nix
 { config, inputs, ... }:
 {
@@ -141,6 +152,7 @@ The empty `follows` keep the dev-only inputs out of your `flake.lock`. If anothe
 See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data purge schedule, etc).
 
 ## Useful commands (on the server)
+
 - Logs: `journalctl -fu telegram-dogbot`
 - Run purge now: `sudo systemctl start telegram-dogbot-data-purge`
 - DB shell: `sudo -u dogbot psql dogbot_production`
@@ -148,23 +160,27 @@ See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data
 <br />
 
 # Local Development
+
 ## Install
+
 1. Install [Nix](https://nixos.org/download/) (with flakes enabled) and [direnv](https://direnv.net/) + [nix-direnv](https://github.com/nix-community/nix-direnv).
 2. `direnv allow` (or `nix develop`) - provides ruby, all gems, postgres client, bundix, etc.
 3. Configure dev credentials with `just edit-creds-dev` (see [Configuration](#configuration)).
 
 ## Run local dev env in poll mode (no webhook)
-* `just run`
+
+- `just run`
 
   aka
 
-* `nix run .#devenv`
+- `nix run .#devenv`
 
 Starts a [process-compose](https://github.com/F1bonacc1/process-compose) TUI running postgres (port 5434, data in `.postgres/`) and the bot poller (`rails telegram:bot:poller`, after `rails db:prepare`).
 
 To debug with `binding.pry`, stop the `bot-poller` process in the TUI and run `rails telegram:bot:poller` in a separate terminal instead.
 
 ## Run local dev env in async/webhook mode
+
 Only use this if you want to locally test the webhooks mode used in production for some reason (requires ngrok).
 
 1. Add your `ngrok_url` and `telegram_secret_token` to rails development credentials.
@@ -173,14 +189,16 @@ Only use this if you want to locally test the webhooks mode used in production f
 4. After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poll mode works again.
 
 ## Run linter & tests
+
 Requires postgres to be running (`just run`).
 
-* `just test`
+- `just test`
 
   (aka `rubocop` and `rspec` in parallel)
 
 ## Managing gems
+
 Gems are provided by nix (via [ruby-nix](https://github.com/inscapist/ruby-nix)), not `bundle install`. After changing the Gemfile, update `Gemfile.lock` and regenerate [gemset.nix](gemset.nix) with the `bundle-*` recipes in the [justfile](justfile), e.g.:
 
-* `just bundle-add some-gem`
-* `just bundle-install-and-lock`
+- `just bundle-add some-gem`
+- `just bundle-install-and-lock`

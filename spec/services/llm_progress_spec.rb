@@ -185,7 +185,8 @@ RSpec.describe LLMProgress do
   end
 
   describe 'cancelling' do
-    let(:job_thread) { Thread.new { sleep } }
+    # Cancelling kills this thread with an exception, which Ruby would otherwise dump to stderr
+    let(:job_thread) { Thread.new { sleep }.tap { |t| t.report_on_exception = false } }
     let(:progress) do
       described_class.new(chat, label: 'a reply', reply_to: mention, requester: requester.api_id, now: t0)
                      .tap { |p| p.instance_variable_set(:@job_thread, job_thread) }

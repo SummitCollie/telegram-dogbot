@@ -63,7 +63,7 @@ class LLMTools
 
     def cloud_chat_completion(system_prompt:, messages:, model_params:, progress:)
       config = Rails.application.credentials.openai
-      provider = Provider.new(model: model_params[:model] || config&.model, self_hosted: false,
+      provider = Provider.new(model: config&.model, self_hosted: false,
                               split_replies: config&.split_replies == true)
       messages = full_messages(system_prompt, messages, provider)
       progress&.llm_started(provider, messages)
