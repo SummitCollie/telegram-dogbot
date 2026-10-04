@@ -77,7 +77,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
             )
           }
         )
-      end.to send_telegram_message(bot, expected_output)
+      end.to send_telegram_message(bot, "<blockquote expandable>#{expected_output}</blockquote>", parse_mode: 'HTML')
     end
 
     it 'saves bot output as a message in DB' do

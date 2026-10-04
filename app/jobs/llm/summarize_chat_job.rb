@@ -5,6 +5,12 @@ module LLM
     retry_on FuckyWuckies::SummarizeJobError
     rescue_from FuckyWuckies::SummarizeJobFailure, with: :handle_error
 
+    # Cancelled from progress message: delete the running ChatSummary so another can be started
+    discard_on(LLMProgress::Cancelled) do |job, error|
+      job.arguments.first.destroy
+      TelegramTools.logger.info(error.message)
+    end
+
     def perform(summary)
       @db_chat = summary.chat
       @style = summary.style
@@ -27,7 +33,10 @@ module LLM
         messages_to_summarize = messages_to_summarize.last(reduced_count)
       end
 
-      result_text = llm_summarize(messages_to_summarize, summary.summary_type)
+      label = summary.summary_type.to_s == 'vibe_check' ? 'a vibe check' : 'a summary'
+      result_text = LLMProgress.track(@db_chat, label:) do |progress|
+        llm_summarize(messages_to_summarize, summary.summary_type, progress)
+      end
 
       send_output_message(result_text)
       summary.update!(text: result_text, status: 'complete')
@@ -36,16 +45,14 @@ module LLM
     def self.messages_to_yaml(messages)
       messages.map do |message|
         result = {
-          id: message.api_id == -1 ? '?' : message.api_id,
+          id: message.api_id,
           user: message.user.first_name,
           text: message.text
         }
 
         result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
 
-        if !message.reply_to_message&.from_this_bot? && messages.include?(message.reply_to_message)
-          result[:reply_to] = message.reply_to_message.api_id
-        end
+        result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
 
         # avoids ':' prefix on every key in the resulting YAML
         # https://stackoverflow.com/a/53093339
@@ -55,7 +62,7 @@ module LLM
 
     private
 
-    def llm_summarize(db_messages, summary_type)
+    def llm_summarize(db_messages, summary_type, progress)
       system_prompt = @style.blank? ? LLMTools.prompt_for_mode(summary_type) : custom_style_system_prompt
       user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
 
@@ -63,7 +70,7 @@ module LLM
                                  "### System prompt:\n#{system_prompt}\n" \
                                  "### User prompt:\n#{user_prompt}")
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, progress:)
 
       raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
 
@@ -94,12 +101,7 @@ module LLM
     end
 
     def send_output_message(text)
-      Telegram.bot.send_message(
-        chat_id: @db_chat.api_id,
-        protect_content: true,
-        text:
-      )
-      TelegramTools.store_bot_output(@db_chat, text)
+      TelegramTools.send_bot_message(@db_chat, text, protect_content: true)
     end
 
     def handle_error(error)

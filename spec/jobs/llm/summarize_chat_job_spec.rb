@@ -4,6 +4,23 @@ require 'rails_helper'
 
 RSpec.describe LLM::SummarizeChatJob do
   describe '#perform' do
+    context 'when cancelled from the progress message' do
+      let(:chat) { create(:chat) }
+      let!(:summary) { create(:chat_summary, chat:, summary_type: :default, status: :running) }
+
+      before do
+        create(:message, chat:)
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_raise LLMProgress::Cancelled
+      end
+
+      it 'deletes the running summary (so another can be started), sending nothing' do
+        expect_any_instance_of(described_class).not_to receive(:send_output_message)
+
+        expect { described_class.perform_now(summary) }.not_to raise_error
+        expect(ChatSummary.exists?(summary.id)).to be false
+      end
+    end
+
     context 'when running first attempt' do
       let(:chat) { create(:chat) }
       let(:messages) do
@@ -40,7 +57,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(messages, chat1_summary.summary_type)
+        ).with(messages, chat1_summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(chat1_summary)
       end
@@ -53,7 +70,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, summary.summary_type)
+          ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
           described_class.perform_now(summary)
         end
@@ -66,7 +83,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, summary.summary_type)
+          ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
           described_class.perform_now(summary)
         end
@@ -103,7 +120,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -114,7 +131,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -125,7 +142,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -221,6 +238,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
           system_prompt: expected_system_prompt,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         )
       end
@@ -242,6 +260,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
           system_prompt: expected_system_prompt,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         )
       end
@@ -277,15 +296,17 @@ RSpec.describe LLM::SummarizeChatJob do
       expect(results.last['text']).to eq messages.last.text
     end
 
-    it 'sets `id` to `?` for messages sent by this bot' do
+    it 'sets `id` and `reply_to` for messages sent by and replying to this bot' do
       chat = create(:chat)
       bot_user = create(:user, is_this_bot: true)
       bot_cu = create(:chat_user, chat:, user: bot_user)
-      messages = [create(:message, chat_user: bot_cu, date: 2.minutes.ago)]
+      bot_message = create(:message, chat_user: bot_cu, date: 2.minutes.ago)
+      reply_to_bot = create(:message, chat:, date: 1.minute.ago, reply_to_message: bot_message)
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+      results = YAML.parse(described_class.messages_to_yaml([bot_message, reply_to_bot])).children[0].to_ruby
 
-      expect(results.first['id']).to eq '?'
+      expect(results.first['id']).to eq bot_message.api_id
+      expect(results.last['reply_to']).to eq bot_message.api_id
     end
 
     it 'sets `reply_to` to parent message ID when parent message within context' do
@@ -305,21 +326,6 @@ RSpec.describe LLM::SummarizeChatJob do
       response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
       create(:message, chat:, date: 1.minute.ago)
       messages = [response_message]
-
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.last.key?('reply_to')).to be false
-    end
-
-    it 'omits `reply_to` when parent message was sent by this bot' do
-      # because we don't know the ID of outgoing messages, so can't match against them
-      chat = create(:chat)
-      bot_user = create(:user, is_this_bot: true)
-      bot_cu = create(:chat_user, chat:, user: bot_user)
-
-      parent_message = create(:message, chat_user: bot_cu, date: 2.minutes.ago)
-      response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
-      messages = [parent_message, response_message]
 
       results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
 

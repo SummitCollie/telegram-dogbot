@@ -21,11 +21,10 @@ class Message < ApplicationRecord
 
   private
 
-  # Because the production bot runs in webhook mode, it can never know telegram's API IDs
-  # for the messages it sends (see TelegramTools#store_bot_output):
-  # https://github.com/telegram-bot-rb/telegram-bot?tab=readme-ov-file#async-mode
+  # This bot's messages get their api_id from the send_message response (see TelegramTools#send_bot_message).
+  # -1 if the response had no message_id (e.g. stubbed Telegram client in tests).
   def stub_api_id_for_own_messages
-    return unless from_this_bot?
+    return unless from_this_bot? && api_id.nil?
 
     self.api_id = -1
   end

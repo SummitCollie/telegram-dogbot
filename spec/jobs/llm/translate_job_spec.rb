@@ -17,7 +17,8 @@ RSpec.describe LLM::TranslateJob do
 
     context 'when not provided a target language' do
       it 'defaults to english' do
-        expect_any_instance_of(described_class).to receive(:llm_translate).with(text_to_translate, 'english')
+        expect_any_instance_of(described_class).to receive(:llm_translate).with(text_to_translate, 'english',
+                                                                                an_instance_of(LLMProgress))
         described_class.perform_now(chat, text_to_translate, nil, command_message_from, nil)
       end
     end

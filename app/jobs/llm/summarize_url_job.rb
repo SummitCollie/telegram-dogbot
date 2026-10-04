@@ -14,8 +14,10 @@ module LLM
       @url = url
       @style = style
 
-      title, author, html = parse_page(url)
-      result_text = llm_summarize(title, author, html)
+      result_text = LLMProgress.track(@db_chat, label: 'a page summary') do |progress|
+        title, author, html = parse_page(url)
+        llm_summarize(title, author, html, progress)
+      end
 
       send_output_message(result_text)
     end
@@ -49,7 +51,7 @@ module LLM
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
 
-    def llm_summarize(title, author, html)
+    def llm_summarize(title, author, html, progress)
       system_prompt = @style.blank? ? LLMTools.prompt_for_mode(:url_default) : custom_style_system_prompt
       system_prompt = "#{system_prompt.strip}\n\n" \
                       "Guessed title: #{title.presence || '?'}\n" \
@@ -60,7 +62,7 @@ module LLM
                                  "### System prompt:\n#{system_prompt}\n" \
                                  "### User prompt:\n#{user_prompt}")
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
+      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, progress:)
 
       if output.blank?
         raise FuckyWuckies::SummarizeJobFailure.new(
@@ -110,12 +112,7 @@ module LLM
     end
 
     def send_output_message(text)
-      Telegram.bot.send_message(
-        chat_id: @db_chat.api_id,
-        protect_content: false,
-        text:
-      )
-      TelegramTools.store_bot_output(@db_chat, text)
+      TelegramTools.send_bot_message(@db_chat, text, protect_content: false)
     end
 
     def handle_error(error)

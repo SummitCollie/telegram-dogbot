@@ -135,6 +135,20 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message2.reply_to_message).to eq message1
       end
 
+      it "tracks replies to this bot's messages" do
+        options = default_message_options
+        dispatch_message 'Original message', options
+        db_chat = Chat.find_by(api_id: options[:chat].id)
+        bot_cu = create(:chat_user, chat: db_chat, user: create(:user, is_this_bot: true))
+        bot_message = create(:message, chat_user: bot_cu, api_id: 424242)
+
+        dispatch_message 'Reply to bot', {
+          reply_to_message: Telegram::Bot::Types::Message.new(message_id: bot_message.api_id)
+        }
+
+        expect(User.find_by(api_id: options[:from].id).messages.last.reply_to_message).to eq bot_message
+      end
+
       it 'saves related emoji (and unicode name) from sticker messages as message text' do
         options = default_message_options.merge(sticker_message_options)
         dispatch_message nil, options
@@ -180,7 +194,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                              )
                            })
 
-          new_message = chat.messages.not_from_bot.order(:date).reload.last
+          new_message = chat.messages.not_from_bot.order(:date, :id).reload.last
 
           expect(new_message.text).to match %r{^/#{command}?+}
         end

@@ -63,8 +63,7 @@ RSpec.describe LLM::SummarizeUrlJob do
     before do
       allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM generated summary text'
 
-      bot_double = instance_double('Telegram.bot', send_message: true, send_sticker: true, reset: true)
-      allow(Telegram).to receive(:bot).and_return bot_double
+      stub_telegram_bot(send_sticker: true)
 
       @open_uri_double = instance_double('OpenURI::OpenRead', read: html_page)
       allow(OpenURI).to receive(:open_uri).and_return(@open_uri_double)
@@ -76,6 +75,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
           system_prompt: expected_system_prompt_custom,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         )
       end
@@ -85,6 +85,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
           system_prompt: anything,
+          progress: an_instance_of(LLMProgress),
           user_prompt: minified_html_page
         )
       end
@@ -98,6 +99,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).once.with(
           system_prompt: expected_system_prompt_neutral,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         ).twice
       end
@@ -107,6 +109,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
         expect(LLMTools).to have_received(:run_chat_completion).with(
           system_prompt: anything,
+          progress: an_instance_of(LLMProgress),
           user_prompt: minified_html_page
         )
       end
@@ -129,7 +132,7 @@ RSpec.describe LLM::SummarizeUrlJob do
         end.to change(Message, :count).by 1
 
         expect(Message.order(:date).last).to have_attributes(
-          api_id: -1,
+          api_id: be_positive,
           text: 'LLM generated summary text'
         )
       end

@@ -2,6 +2,20 @@
 
 module LLM
   class ReplyJob < ApplicationJob
+    # Context window holds between CONTEXT_MIN_MESSAGES and (CONTEXT_MIN_MESSAGES + CONTEXT_STEP - 1)
+    # messages. Its start only moves every CONTEXT_STEP messages, so the prompt prefix stays identical
+    # between replies and the LLM server can reuse its cached context (e.g. koboldcpp SmartCache).
+    CONTEXT_MIN_MESSAGES = 100
+    CONTEXT_STEP = 50
+
+    # Max length of the quote shown in `reply_to` for replies to this bot's messages
+    REPLY_QUOTE_LENGTH = 50
+
+    # For models with `split_replies: true`
+    MAX_SPLIT_MESSAGES = 3
+    MAX_SPLIT_LINE_LENGTH = 200
+    LIST_ITEM = /\A([-*•]|\d+[.)])\s/
+
     discard_on(FuckyWuckies::ReplyJobFailure) do |_job, error|
       raise error
     end
@@ -11,24 +25,16 @@ module LLM
       api_message = TelegramTools.deserialize_api_message(serialized_message)
       db_message = @db_chat.messages.find_by(api_id: api_message.message_id)
 
-      # Messages sent before bot was mentioned
-      past_db_messages = @db_chat.messages.includes(:user, :reply_to_message)
-                                 .where(date: ...db_message.date)
-                                 .references(:user, :message)
-                                 .order(:date)
-                                 .last(100)
+      # Messages sent before bot was mentioned, plus the message which mentioned the bot
+      window = [*past_messages(db_message), db_message]
 
-      # Message which mentioned the bot, optionally preceded by `message.reply_to_message`
-      # (if the reply_to_message doesn't already exist within the context of past_db_messages)
-      last_api_messages = get_last_messages(past_db_messages, api_message)
-
-      result_text = llm_generate_reply(past_db_messages, last_api_messages)
-      if result_text.blank?
-        raise FuckyWuckies::ReplyJobFailure.new,
-              "Blank output when generating reply to message_id=#{db_message.id}"
+      LLMProgress.track(@db_chat, label: 'a reply', reply_to: db_message,
+                                  requester: db_message.user.api_id) do |progress|
+        completion = llm_generate_reply(window, out_of_window_reply_target(window, api_message), progress)
+        output_messages = completion.split_replies ? split_reply(completion.text) : [completion.text]
+        # Reply replaces the progress message (if shown)
+        send_output_messages(output_messages, reply_to: db_message, replace_message_id: progress.handover)
       end
-
-      send_output_message(result_text, reply_to: db_message)
     rescue Faraday::Error => e
       raise FuckyWuckies::ReplyJobFailure.new(
         severity: Logger::Severity::ERROR,
@@ -37,34 +43,65 @@ module LLM
          "chat api_id=#{db_chat.id} title=#{db_chat.title}", cause: e
     end
 
-    # api_messages are added at the very end of the output
-    def messages_to_yaml(db_messages, api_messages = [])
-      outputs = [
-        *db_messages.map { |m| db_message_to_yaml(db_messages, m) },
-        *api_messages.map { |m| api_message_to_yaml(m) }
-      ]
+    # Chat history as alternating turns: other users' messages as YAML in `user` turns,
+    # this bot's own messages as `assistant` turns.
+    # Every message must render identically between replies (to keep the prompt prefix cacheable),
+    # so this only depends on the DB contents of `window` -- except for `extra_reply_target`.
+    def conversation(window, extra_reply_target = nil)
+      turns = order_for_conversation(window).chunk_while { |a, b| a.from_this_bot? == b.from_this_bot? }
 
-      # avoids ':' prefix on every key in the resulting YAML
-      # https://stackoverflow.com/a/53093339
-      outputs.each(&:deep_stringify_keys!)
-
-      outputs.to_yaml({ line_width: -1 }) # Don't wrap long lines
+      turns.map do |turn_messages|
+        if turn_messages.first.from_this_bot?
+          { role: 'assistant', content: turn_messages.map(&:text).join("\n") }
+        else
+          user_turn(window, turn_messages, (extra_reply_target if turn_messages.last == window.last))
+        end
+      end
     end
 
     private
 
-    def llm_generate_reply(past_db_messages, last_api_messages)
-      system_prompt = "#{LLMTools.prompt_for_mode(:reply_when_mentioned)}\n" \
-                      "Chatroom title: #{@db_chat.title}"
-      user_prompt = messages_to_yaml(past_db_messages, last_api_messages).strip
+    def user_turn(window, turn_messages, extra_reply_target)
+      entries = turn_messages.map { |m| db_message_to_yaml(window, m) }
+      if extra_reply_target
+        # Insert message being replied to above the last message
+        entries.insert(-2, api_message_to_yaml(extra_reply_target))
+        entries.last[:reply_to] = entries[-2][:id]
+      end
+
+      { role: 'user', content: entries_to_yaml(entries) }
+    end
+
+    def past_messages(db_message)
+      # Telegram dates have 1s resolution, so tie-break messages from the same second by DB insertion order
+      scope = @db_chat.messages.where(
+        'messages.date < :date OR (messages.date = :date AND messages.id < :id)',
+        date: db_message.date, id: db_message.id
+      )
+      offset = [((scope.count - CONTEXT_MIN_MESSAGES) / CONTEXT_STEP) * CONTEXT_STEP, 0].max
+
+      scope.includes(:user, reply_to_message: :user)
+           .references(:user, :message)
+           .order(:date, :id)
+           .offset(offset)
+           .to_a
+    end
+
+    def llm_generate_reply(window, extra_reply_target, progress)
+      # Callable: the prompt depends on which model ends up generating the reply
+      system_prompt = lambda do |provider|
+        "#{LLMTools.reply_prompt(provider)}\nChatroom title: #{@db_chat.title}".tap do |prompt|
+          TelegramTools.logger.debug("### System prompt (#{provider.model}):\n#{prompt}")
+        end
+      end
+      messages = conversation(window, extra_reply_target)
 
       TelegramTools.logger.debug("\n##### Reply to message:\n" \
-                                 "### System prompt:\n#{system_prompt}\n" \
-                                 "### User prompt:\n#{user_prompt}")
+                                 "### Messages:\n#{messages.map { |m| "[#{m[:role]}]\n#{m[:content]}" }.join("\n")}")
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:)
+      output = LLMTools.chat_completion(system_prompt:, messages:, progress:)
 
-      if output.blank?
+      if output.text.blank?
         raise FuckyWuckies::ReplyJobFailure.new(
           severity: Logger::Severity::ERROR,
           db_chat: @db_chat
@@ -75,35 +112,56 @@ module LLM
       output
     end
 
-    # Since we can't know the telegram message_ids of messages sent by this bot,
-    # need extra logic to test whether `message.reply_to_message` already exists
-    # within context and therefore shouldn't be added to the prompt again.
-    def get_last_messages(past_db_messages, api_message)
-      reply_to_message = api_message&.reply_to_message
-      return [api_message] if reply_to_message.blank?
+    # Bot replies go directly after the message they replied to, rather than by date:
+    # the bot hadn't seen messages sent while it was generating, and this keeps the
+    # previous prompt + reply an exact prefix of the next prompt.
+    def order_for_conversation(window)
+      replies, others = window.partition { |m| m.from_this_bot? && window.include?(m.reply_to_message) }
+      replies_by_target = replies.group_by(&:reply_to_message)
 
-      reply_to_message_date = Time.zone.at(reply_to_message.date).to_datetime
-      return [api_message] if past_db_messages.first.date.floor <= reply_to_message_date
-
-      # reply_to_message not in context, so add it above the user's message
-      [reply_to_message, api_message]
+      others.flat_map { |m| [m, *replies_by_target[m]] }
     end
 
-    def db_message_to_yaml(db_messages, message)
+    # If the message being replied to isn't within the window, it needs to be copied into the prompt
+    # from the API message (it may not even be in the DB). Not needed for replies to this bot's messages,
+    # which `reply_to` quotes.
+    def out_of_window_reply_target(window, api_message)
+      reply_to_message = api_message&.reply_to_message
+      return if reply_to_message.blank? || window.last.reply_to_message&.from_this_bot?
+      return if window.first.date.floor <= Time.zone.at(reply_to_message.date).to_datetime
+
+      reply_to_message
+    end
+
+    def entries_to_yaml(entries)
+      # avoids ':' prefix on every key in the resulting YAML
+      # https://stackoverflow.com/a/53093339
+      entries.map(&:deep_stringify_keys)
+             .to_yaml({ line_width: -1 }) # Don't wrap long lines
+             .strip
+    end
+
+    def db_message_to_yaml(window, message)
       yaml = {
-        id: message.api_id == -1 ? '?' : message.api_id,
+        id: message.api_id,
         user: "#{message.user.first_name} (@#{message.user.username})",
         text: message.text
       }
 
       yaml[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
-      yaml[:reply_to] = message.reply_to_message.api_id if db_messages.include?(message.reply_to_message)
+      reply_to = message.reply_to_message
+      if reply_to&.from_this_bot?
+        # Bot's own messages are assistant turns with no visible id, so quote which one instead
+        yaml[:reply_to] = %(you ("#{reply_to.text.to_s.squish.truncate(REPLY_QUOTE_LENGTH, separator: ' ')}"))
+      elsif window.include?(reply_to)
+        yaml[:reply_to] = reply_to.api_id
+      end
       yaml
     end
 
     def api_message_to_yaml(message)
       yaml = {
-        id: message.message_id == -1 ? '?' : message.message_id,
+        id: message.message_id,
         user: "#{message.from.first_name} (@#{message.from.username})",
         text: message.text
       }
@@ -114,17 +172,57 @@ module LLM
       yaml
     end
 
-    def send_output_message(text, reply_to:)
-      Telegram.bot.send_message(
-        chat_id: @db_chat.api_id,
-        protect_content: false,
-        text:,
-        reply_parameters: {
-          message_id: reply_to.api_id,
-          allow_sending_without_reply: true
-        }
-      )
-      TelegramTools.store_bot_output(@db_chat, text, reply_to:)
+    # Sends each line as a separate message, like a human double/triple-texting.
+    # Longer or list-like output stays in one message.
+    def split_reply(text)
+      lines = text.lines.map(&:strip).compact_blank
+      return [text] if lines.size > MAX_SPLIT_MESSAGES ||
+                       lines.any? { |line| line.length > MAX_SPLIT_LINE_LENGTH || line.match?(LIST_ITEM) }
+
+      lines
+    end
+
+    # First message replies to the mention, any others follow it like a human double-texting.
+    # All are stored as replies to the mention, so they're grouped together in future prompts.
+    # Stops early if interrupted; unsent parts are dropped, so future prompts only contain what was sent.
+    def send_output_messages(texts, reply_to:, replace_message_id: nil)
+      first_sent = nil
+
+      texts.each_with_index do |text, i|
+        if i.positive?
+          # Pause like a human typing
+          Telegram.bot.send_chat_action(chat_id: @db_chat.api_id, action: 'typing')
+          sleep((text.length * 0.03).clamp(1.0, 3.0))
+
+          if interrupted_since?(first_sent, reply_to)
+            TelegramTools.logger.debug("Reply interrupted, dropped #{texts.size - i} unsent message(s)")
+            break
+          end
+        end
+
+        sent = send_output_message(text, reply_to:, telegram_reply: i.zero?,
+                                         replace_message_id: (replace_message_id if i.zero?))
+        first_sent ||= sent
+      end
+    end
+
+    # Like a human who'd stop typing follow-up messages if, meanwhile, the person they're
+    # replying to says something else, or someone talks to them
+    def interrupted_since?(sent_message, mention)
+      bot_mention = "%@#{Message.sanitize_sql_like(Rails.application.credentials.telegram.bot.username)}%"
+      newer = @db_chat.messages.not_from_bot.where('messages.id > ?', sent_message.id)
+
+      newer.where(chat_user_id: mention.chat_user_id)
+           .or(newer.where('messages.text ILIKE ?', bot_mention))
+           .or(newer.where(reply_to_message_id: Message.from_this_bot.select(:id)))
+           .exists?
+    end
+
+    def send_output_message(text, reply_to:, telegram_reply:, replace_message_id: nil)
+      params = { protect_content: false, disable_notification: true } # bot is chatty enough already
+      params[:reply_parameters] = { message_id: reply_to.api_id, allow_sending_without_reply: true } if telegram_reply
+
+      TelegramTools.send_bot_message(@db_chat, text, reply_to:, replace_message_id:, **params)
     end
   end
 end

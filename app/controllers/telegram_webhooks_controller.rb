@@ -93,12 +93,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
     output = chat_stats_text
 
-    Telegram.bot.send_message(
-      chat_id: chat.id,
-      protect_content: true,
-      text: output
-    )
-    TelegramTools.store_bot_output(db_chat, output)
+    TelegramTools.send_bot_message(db_chat, output, protect_content: true)
   end
 
   def start!(*)
@@ -125,6 +120,15 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     authorize_message_storage!(message)
     store_message(message)
     reply_when_mentioned(message) if bot_mentioned? || replied_to_bot?
+  end
+
+  ### Handle inline button presses - https://core.telegram.org/bots/api#callbackquery
+  def callback_query(data)
+    return answer_callback_query('?') unless data == LLMProgress::CANCEL_DATA && payload.message
+
+    answer_callback_query LLMProgress.cancel(
+      chat_api_id: payload.message.chat.id, message_id: payload.message.message_id, from:
+    )
   end
 
   ### Handle incoming edited message

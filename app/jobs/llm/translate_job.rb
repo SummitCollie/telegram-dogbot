@@ -16,7 +16,9 @@ module LLM
       @parent_message_from = parent_message_from
       target_language ||= 'english'
 
-      result_text = llm_translate(text_to_translate, target_language)
+      result_text = LLMProgress.track(@db_chat, label: 'a translation') do |progress|
+        llm_translate(text_to_translate, target_language, progress)
+      end
       send_output_message(result_text)
     rescue Faraday::Error => e
       model_loading_time = e&.response&.dig( # rubocop:disable Style/SafeNavigationChainLength
@@ -46,7 +48,7 @@ module LLM
 
     private
 
-    def llm_translate(text, target_language)
+    def llm_translate(text, target_language, progress)
       system_prompt = LLMTools.prompt_for_mode(:translate)
       user_prompt = "Translate into #{target_language.capitalize}:\n#{text}"
 
@@ -61,7 +63,8 @@ module LLM
           model: Rails.application.credentials.openai.translate_model ||
                            Rails.application.credentials.openai.model,
           temperature: 0.9
-        }
+        },
+        progress:
       )
 
       if output.blank?
@@ -87,12 +90,7 @@ module LLM
     def send_output_message(translated_text)
       output = "#{username_header}\n#{translated_text}"
 
-      Telegram.bot.send_message(
-        chat_id: @db_chat.api_id,
-        protect_content: false,
-        text: output
-      )
-      TelegramTools.store_bot_output(@db_chat, output)
+      TelegramTools.send_bot_message(@db_chat, output, protect_content: false)
     end
   end
 end
