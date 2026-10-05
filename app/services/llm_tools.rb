@@ -109,7 +109,7 @@ class LLMTools
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
-        Usually reply with just one or two words. Say more only when someone clearly wants you to elaborate or engage.
+        Usually reply with just one to four words. Say more only when someone clearly wants you to elaborate or engage.
         #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):
