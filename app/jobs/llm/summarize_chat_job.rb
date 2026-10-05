@@ -42,29 +42,20 @@ module LLM
       summary.update!(text: result_text, status: 'complete')
     end
 
-    def self.messages_to_yaml(messages)
+    def self.chat_log(messages)
       messages.map do |message|
-        result = {
-          id: message.api_id,
-          user: message.user.first_name,
-          text: message.text
-        }
-
-        result[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
-
-        result[:reply_to] = message.reply_to_message.api_id if messages.include?(message.reply_to_message)
-
-        # avoids ':' prefix on every key in the resulting YAML
-        # https://stackoverflow.com/a/53093339
-        result.deep_stringify_keys
-      end.to_yaml({ line_width: -1 }) # Don't wrap long lines
+        reply_to = message.reply_to_message
+        LLMTools.chat_log_line(id: message.api_id, user: message.user.first_name, text: message.text,
+                               attachment: message.attachment_type,
+                               reply_to: ("##{reply_to.api_id}" if messages.include?(reply_to)))
+      end.join("\n")
     end
 
     private
 
     def llm_summarize(db_messages, summary_type, progress)
       system_prompt = @style.blank? ? LLMTools.prompt_for_mode(summary_type) : custom_style_system_prompt
-      user_prompt = SummarizeChatJob.messages_to_yaml(db_messages).strip
+      user_prompt = SummarizeChatJob.chat_log(db_messages)
 
       TelegramTools.logger.debug("\n##### Summarize chat:\n" \
                                  "### System prompt:\n#{system_prompt}\n" \
@@ -95,8 +86,8 @@ module LLM
     def custom_style_system_prompt
       <<~PROMPT.strip
         SUMMARY_STYLE=#{@style}
-        Summarize YAML-formatted group chat messages in the specified SUMMARY_STYLE.
-        Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+        Summarize the group chat messages in the specified SUMMARY_STYLE.
+        Only provide the summary text to send in response message: no formatting, no preface.
       PROMPT
     end
 

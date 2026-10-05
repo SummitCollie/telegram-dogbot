@@ -100,7 +100,10 @@ RSpec.describe LLMProgress do
         progress.llm_output('a', now: t0 + 7)
         20.times { progress.llm_output('b', now: t0 + 8) }
 
-        expect(lines(t0 + 9)[1..2]).to eq ['✅ Read messages · 6s', '⏳ Write reply · 21 tokens · 10.5 tok/s']
+        expect(lines(t0 + 9)[1..2]).to eq [
+          '✅ Read messages · ~1k tokens · 6s',
+          '⏳ Write reply · 21 tokens · 10.5 tok/s'
+        ]
       end
     end
 
@@ -145,6 +148,20 @@ RSpec.describe LLMProgress do
         progress.tick(t0 + 2 + described_class::MODEL_CHECK_INTERVAL)
         expect(lines(t0 + 5)[1]).to eq '✅ Wake up model · 3s'
         expect(LocalInferenceApi).to have_received(:loaded_model).twice
+      end
+
+      it 'handles output starting while a check whether the model is loaded is in flight' do
+        allow(LocalInferenceApi).to receive(:loaded_model) do
+          progress.llm_output('a', now: t0 + 3)
+          { 'name' => local_provider.model }
+        end
+        progress.tick(t0 + 2)
+
+        expect(lines(t0 + 5)[1..3]).to eq [
+          '✅ Wake up model · already awake',
+          '✅ Read messages · ~1k tokens · 0s',
+          '⏳ Write reply · 1 tokens · 0.5 tok/s'
+        ]
       end
     end
 

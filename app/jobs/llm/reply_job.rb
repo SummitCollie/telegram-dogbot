@@ -43,8 +43,8 @@ module LLM
          "chat api_id=#{db_chat.id} title=#{db_chat.title}", cause: e
     end
 
-    # Chat history as alternating turns: other users' messages as YAML in `user` turns,
-    # this bot's own messages as `assistant` turns.
+    # Chat history as alternating turns: other users' messages in `user` turns, one per line like
+    # `#123 Name (@username) [photo] replying to #122: text`, and this bot's own messages as `assistant` turns.
     # Every message must render identically between replies (to keep the prompt prefix cacheable),
     # so this only depends on the DB contents of `window` -- except for `extra_reply_target`.
     def conversation(window, extra_reply_target = nil)
@@ -62,14 +62,14 @@ module LLM
     private
 
     def user_turn(window, turn_messages, extra_reply_target)
-      entries = turn_messages.map { |m| db_message_to_yaml(window, m) }
+      entries = turn_messages.map { |m| db_message_entry(window, m) }
       if extra_reply_target
         # Insert message being replied to above the last message
-        entries.insert(-2, api_message_to_yaml(extra_reply_target))
-        entries.last[:reply_to] = entries[-2][:id]
+        entries.insert(-2, api_message_entry(extra_reply_target))
+        entries.last[:reply_to] = "##{entries[-2][:id]}"
       end
 
-      { role: 'user', content: entries_to_yaml(entries) }
+      { role: 'user', content: entries.map { |e| LLMTools.chat_log_line(**e) }.join("\n") }
     end
 
     def past_messages(db_message)
@@ -133,43 +133,34 @@ module LLM
       reply_to_message
     end
 
-    def entries_to_yaml(entries)
-      # avoids ':' prefix on every key in the resulting YAML
-      # https://stackoverflow.com/a/53093339
-      entries.map(&:deep_stringify_keys)
-             .to_yaml({ line_width: -1 }) # Don't wrap long lines
-             .strip
-    end
-
-    def db_message_to_yaml(window, message)
-      yaml = {
+    def db_message_entry(window, message)
+      entry = {
         id: message.api_id,
         user: "#{message.user.first_name} (@#{message.user.username})",
-        text: message.text
+        text: message.text,
+        attachment: message.attachment_type
       }
 
-      yaml[:attachment] = message.attachment_type.to_s if message.attachment_type.present?
       reply_to = message.reply_to_message
       if reply_to&.from_this_bot?
         # Bot's own messages are assistant turns with no visible id, so quote which one instead
-        yaml[:reply_to] = %(you ("#{reply_to.text.to_s.squish.truncate(REPLY_QUOTE_LENGTH, separator: ' ')}"))
+        entry[:reply_to] = %(you ("#{reply_to.text.to_s.squish.truncate(REPLY_QUOTE_LENGTH, separator: ' ')}"))
       elsif window.include?(reply_to)
-        yaml[:reply_to] = reply_to.api_id
+        entry[:reply_to] = "##{reply_to.api_id}"
       end
-      yaml
+      entry
     end
 
-    def api_message_to_yaml(message)
-      yaml = {
+    def api_message_entry(message)
+      entry = {
         id: message.message_id,
         user: "#{message.from.first_name} (@#{message.from.username})",
-        text: message.text
+        text: message.text,
+        attachment: TelegramTools.attachment_type(message)
       }
 
-      attachment_type = TelegramTools.attachment_type(message)
-      yaml[:attachment] = attachment_type if attachment_type
-      yaml[:reply_to] = message.reply_to_message.message_id if message.reply_to_message.present?
-      yaml
+      entry[:reply_to] = "##{message.reply_to_message.message_id}" if message.reply_to_message.present?
+      entry
     end
 
     # Sends each line as a separate message, like a human double/triple-texting.

@@ -42,6 +42,15 @@ class LLMTools
       @reply_prompts[provider.split_replies] ||= build_reply_prompt(provider)
     end
 
+    # One message of a chat log in a prompt, e.g. `#123 Name [photo] replying to #122: text`.
+    # Multi-line texts just continue on the following lines, until the next `#id` line.
+    def chat_log_line(id:, user:, text:, attachment: nil, reply_to: nil)
+      header = "##{id} #{user}"
+      header += " [#{attachment}]" if attachment
+      header += " replying to #{reply_to}" if reply_to
+      "#{header}: #{text}".strip
+    end
+
     private
 
     # nil if the self-hosted LLM is unavailable or fails
@@ -98,10 +107,10 @@ class LLMTools
         Respond with sharp humor and a playful edge. Use minimal dog-like expressions; you're in on the joke.
         Match the language used; default to English if unsure. Blend into the chat's writing style.
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
-        Others' chat messages are given to you as YAML; your own past messages are your previous replies.
+        Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
         Usually reply with just one or two words. Say more only when someone clearly wants you to elaborate or engage.
-        #{split_note}Output ONLY your final reply text—no commentary, no YAML, no string delimiters.
+        #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):
         - You know you're a bot: a Ruby on Rails app your owner wrote.

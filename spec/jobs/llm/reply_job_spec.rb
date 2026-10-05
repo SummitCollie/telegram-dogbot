@@ -182,19 +182,10 @@ RSpec.describe LLM::ReplyJob do
       create_list(:message, 3, chat: chat2)
 
       expected_prompt = <<~PROMPT.strip
-        ---
-        - id: #{c1_messages[0].api_id}
-          user: #{c1_messages[0].user.first_name} (@#{c1_messages[0].user.username})
-          text: #{c1_messages[0].text}
-        - id: #{c1_messages[1].api_id}
-          user: #{c1_messages[1].user.first_name} (@#{c1_messages[1].user.username})
-          text: #{c1_messages[1].text}
-        - id: #{c1_messages[2].api_id}
-          user: #{c1_messages[2].user.first_name} (@#{c1_messages[2].user.username})
-          text: #{c1_messages[2].text}
-        - id: #{bot_mention.api_id}
-          user: #{human.first_name} (@#{human.username})
-          text: hi @#{bot.username}
+        ##{c1_messages[0].api_id} #{c1_messages[0].user.first_name} (@#{c1_messages[0].user.username}): #{c1_messages[0].text}
+        ##{c1_messages[1].api_id} #{c1_messages[1].user.first_name} (@#{c1_messages[1].user.username}): #{c1_messages[1].text}
+        ##{c1_messages[2].api_id} #{c1_messages[2].user.first_name} (@#{c1_messages[2].user.username}): #{c1_messages[2].text}
+        ##{bot_mention.api_id} #{human.first_name} (@#{human.username}): hi @#{bot.username}
       PROMPT
 
       described_class.perform_now(chat, TelegramTools.serialize_api_message(api_bot_mention))
@@ -234,18 +225,11 @@ RSpec.describe LLM::ReplyJob do
 
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
 
+          other_user = other_human_message.user
           expected_prompt = <<~PROMPT.strip
-            ---
-            - id: #{other_human_message.api_id}
-              user: #{other_human_message.user.first_name} (@#{other_human_message.user.username})
-              text: #{other_human_message.text}
-            - id: #{intermediate_msg.api_id}
-              user: #{intermediate_msg.user.first_name} (@#{intermediate_msg.user.username})
-              text: #{intermediate_msg.text}
-            - id: #{reply_to_human.api_id}
-              user: #{human.first_name} (@#{human.username})
-              text: #{reply_to_human.text}
-              reply_to: #{other_human_message.api_id}
+            ##{other_human_message.api_id} #{other_user.first_name} (@#{other_user.username}): #{other_human_message.text}
+            ##{intermediate_msg.api_id} #{human.first_name} (@#{human.username}): #{intermediate_msg.text}
+            ##{reply_to_human.api_id} #{human.first_name} (@#{human.username}) replying to ##{other_human_message.api_id}: #{reply_to_human.text}
           PROMPT
 
           expect(LLMTools).to have_received(:chat_completion).with(
@@ -285,18 +269,14 @@ RSpec.describe LLM::ReplyJob do
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
 
           expect(LLMTools).to have_received(:chat_completion) do |args|
-            results = YAML.parse(args[:messages].last[:content]).children[0].to_ruby
+            lines = args[:messages].last[:content].lines(chomp: true)
+            old_user = old_human_message.user
 
-            expect(results.count do |r|
-              r['id'] == old_human_message.api_id
-            end).to eq 1
-
-            expect(results[-2]).to include(
-              'id' => old_human_message.api_id,
-              'user' => "#{old_human_message.user.first_name} (@#{old_human_message.user.username})",
-              'text' => old_human_message.text
-            )
-            expect(results[-1]).to include('id' => reply_to_human.api_id, 'reply_to' => old_human_message.api_id)
+            expect(lines.count { |l| l.start_with?("##{old_human_message.api_id} ") }).to eq 1
+            expect(lines[-2])
+              .to eq "##{old_human_message.api_id} #{old_user.first_name} (@#{old_user.username}): #{old_human_message.text}"
+            expect(lines[-1]).to start_with "##{reply_to_human.api_id} #{human.first_name} (@#{human.username}) " \
+                                            "replying to ##{old_human_message.api_id}: "
           end
         end
       end
@@ -306,11 +286,7 @@ RSpec.describe LLM::ReplyJob do
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_bot))
 
           expected_prompt = <<~PROMPT.strip
-            ---
-            - id: #{reply_to_bot.api_id}
-              user: #{human.first_name} (@#{human.username})
-              text: #{reply_to_bot.text}
-              reply_to: you ("bot msg text")
+            ##{reply_to_bot.api_id} #{human.first_name} (@#{human.username}) replying to you ("bot msg text"): #{reply_to_bot.text}
           PROMPT
 
           expect(LLMTools).to have_received(:chat_completion).with(
@@ -329,8 +305,8 @@ RSpec.describe LLM::ReplyJob do
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_bot))
 
           expect(LLMTools).to have_received(:chat_completion) do |messages:, **|
-            reply_to = YAML.safe_load(messages.last[:content]).last['reply_to']
-            expect(reply_to).to eq 'you ("word word word word word word word word and...")'
+            expect(messages.last[:content])
+              .to include 'replying to you ("word word word word word word word word and..."): '
           end
         end
 
@@ -342,27 +318,22 @@ RSpec.describe LLM::ReplyJob do
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_bot))
 
           expect(LLMTools).to have_received(:chat_completion) do |messages:, **|
-            entries = YAML.safe_load(messages.last[:content])
             expect(messages.pluck(:role)).to eq %w[user]
-            expect(entries.pluck('text')).not_to include bot_message.text
-            expect(entries.last['reply_to']).to eq 'you ("bot msg text")'
+            expect(messages.last[:content].lines.last)
+              .to eq %(##{reply_to_bot.api_id} #{human.first_name} (@#{human.username}) ) +
+                     %(replying to you ("bot msg text"): #{reply_to_bot.text})
           end
         end
       end
 
       context 'when message being replied to is NOT from this bot' do
-        it 'puts actual `api_id` value into YAML `id` & `reply_to`' do
+        it 'puts actual `api_id` values into `#id` & `replying to #id`' do
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
 
+          other_user = other_human_message.user
           expected_prompt = <<~PROMPT.strip
-            ---
-            - id: #{other_human_message.api_id}
-              user: #{other_human_message.user.first_name} (@#{other_human_message.user.username})
-              text: #{other_human_message.text}
-            - id: #{reply_to_human.api_id}
-              user: #{human.first_name} (@#{human.username})
-              text: #{reply_to_human.text}
-              reply_to: #{other_human_message.api_id}
+            ##{other_human_message.api_id} #{other_user.first_name} (@#{other_user.username}): #{other_human_message.text}
+            ##{reply_to_human.api_id} #{human.first_name} (@#{human.username}) replying to ##{other_human_message.api_id}: #{reply_to_human.text}
           PROMPT
 
           expect(LLMTools).to have_received(:chat_completion).with(
@@ -375,19 +346,14 @@ RSpec.describe LLM::ReplyJob do
     end
 
     context 'when message mentioning bot is NOT a reply to another message' do
-      it 'adds nothing to YAML above user message' do
+      it 'adds nothing above user message' do
         older_msg = create(:message, chat:, date: 3.minutes.ago)
 
         described_class.perform_now(chat, TelegramTools.serialize_api_message(api_human_msg))
 
         expected_prompt = <<~PROMPT.strip
-          ---
-          - id: #{older_msg.api_id}
-            user: #{older_msg.user.first_name} (@#{older_msg.user.username})
-            text: #{older_msg.text}
-          - id: #{human_message.api_id}
-            user: #{human.first_name} (@#{human.username})
-            text: #{human_message.text}
+          ##{older_msg.api_id} #{older_msg.user.first_name} (@#{older_msg.user.username}): #{older_msg.text}
+          ##{human_message.api_id} #{human.first_name} (@#{human.username}): #{human_message.text}
         PROMPT
 
         expect(LLMTools).to have_received(:chat_completion).with(
@@ -701,7 +667,7 @@ RSpec.describe LLM::ReplyJob do
     end
 
     def user_turn_ids(turn)
-      YAML.safe_load(turn[:content]).pluck('id')
+      turn[:content].scan(/^#(\d+) /).flatten.map(&:to_i)
     end
 
     before do

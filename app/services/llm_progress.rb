@@ -165,6 +165,9 @@ class LLMProgress
   private
 
   def enter_stage(stage, now)
+    # Stages can be skipped, e.g. output starting while a check whether the model is loaded was still
+    # in flight. Count them as done instantly, so rendering them as done has their times.
+    STAGE_ORDER[(STAGE_ORDER.index(@stage) + 1)...STAGE_ORDER.index(stage)].each { |s| @stage_times[s] = now }
     @stage = stage
     @stage_times[stage] = now
   end
@@ -285,7 +288,8 @@ class LLMProgress
     next_stage = STAGE_ORDER[STAGE_ORDER.index(stage) + 1]
     return 'already awake' if stage == :waking_model && @loaded_at_start
 
-    duration(@stage_times[next_stage] - @stage_times[stage])
+    took = duration(@stage_times[next_stage] - @stage_times[stage])
+    stage == :reading_prompt ? "~#{count(@prompt_tokens)} tokens · #{took}" : took
   end
 
   # Upper bound: assumes none of the prompt is cached
