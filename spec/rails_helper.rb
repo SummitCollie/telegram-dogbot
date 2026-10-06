@@ -62,11 +62,12 @@ RSpec.configure do |config|
   # https://rspec.info/features/6-0/rspec-rails
   config.infer_spec_type_from_file_location!
 
-  # Test env shares credentials with development: never probe a real self-hosted LLM.
+  # Test env shares credentials with development: never probe a real self-hosted LLM or FlareSolverr.
   # Specs that need it configured stub this themselves.
   config.before do
     allow(LocalInferenceApi).to receive(:config).and_return(nil)
     LocalInferenceApi.reset!
+    allow(FlareSolverrApi).to receive(:config).and_return(nil)
 
     # No progress message updater thread in specs (see spec/services/llm_progress_spec.rb for that)
     allow(LLMProgress).to receive(:track) do |db_chat, **options, &block|

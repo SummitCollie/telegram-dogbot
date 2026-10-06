@@ -61,7 +61,7 @@ RSpec.describe LLM::SummarizeUrlJob do
     end
 
     before do
-      allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM generated summary text'
+      allow(LLMTools).to receive(:prompt_completion).and_return 'LLM generated summary text'
 
       stub_telegram_bot(send_sticker: true)
 
@@ -73,7 +73,7 @@ RSpec.describe LLM::SummarizeUrlJob do
       it 'chooses prompt for custom style and injects style properly' do
         described_class.perform_now(chat, url, style)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: expected_system_prompt_custom,
           progress: an_instance_of(LLMProgress),
           user_prompt: anything
@@ -83,7 +83,7 @@ RSpec.describe LLM::SummarizeUrlJob do
       it 'minifies HTML for the user prompt' do
         described_class.perform_now(chat, url, style)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: anything,
           progress: an_instance_of(LLMProgress),
           user_prompt: minified_html_page
@@ -97,7 +97,7 @@ RSpec.describe LLM::SummarizeUrlJob do
         described_class.perform_now(chat, url, ' ')
         described_class.perform_now(chat, url, nil)
 
-        expect(LLMTools).to have_received(:run_chat_completion).once.with(
+        expect(LLMTools).to have_received(:prompt_completion).once.with(
           system_prompt: expected_system_prompt_neutral,
           progress: an_instance_of(LLMProgress),
           user_prompt: anything
@@ -107,12 +107,20 @@ RSpec.describe LLM::SummarizeUrlJob do
       it 'minifies HTML in user prompt' do
         described_class.perform_now(chat, url, '')
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: anything,
           progress: an_instance_of(LLMProgress),
           user_prompt: minified_html_page
         )
       end
+    end
+
+    it 'requests the page with a non-default user agent' do
+      described_class.perform_now(chat, url, nil)
+
+      expect(OpenURI).to have_received(:open_uri).with(
+        url, hash_including('User-Agent' => a_string_including('DogBot'))
+      )
     end
 
     context 'when URL summarization is successful' do
@@ -140,7 +148,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
     context 'when URL summarization fails' do
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_raise Faraday::Error
+        allow(LLMTools).to receive(:prompt_completion).and_raise Faraday::Error
       end
 
       it 'responds in chat with "LLM error" message' do
@@ -156,7 +164,7 @@ RSpec.describe LLM::SummarizeUrlJob do
 
     context 'when LLM output is blank' do
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_return ' '
+        allow(LLMTools).to receive(:prompt_completion).and_return ' '
       end
 
       it 'responds in chat with "blank output" error' do
@@ -190,6 +198,54 @@ RSpec.describe LLM::SummarizeUrlJob do
           text: "HTTPError: DogBot server was blocked from accessing the URL :(\n" \
                 '(403: forbidden)'
         )
+      end
+
+      context 'with FlareSolverr configured' do
+        before do
+          allow(FlareSolverrApi).to receive_messages(
+            config: ActiveSupport::OrderedOptions[uri_base: 'http://127.0.0.1:8191'],
+            get: html_page
+          )
+        end
+
+        it 'summarizes the page loaded through FlareSolverr' do
+          described_class.perform_now(chat, url, nil)
+
+          expect(FlareSolverrApi).to have_received(:get).with(url)
+          expect(LLMTools).to have_received(:prompt_completion).with(
+            system_prompt: expected_system_prompt_neutral,
+            progress: an_instance_of(LLMProgress),
+            user_prompt: minified_html_page
+          )
+        end
+
+        it 'responds with the original HTTP error when FlareSolverr fails too' do
+          allow(FlareSolverrApi).to receive(:get).and_raise FlareSolverrApi::Error, 'Timeout'
+
+          described_class.perform_now(chat, url, nil)
+
+          expect(Telegram.bot).to have_received(:send_message).once.with(
+            chat_id: chat.api_id,
+            parse_mode: nil,
+            text: "HTTPError: DogBot server was blocked from accessing the URL :(\n" \
+                  '(403: forbidden)'
+          )
+        end
+
+        it "doesn't use FlareSolverr for errors other than being blocked" do
+          allow(@open_uri_double)
+            .to receive(:read)
+            .and_raise OpenURI::HTTPError.new('404 Not Found', double(status: ['404', 'Not Found']))
+
+          described_class.perform_now(chat, url, nil)
+
+          expect(FlareSolverrApi).not_to have_received(:get)
+          expect(Telegram.bot).to have_received(:send_message).once.with(
+            chat_id: chat.api_id,
+            parse_mode: nil,
+            text: "HTTPError: Unable to load URL :(\n(404: not found)"
+          )
+        end
       end
     end
   end

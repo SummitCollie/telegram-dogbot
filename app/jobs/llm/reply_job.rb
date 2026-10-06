@@ -4,7 +4,7 @@ module LLM
   class ReplyJob < ApplicationJob
     # Context window holds between CONTEXT_MIN_MESSAGES and (CONTEXT_MIN_MESSAGES + CONTEXT_STEP - 1)
     # messages. Its start only moves every CONTEXT_STEP messages, so the prompt prefix stays identical
-    # between replies and the LLM server can reuse its cached context (e.g. koboldcpp SmartCache).
+    # between replies and the LLM server can reuse its cached context.
     CONTEXT_MIN_MESSAGES = 100
     CONTEXT_STEP = 50
 
@@ -122,13 +122,14 @@ module LLM
       others.flat_map { |m| [m, *replies_by_target[m]] }
     end
 
-    # If the message being replied to isn't within the window, it needs to be copied into the prompt
-    # from the API message (it may not even be in the DB). Not needed for replies to this bot's messages,
-    # which `reply_to` quotes.
+    # If the message being replied to isn't within the window, it needs to be copied into the prompt from
+    # the API message: it may not be in the DB at all (the nightly purge deletes messages older than 2 days,
+    # and ones sent while the bot wasn't around were never stored). Not needed for replies to this bot's
+    # messages, which are quoted in `replying to you ("...")`.
     def out_of_window_reply_target(window, api_message)
       reply_to_message = api_message&.reply_to_message
       return if reply_to_message.blank? || window.last.reply_to_message&.from_this_bot?
-      return if window.first.date.floor <= Time.zone.at(reply_to_message.date).to_datetime
+      return if window.any? { |m| m.api_id == reply_to_message.message_id }
 
       reply_to_message
     end

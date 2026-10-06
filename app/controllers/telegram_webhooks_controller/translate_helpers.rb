@@ -30,7 +30,7 @@ class TelegramWebhooksController
                             "• Reply to a message, or\n" \
                             "• Paste text after command:\n" \
                             "    /translate hola mi amigo\n\n" \
-                            "⚙️ Choose target language (or style)\n" \
+                            "⚙️ Choose target language\n" \
                             "    /translate polish hi there!\n" \
         ), 'Aborting translation, empty text_to_translate: ' \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}"

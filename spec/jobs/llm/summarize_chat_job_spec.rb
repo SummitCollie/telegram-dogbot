@@ -220,7 +220,7 @@ RSpec.describe LLM::SummarizeChatJob do
       let(:chat) { create(:chat) }
 
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        allow(LLMTools).to receive(:prompt_completion).and_return 'LLM output'
         create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
       end
 
@@ -236,7 +236,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         described_class.perform_now(summary)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: expected_system_prompt,
           progress: an_instance_of(LLMProgress),
           user_prompt: anything
@@ -248,7 +248,7 @@ RSpec.describe LLM::SummarizeChatJob do
       let(:chat) { create(:chat) }
 
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        allow(LLMTools).to receive(:prompt_completion).and_return 'LLM output'
         create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
       end
 
@@ -258,7 +258,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         described_class.perform_now(summary)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: expected_system_prompt,
           progress: an_instance_of(LLMProgress),
           user_prompt: anything

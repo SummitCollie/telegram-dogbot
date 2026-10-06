@@ -190,11 +190,6 @@ RSpec.describe LLMTools do
     let(:local) { LLMTools::Provider.new(model: 'hf.co/someone/Some-Model-GGUF:Q6_K', self_hosted: true, split_replies: true) }
     let(:cloud) { LLMTools::Provider.new(model: 'llama-3.3-70b', self_hosted: false, split_replies: false) }
 
-    it 'tells models with split_replies that lines are sent as separate messages' do
-      expect(described_class.reply_prompt(local)).to include 'Each line you write is sent as its own message'
-      expect(described_class.reply_prompt(cloud)).not_to include 'Each line you write'
-    end
-
     it 'does not reveal which model or machine it is running on' do
       [local, cloud].each do |provider|
         prompt = described_class.reply_prompt(provider)
@@ -222,12 +217,12 @@ RSpec.describe LLMTools do
     end
   end
 
-  describe '.run_chat_completion' do
+  describe '.prompt_completion' do
     before { allow(LocalInferenceApi).to receive(:available_model).and_return nil }
 
     it 'sends system & user prompt, returns only the output text' do
-      output = described_class.run_chat_completion(system_prompt: 'sys', user_prompt: 'user',
-                                                   model_params: { temperature: 0.5 })
+      output = described_class.prompt_completion(system_prompt: 'sys', user_prompt: 'user',
+                                                 model_params: { temperature: 0.5 })
 
       expect(output).to eq 'cloud output'
       expect(GenericInferenceApi).to have_received(:run_chat_completion).with(

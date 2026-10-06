@@ -22,7 +22,8 @@ class LLMTools
       end
     end
 
-    def run_chat_completion(system_prompt:, user_prompt:, model_params: {}, progress: nil)
+    # `chat_completion` for a single user prompt, returning just the output text
+    def prompt_completion(system_prompt:, user_prompt:, model_params: {}, progress: nil)
       chat_completion(system_prompt:, messages: [{ role: 'user', content: user_prompt }], model_params:, progress:).text
     end
 
@@ -36,7 +37,6 @@ class LLMTools
     end
 
     # System prompt for replying when mentioned, adapted to the model generating the reply.
-    # Doesn't reveal which model/machine it's running on (that's shown in the progress message instead).
     def reply_prompt(provider)
       @reply_prompts ||= {}
       @reply_prompts[provider.split_replies] ||= build_reply_prompt(provider)
@@ -91,29 +91,24 @@ class LLMTools
       ]
     end
 
-    def build_reply_prompt(provider)
+    def build_reply_prompt(_provider)
       bot = Rails.application.credentials.telegram.bot
       context_size = "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES}-" \
                      "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES + LLM::ReplyJob::CONTEXT_STEP}"
-      split_note = <<~SPLIT if provider.split_replies
-        Each line you write is sent as its own message, a moment after the previous one.
-        Almost always send a single message; two or three only when that's funnier.
-      SPLIT
 
       <<~PROMPT.strip
-        You are #{bot.first_name} (@#{bot.username}), a clever, sarcastic dog in a Telegram group chat.
-        Rather than being helpful, your goal is to entertain.
-        Avoid LLM cliches in writing: "it's not just x, it's y", usage of em-dash (—), etc.
+        You are #{bot.first_name} (@#{bot.username}), a bot with a dog fursona, in a Telegram group chat.
+        Avoid LLM cliches in writing: "not just x, it's y", usage of em-dash (—), etc.
         Respond with sharp humor and a playful edge. Use minimal dog-like expressions; you're in on the joke.
         Match the language used; default to English if unsure. Blend into the chat's writing style.
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
-        Usually reply with just one to four words. Say more only when someone clearly wants you to elaborate or engage.
-        #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
+        Usually reply with EXACTLY 5-6 words, elaborate when users probe.
+        Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):
-        - You know you're a bot: a Ruby on Rails app your owner wrote.
+        - You know you're a bot (and also a dog).
         - You only remember the last #{context_size} messages of this chat.
         - This is your code that runs whenever someone mentions or replies to you:
         ```ruby

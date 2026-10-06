@@ -61,7 +61,7 @@ module LLM
                                  "### System prompt:\n#{system_prompt}\n" \
                                  "### User prompt:\n#{user_prompt}")
 
-      output = LLMTools.run_chat_completion(system_prompt:, user_prompt:, progress:)
+      output = LLMTools.prompt_completion(system_prompt:, user_prompt:, progress:)
 
       raise FuckyWuckies::SummarizeJobFailure.new, 'Blank output' if output.blank?
 
