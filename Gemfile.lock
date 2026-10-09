@@ -382,6 +382,7 @@ DEPENDENCIES
   factory_bot_rails
   faker
   htmlcompressor
+  method_source
   ostruct
   pg (~> 1.1)
   pry

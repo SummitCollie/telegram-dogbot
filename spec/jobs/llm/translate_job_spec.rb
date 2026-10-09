@@ -15,10 +15,27 @@ RSpec.describe LLM::TranslateJob do
       allow_any_instance_of(described_class).to receive(:llm_translate).and_return(llm_translate_result)
     end
 
+    context 'when provided a target language' do
+      it 'asks the LLM to translate into it' do
+        allow_any_instance_of(described_class).to receive(:llm_translate).and_call_original
+        allow(LLMTools).to receive(:prompt_completion).and_return(llm_translate_result)
+
+        described_class.perform_now(chat, text_to_translate, 'into dog-speak', command_message_from, nil)
+
+        expect(LLMTools).to have_received(:prompt_completion)
+          .with(hash_including(user_prompt: "Target language/style: into dog-speak\n\n#{text_to_translate}"))
+      end
+    end
+
     context 'when not provided a target language' do
-      it 'defaults to english' do
-        expect_any_instance_of(described_class).to receive(:llm_translate).with(text_to_translate, 'english')
-        described_class.perform_now(chat, text_to_translate, nil, command_message_from, nil)
+      it 'asks the LLM to find a requested language in the text, defaulting to english' do
+        allow_any_instance_of(described_class).to receive(:llm_translate).and_call_original
+        allow(LLMTools).to receive(:prompt_completion).and_return(llm_translate_result)
+
+        described_class.perform_now(chat, "#{text_to_translate} into french", nil, command_message_from, nil)
+
+        expected_prompt = /request for a target language.*English.*#{text_to_translate} into french/m
+        expect(LLMTools).to have_received(:prompt_completion).with(hash_including(user_prompt: expected_prompt))
       end
     end
 

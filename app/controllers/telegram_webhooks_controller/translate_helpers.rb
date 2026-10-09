@@ -5,25 +5,22 @@ class TelegramWebhooksController
   module TranslateHelpers
     module_function
 
-    def detect_target_language(first_input_word)
-      candidate = first_input_word&.downcase
-      supported_languages = Rails.application.credentials.openai.translate_languages&.map(&:downcase)
-
-      supported_languages.include?(candidate) ? candidate : nil
-    end
-
-    def determine_text_to_translate(target_language, first_input_word)
+    # Returns [target_language, text_to_translate].
+    # target_language is nil when the text was given after the command: it may or may not include a requested
+    # target language (e.g. `/translate french hello`, `/translate hello into french`), so the LLM decides.
+    def parse_translate_command
       # Text from (the message being replied to) by the user calling /translate (quote)
-      reply_parent_text = payload.reply_to_message&.text&.strip
+      reply_parent_text = payload.reply_to_message&.text&.strip.presence
 
-      # Text from after the /translate command (ignored if reply_parent_text exists)
-      command_message_text = if target_language
-                               payload.text.gsub(%r{^/translate(\S?)+ #{Regexp.escape(first_input_word)}}, '').strip
-                             else
-                               TelegramTools.strip_bot_command('translate', payload.text)
-                             end
+      # Text from after the /translate command
+      command_message_text = TelegramTools.strip_bot_command('translate', payload.text)
 
-      text_to_translate = reply_parent_text || command_message_text
+      # When the command replies to a message, any text after it is the target language (e.g. "into french")
+      target_language, text_to_translate = if reply_parent_text
+                                             [command_message_text.presence || 'english', reply_parent_text]
+                                           else
+                                             [nil, command_message_text]
+                                           end
 
       if text_to_translate.blank?
         raise FuckyWuckies::TranslateJobFailure.new(
@@ -34,14 +31,12 @@ class TelegramWebhooksController
                             "• Paste text after command:\n" \
                             "    /translate hola mi amigo\n\n" \
                             "⚙️ Choose target language\n" \
-                            "    /translate polish hi there!\n\n" \
-                            "❔ Supported languages\n" \
-                            "#{Rails.application.credentials.openai.translate_languages.join(', ')}"
+                            "    /translate polish hi there!\n" \
         ), 'Aborting translation, empty text_to_translate: ' \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}"
       end
 
-      text_to_translate
+      [target_language, text_to_translate]
     end
   end
 end

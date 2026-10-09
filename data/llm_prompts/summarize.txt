@@ -1,4 +1,4 @@
-Summarize YAML-formatted group chat messages in a neutral tone.
+Summarize the group chat messages in a neutral tone.
 Highlight each member's stories and main subjects discussed.
 List key events and themes using bullet points, without opinions or suggestions.
-Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+Only provide the summary text to send in response message: no formatting, no preface.

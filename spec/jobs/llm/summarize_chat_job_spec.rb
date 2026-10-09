@@ -4,6 +4,23 @@ require 'rails_helper'
 
 RSpec.describe LLM::SummarizeChatJob do
   describe '#perform' do
+    context 'when cancelled from the progress message' do
+      let(:chat) { create(:chat) }
+      let!(:summary) { create(:chat_summary, chat:, summary_type: :default, status: :running) }
+
+      before do
+        create(:message, chat:)
+        allow_any_instance_of(described_class).to receive(:llm_summarize).and_raise LLMProgress::Cancelled
+      end
+
+      it 'deletes the running summary (so another can be started), sending nothing' do
+        expect_any_instance_of(described_class).not_to receive(:send_output_message)
+
+        expect { described_class.perform_now(summary) }.not_to raise_error
+        expect(ChatSummary.exists?(summary.id)).to be false
+      end
+    end
+
     context 'when running first attempt' do
       let(:chat) { create(:chat) }
       let(:messages) do
@@ -40,7 +57,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(messages, chat1_summary.summary_type)
+        ).with(messages, chat1_summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(chat1_summary)
       end
@@ -53,7 +70,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, summary.summary_type)
+          ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
           described_class.perform_now(summary)
         end
@@ -66,7 +83,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
           expect_any_instance_of(described_class).to receive(
             :llm_summarize
-          ).with(expected_messages, summary.summary_type)
+          ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
           described_class.perform_now(summary)
         end
@@ -103,7 +120,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -114,7 +131,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -125,7 +142,7 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expect_any_instance_of(described_class).to receive(
           :llm_summarize
-        ).with(expected_messages, summary.summary_type)
+        ).with(expected_messages, summary.summary_type, an_instance_of(LLMProgress))
 
         described_class.perform_now(summary)
       end
@@ -203,7 +220,7 @@ RSpec.describe LLM::SummarizeChatJob do
       let(:chat) { create(:chat) }
 
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        allow(LLMTools).to receive(:prompt_completion).and_return 'LLM output'
         create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
       end
 
@@ -213,14 +230,15 @@ RSpec.describe LLM::SummarizeChatJob do
 
         expected_system_prompt = <<~PROMPT.strip
           SUMMARY_STYLE=#{style}
-          Summarize YAML-formatted group chat messages in the specified SUMMARY_STYLE.
-          Only provide the summary text to send in response message: no YAML, no formatting, no preface.
+          Summarize the group chat messages in the specified SUMMARY_STYLE.
+          Only provide the summary text to send in response message: no formatting, no preface.
         PROMPT
 
         described_class.perform_now(summary)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: expected_system_prompt,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         )
       end
@@ -230,7 +248,7 @@ RSpec.describe LLM::SummarizeChatJob do
       let(:chat) { create(:chat) }
 
       before do
-        allow(LLMTools).to receive(:run_chat_completion).and_return 'LLM output'
+        allow(LLMTools).to receive(:prompt_completion).and_return 'LLM output'
         create_list(:message, 10, chat:, date: Faker::Time.unique.backward(days: 1))
       end
 
@@ -240,112 +258,69 @@ RSpec.describe LLM::SummarizeChatJob do
 
         described_class.perform_now(summary)
 
-        expect(LLMTools).to have_received(:run_chat_completion).with(
+        expect(LLMTools).to have_received(:prompt_completion).with(
           system_prompt: expected_system_prompt,
+          progress: an_instance_of(LLMProgress),
           user_prompt: anything
         )
       end
     end
   end
 
-  describe '.messages_to_yaml' do
-    it 'contains all input messages' do
+  describe '.chat_log' do
+    def chat_log_lines(messages) = described_class.chat_log(messages).lines(chomp: true)
+
+    it 'has one line per message with id, first name and text' do
       chat = create(:chat)
       messages = Array.new(250) do
         create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
       end.sort_by(&:date)
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+      lines = chat_log_lines(messages)
 
-      expect(results.size).to eq messages.size
+      expect(lines.size).to eq messages.size
+      expect(lines.first).to eq "##{messages.first.api_id} #{messages.first.user.first_name}: #{messages.first.text}"
+      expect(lines.last).to eq "##{messages.last.api_id} #{messages.last.user.first_name}: #{messages.last.text}"
     end
 
-    it 'correctly sets id/user/text' do
+    it 'sets `replying to` for messages replying to this bot' do
       chat = create(:chat)
-      messages = Array.new(250) do
-        create(:message, chat:, date: Faker::Time.unique.backward(days: 2))
-      end.sort_by(&:date)
+      bot_cu = create(:chat_user, chat:, user: create(:user, is_this_bot: true))
+      bot_message = create(:message, chat_user: bot_cu, date: 2.minutes.ago)
+      reply_to_bot = create(:message, chat:, date: 1.minute.ago, reply_to_message: bot_message)
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+      lines = chat_log_lines([bot_message, reply_to_bot])
 
-      expect(results.first['id']).to eq messages.first.api_id
-      expect(results.first['user']).to eq messages.first.user.first_name
-      expect(results.first['text']).to eq messages.first.text
-
-      expect(results.last['id']).to eq messages.last.api_id
-      expect(results.last['user']).to eq messages.last.user.first_name
-      expect(results.last['text']).to eq messages.last.text
+      expect(lines.first).to start_with "##{bot_message.api_id} "
+      expect(lines.last).to include " replying to ##{bot_message.api_id}: "
     end
 
-    it 'sets `id` to `?` for messages sent by this bot' do
-      chat = create(:chat)
-      bot_user = create(:user, is_this_bot: true)
-      bot_cu = create(:chat_user, chat:, user: bot_user)
-      messages = [create(:message, chat_user: bot_cu, date: 2.minutes.ago)]
-
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.first['id']).to eq '?'
-    end
-
-    it 'sets `reply_to` to parent message ID when parent message within context' do
+    it 'sets `replying to` when parent message within context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 2.minutes.ago)
       response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
-      messages = [parent_message, response_message]
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.last['reply_to']).to eq messages.first.api_id
+      expect(chat_log_lines([parent_message, response_message]).last)
+        .to include " replying to ##{parent_message.api_id}: "
     end
 
-    it 'omits `reply_to` when parent message outside context' do
+    it 'omits `replying to` when parent message outside context' do
       chat = create(:chat)
       parent_message = create(:message, chat:, date: 3.minutes.ago)
       response_message = create(:message, chat:, date: 2.minutes.ago, reply_to_message: parent_message)
-      create(:message, chat:, date: 1.minute.ago)
-      messages = [response_message]
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.last.key?('reply_to')).to be false
+      expect(chat_log_lines([response_message]).last).not_to include 'replying to'
     end
 
-    it 'omits `reply_to` when parent message was sent by this bot' do
-      # because we don't know the ID of outgoing messages, so can't match against them
-      chat = create(:chat)
-      bot_user = create(:user, is_this_bot: true)
-      bot_cu = create(:chat_user, chat:, user: bot_user)
-
-      parent_message = create(:message, chat_user: bot_cu, date: 2.minutes.ago)
-      response_message = create(:message, chat:, date: 1.minute.ago, reply_to_message: parent_message)
-      messages = [parent_message, response_message]
-
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.last.key?('reply_to')).to be false
-    end
-
-    it 'sets `attachment_type` for messages with attachments' do
+    it 'shows attachment type only for messages with attachments' do
       chat = create(:chat)
       message_w_photo = create(:message, chat:, date: 2.hours.ago, attachment_type: :photo)
       message_no_photo = create(:message, chat:, date: 1.hour.ago)
-      messages = [message_w_photo, message_no_photo]
 
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
+      lines = chat_log_lines([message_w_photo, message_no_photo])
 
-      expect(results.first['attachment']).to eq 'photo'
-    end
-
-    it 'omits `attachment_type` for messages without attachments' do
-      chat = create(:chat)
-      message_w_photo = create(:message, chat:, date: 2.hours.ago, attachment_type: :photo)
-      message_no_photo = create(:message, chat:, date: 1.hour.ago)
-      messages = [message_w_photo, message_no_photo]
-
-      results = YAML.parse(described_class.messages_to_yaml(messages)).children[0].to_ruby
-
-      expect(results.last.key?('attachment')).to be false
+      expect(lines.first).to start_with "##{message_w_photo.api_id} #{message_w_photo.user.first_name} [photo]: "
+      expect(lines.last).not_to include '['
     end
   end
 end

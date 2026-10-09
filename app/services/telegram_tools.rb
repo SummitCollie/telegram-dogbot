@@ -3,6 +3,10 @@
 require 'logger'
 
 class TelegramTools
+  # Bot messages longer than this are collapsed (see #collapse_if_long)
+  COLLAPSE_MAX_LINES = 5
+  COLLAPSE_MAX_CHARS = 500
+
   class << self
     def logger
       @logger ||= Logger.new(
@@ -20,7 +24,7 @@ class TelegramTools
         url:,
         drop_pending_updates: false,
         secret_token: Rails.application.credentials.telegram_secret_token,
-        allowed_updates: %w[message edited_message my_chat_member]
+        allowed_updates: %w[message edited_message my_chat_member callback_query]
       )
     end
 
@@ -95,15 +99,54 @@ class TelegramTools
       JSON.parse(json, object_class: OpenStruct)
     end
 
-    # Save a DB record of this bot's outgoing messages, to be used in some LLM prompts
-    def store_bot_output(db_chat, text, reply_to: nil)
+    # Long messages are sent in a collapsed blockquote (unless send_params has its own parse_mode),
+    # so they don't flood the chat
+    def collapse_if_long(text, send_params)
+      long = text.lines.size > COLLAPSE_MAX_LINES || text.length > COLLAPSE_MAX_CHARS
+      return { text: } if !long || send_params.key?(:parse_mode)
+
+      { text: "<blockquote expandable>#{ERB::Util.html_escape(text)}</blockquote>", parse_mode: 'HTML' }
+    end
+
+    # Returns the response, or nil (after deleting the message) if editing fails.
+    # Bots' edits don't show as "edited" in Telegram, and don't notify anyone.
+    def edit_into_message(db_chat, message_id, text, send_params)
+      Telegram.bot.edit_message_text(
+        chat_id: db_chat.api_id, message_id:, reply_markup: { inline_keyboard: [] },
+        **collapse_if_long(text, send_params), **send_params.slice(:parse_mode)
+      )
+    rescue Telegram::Bot::Error => e
+      logger.warn("Couldn't edit message #{message_id}, sending a new one instead: #{e.message}")
+      begin
+        Telegram.bot.delete_message(chat_id: db_chat.api_id, message_id:)
+      rescue Telegram::Bot::Error
+        nil # probably already deleted
+      end
+      nil
+    end
+
+    # Sends a message to the chat and saves a DB record of it, to be used in some LLM prompts.
+    # Always sent synchronously (even if bot client is in async mode) to learn the sent message's api_id.
+    # - reply_to: DB Message this one is stored as replying to. To also show it as a reply
+    #   in Telegram, pass `reply_parameters:` (in send_params).
+    # Returns the stored Message.
+    # - replace_message_id: api_id of a message of this bot to edit into this one instead (e.g. a progress
+    #   message, see LLMProgress), keeping its position. Its buttons are removed. Sent as new message if that fails.
+    def send_bot_message(db_chat, text, reply_to: nil, replace_message_id: nil, **send_params)
+      response = Telegram.bot.async(false) do
+        (replace_message_id && edit_into_message(db_chat, replace_message_id, text, send_params)) ||
+          Telegram.bot.send_message(chat_id: db_chat.api_id, **collapse_if_long(text, send_params), **send_params)
+      end
+      sent = response['result'] if response.is_a?(Hash)
+
       bot_user = User.find_or_initialize_by(is_this_bot: true)
       bot_chatuser = ChatUser.find_or_initialize_by(chat: db_chat, user: bot_user)
 
       Message.create!(
         chat_user: bot_chatuser,
+        api_id: sent&.dig('message_id'),
         reply_to_message_id: reply_to&.id,
-        date: Time.current,
+        date: sent&.dig('date') ? Time.zone.at(sent['date']) : Time.current,
         text:
       )
     end

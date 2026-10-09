@@ -9,6 +9,7 @@ abort('The Rails environment is running in production mode!') if Rails.env.produ
 require 'rspec/rails'
 # Add additional requires below this line. Rails is not loaded until this point!
 require 'support/factory_bot'
+require 'support/telegram_bot_double'
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
@@ -60,6 +61,24 @@ RSpec.configure do |config|
   # The different available types are documented in the features, such as in
   # https://rspec.info/features/6-0/rspec-rails
   config.infer_spec_type_from_file_location!
+
+  # Test env shares credentials with development: never probe a real self-hosted LLM or FlareSolverr.
+  # Specs that need it configured stub this themselves.
+  config.before do
+    allow(LocalInferenceApi).to receive(:config).and_return(nil)
+    LocalInferenceApi.reset!
+    allow(FlareSolverrApi).to receive(:config).and_return(nil)
+
+    # No progress message updater thread in specs (see spec/services/llm_progress_spec.rb for that)
+    allow(LLMProgress).to receive(:track) do |db_chat, **options, &block|
+      progress = LLMProgress.new(db_chat, **options)
+      begin
+        block.call(progress)
+      ensure
+        progress.finish
+      end
+    end
+  end
 
   # Filter lines from Rails gems in backtraces.
   config.filter_rails_from_backtrace!

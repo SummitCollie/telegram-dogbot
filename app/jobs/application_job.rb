@@ -8,4 +8,9 @@ class ApplicationJob < ActiveJob::Base
 
   # Most jobs are safe to ignore if the underlying records are no longer available
   discard_on ActiveJob::DeserializationError
+
+  # Someone pressed the progress message's cancel button (see LLMProgress)
+  discard_on(LLMProgress::Cancelled) do |_job, error|
+    TelegramTools.logger.info(error.message)
+  end
 end

@@ -2,13 +2,9 @@
 
 class GenericInferenceApi
   class << self
-    def run_chat_completion(system_prompt:, user_prompt:, model_params:)
+    # Yields each piece of streamed output content, if given a block
+    def run_chat_completion(messages:, model_params:)
       client = OpenAI::Client.new(log_errors: true)
-
-      messages = [
-        { role: 'system', content: system_prompt.strip },
-        { role: 'user', content: user_prompt.strip }
-      ]
 
       result = StringIO.new
       client.chat(parameters: {
@@ -17,7 +13,9 @@ class GenericInferenceApi
         top_p: 1,
         messages:,
         stream: proc do |chunk, _bytesize|
-          result << chunk.dig('choices', 0, 'delta', 'content')
+          content = chunk.dig('choices', 0, 'delta', 'content')
+          result << content
+          yield content if block_given? && content.present?
         end
       }.merge(model_params))
 

@@ -38,6 +38,7 @@ gem 'bootsnap', require: false
 # gem "rack-cors"
 
 gem 'htmlcompressor'
+gem 'method_source' # Method#source, used to put ReplyJob#perform in the reply prompt
 gem 'ostruct'
 gem 'ruby-openai'
 gem 'ruby-readability', require: 'readability'
