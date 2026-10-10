@@ -61,8 +61,8 @@ class LLMTools
       provider = Provider.new(model:, self_hosted: true, split_replies: LocalInferenceApi.config&.split_replies == true)
       messages = full_messages(system_prompt, messages, provider)
       progress&.llm_started(provider, messages)
-      text = LocalInferenceApi.run_chat_completion(model:, messages:, model_params:) do |content|
-        progress&.llm_output(content)
+      text = LocalInferenceApi.run_chat_completion(model:, messages:, model_params:) do |output, kind|
+        kind == :thinking ? progress&.llm_thinking(output) : progress&.llm_output(output)
       end
       Completion.new(text:, split_replies: provider.split_replies)
     rescue Faraday::Error => e
@@ -91,10 +91,15 @@ class LLMTools
       ]
     end
 
-    def build_reply_prompt(_provider)
+    def build_reply_prompt(provider)
       bot = Rails.application.credentials.telegram.bot
       context_size = "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES}-" \
                      "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES + LLM::ReplyJob::CONTEXT_STEP}"
+      split_note = <<~SPLIT if provider.split_replies
+        Each line you write is sent as its own Telegram message, so never break a sentence across lines.
+      SPLIT
+      # method_source caches file contents, which go stale when code reloading (in development) moves `perform`
+      MethodSource.clear_cache
 
       <<~PROMPT.strip
         You are #{bot.first_name} (@#{bot.username}), a bot with a dog fursona, in a Telegram group chat.
@@ -104,8 +109,8 @@ class LLMTools
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
-        Usually reply with EXACTLY 5-6 words, elaborate when users probe.
-        Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
+        Keep it short by default, usually one casual sentence. When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
+        #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):
         - You know you're a bot (and also a dog).

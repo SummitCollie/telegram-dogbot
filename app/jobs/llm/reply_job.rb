@@ -5,8 +5,8 @@ module LLM
     # Context window holds between CONTEXT_MIN_MESSAGES and (CONTEXT_MIN_MESSAGES + CONTEXT_STEP - 1)
     # messages. Its start only moves every CONTEXT_STEP messages, so the prompt prefix stays identical
     # between replies and the LLM server can reuse its cached context.
-    CONTEXT_MIN_MESSAGES = 100
-    CONTEXT_STEP = 50
+    CONTEXT_MIN_MESSAGES = 300
+    CONTEXT_STEP = 100
 
     # Max length of the quote shown in `reply_to` for replies to this bot's messages
     REPLY_QUOTE_LENGTH = 50
@@ -14,6 +14,8 @@ module LLM
     # For models with `split_replies: true`
     MAX_SPLIT_MESSAGES = 3
     MAX_SPLIT_LINE_LENGTH = 200
+    MIN_SPLIT_LINE_WORDS = 2
+    SPLIT_MESSAGE_DELAY = 1 # seconds between messages
     LIST_ITEM = /\A([-*•]|\d+[.)])\s/
 
     discard_on(FuckyWuckies::ReplyJobFailure) do |_job, error|
@@ -166,48 +168,25 @@ module LLM
 
     # Sends each line as a separate message, like a human double/triple-texting.
     # Longer or list-like output stays in one message.
-    def split_reply(text)
+    def split_reply(text) # rubocop:disable Metrics/CyclomaticComplexity
       lines = text.lines.map(&:strip).compact_blank
       return [text] if lines.size > MAX_SPLIT_MESSAGES ||
                        lines.any? { |line| line.length > MAX_SPLIT_LINE_LENGTH || line.match?(LIST_ITEM) }
+      # Models trained on texting often break one thought across lines ("document\neverything"),
+      # which would be sent as fragments, so those are joined back into one line
+      return [lines.join(' ')] if lines.any? { |line| line.split.size < MIN_SPLIT_LINE_WORDS }
 
       lines
     end
 
     # First message replies to the mention, any others follow it like a human double-texting.
     # All are stored as replies to the mention, so they're grouped together in future prompts.
-    # Stops early if interrupted; unsent parts are dropped, so future prompts only contain what was sent.
     def send_output_messages(texts, reply_to:, replace_message_id: nil)
-      first_sent = nil
-
       texts.each_with_index do |text, i|
-        if i.positive?
-          # Pause like a human typing
-          Telegram.bot.send_chat_action(chat_id: @db_chat.api_id, action: 'typing')
-          sleep((text.length * 0.03).clamp(1.0, 3.0))
-
-          if interrupted_since?(first_sent, reply_to)
-            TelegramTools.logger.debug("Reply interrupted, dropped #{texts.size - i} unsent message(s)")
-            break
-          end
-        end
-
-        sent = send_output_message(text, reply_to:, telegram_reply: i.zero?,
-                                         replace_message_id: (replace_message_id if i.zero?))
-        first_sent ||= sent
+        sleep SPLIT_MESSAGE_DELAY if i.positive?
+        send_output_message(text, reply_to:, telegram_reply: i.zero?,
+                                  replace_message_id: (replace_message_id if i.zero?))
       end
-    end
-
-    # Like a human who'd stop typing follow-up messages if, meanwhile, the person they're
-    # replying to says something else, or someone talks to them
-    def interrupted_since?(sent_message, mention)
-      bot_mention = "%@#{Message.sanitize_sql_like(Rails.application.credentials.telegram.bot.username)}%"
-      newer = @db_chat.messages.not_from_bot.where('messages.id > ?', sent_message.id)
-
-      newer.where(chat_user_id: mention.chat_user_id)
-           .or(newer.where('messages.text ILIKE ?', bot_mention))
-           .or(newer.where(reply_to_message_id: Message.from_this_bot.select(:id)))
-           .exists?
     end
 
     def send_output_message(text, reply_to:, telegram_reply:, replace_message_id: nil)

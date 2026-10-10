@@ -150,6 +150,23 @@ RSpec.describe LLMProgress do
         expect(LocalInferenceApi).to have_received(:loaded_model).twice
       end
 
+      it 'shows thinking as its own step, once the model starts thinking' do
+        allow(LocalInferenceApi).to receive(:loaded_model).and_return({ 'name' => local_provider.model })
+        progress.tick(t0 + 2)
+        expect(lines(t0 + 3)).not_to include(start_with('▫️ Think'))
+
+        progress.llm_thinking('a', now: t0 + 4)
+        9.times { progress.llm_thinking('b', now: t0 + 5) }
+        expect(lines(t0 + 7)[2..4]).to eq [
+          '✅ Read messages · ~1k tokens · 2s',
+          '⏳ Think · 10 tokens · 3s',
+          '▫️ Write reply'
+        ]
+
+        progress.llm_output('c', now: t0 + 8)
+        expect(lines(t0 + 9)[3..4]).to eq ['✅ Think · 10 tokens · 4s', '⏳ Write reply · 1 tokens · 1.0 tok/s']
+      end
+
       it 'handles output starting while a check whether the model is loaded is in flight' do
         allow(LocalInferenceApi).to receive(:loaded_model) do
           progress.llm_output('a', now: t0 + 3)
@@ -267,6 +284,22 @@ RSpec.describe LLMProgress do
 
       expect(sent_tracker[:text]).to include 'Working on a summary'
       expect(bot).to have_received(:delete_message).with(chat_id: chat.api_id, message_id: 1_000_001)
+    end
+
+    it 'keeps updating after a non-Telegram network error' do
+      stub_const("#{described_class}::SHOW_AFTER", 0)
+      ticks = 0
+      allow_any_instance_of(described_class).to receive(:tick).and_wrap_original do |original, *args|
+        raise HTTPClient::ConnectTimeoutError, 'execution expired' if (ticks += 1) == 1
+
+        original.call(*args)
+      end
+
+      described_class.track(chat, label: 'a summary') do |progress|
+        sleep 0.1 until progress.instance_variable_get(:@message_id)
+      end
+
+      expect(sent_tracker[:text]).to include 'Working on a summary'
     end
 
     it 'still cleans up when the block is cancelled' do

@@ -110,12 +110,13 @@ RSpec.describe LLMTools do
   end
 
   describe '.chat_completion with progress' do
-    let(:progress) { instance_double(LLMProgress, llm_started: nil, llm_output: nil) }
+    let(:progress) { instance_double(LLMProgress, llm_started: nil, llm_thinking: nil, llm_output: nil) }
 
     before do
       allow(LocalInferenceApi).to receive(:available_model).and_return 'koboldcpp/local-model'
       allow(LocalInferenceApi).to receive(:run_chat_completion) do |&block|
-        %w[a b].each(&block)
+        block.call('hmm', :thinking)
+        %w[a b].each { |content| block.call(content, :content) }
         'local output'
       end
       allow(GenericInferenceApi).to receive(:run_chat_completion) do |&block|
@@ -124,11 +125,12 @@ RSpec.describe LLMTools do
       end
     end
 
-    it 'reports the provider and full prompt, then each piece of output' do
+    it 'reports the provider and full prompt, then each piece of thinking and output' do
       described_class.chat_completion(**args, progress:)
 
       expect(progress).to have_received(:llm_started)
         .with(having_attributes(model: 'koboldcpp/local-model', self_hosted: true), expected_messages).ordered
+      expect(progress).to have_received(:llm_thinking).with('hmm').ordered
       expect(progress).to have_received(:llm_output).with('a').ordered
       expect(progress).to have_received(:llm_output).with('b').ordered
     end
@@ -205,7 +207,20 @@ RSpec.describe LLMTools do
       expect(described_class.reply_prompt(other_local)).to eq described_class.reply_prompt(local)
     end
 
+    it 'tells models with split_replies that each line is sent as a separate message' do
+      expect(described_class.reply_prompt(local)).to include 'Each line you write is sent as its own Telegram message'
+      expect(described_class.reply_prompt(cloud)).not_to include 'Each line you write'
+    end
+
     it "includes ReplyJob#perform's source code" do
+      expect(described_class.reply_prompt(local)).to include "```ruby\ndef perform(db_chat, serialized_message)\n"
+    end
+
+    it "reads perform's current source, even if method_source cached an outdated copy of the file" do
+      file = LLM::ReplyJob.instance_method(:perform).source_location.first
+      MethodSource.lines_for(file).unshift("# line added before code reloading\n")
+      described_class.instance_variable_set(:@reply_prompts, nil)
+
       expect(described_class.reply_prompt(local)).to include "```ruby\ndef perform(db_chat, serialized_message)\n"
     end
 

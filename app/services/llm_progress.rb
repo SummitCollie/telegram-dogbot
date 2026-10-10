@@ -70,13 +70,11 @@ class LLMProgress
       Rails.application.executor.wrap do
         Telegram.bot.async(false) do
           until @mutex.synchronize { @finished }
-            tick
+            safe_tick
             sleep TICK
           end
         end
       end
-    rescue StandardError => e
-      TelegramTools.logger.error("LLMProgress updater crashed: #{e.class}: #{e.message}")
     end
   end
 
@@ -90,8 +88,16 @@ class LLMProgress
       @model_info = nil
       @loaded_at_start = nil
       @prompt_tokens = (prompt_chars / CHARS_PER_TOKEN).round
+      @tokens_thought = 0
       @tokens_out = 0
       enter_stage(provider.self_hosted ? :waking_model : :reading_prompt, now)
+    end
+  end
+
+  def llm_thinking(_thinking, now: Time.current)
+    @mutex.synchronize do
+      enter_stage(:thinking, now) unless @stage == :thinking
+      @tokens_thought += 1 # roughly one token per streamed chunk
     end
   end
 
@@ -170,6 +176,14 @@ class LLMProgress
     STAGE_ORDER[(STAGE_ORDER.index(@stage) + 1)...STAGE_ORDER.index(stage)].each { |s| @stage_times[s] = now }
     @stage = stage
     @stage_times[stage] = now
+  end
+
+  # Network errors that aren't Telegram::Bot::Errors (e.g. HTTPClient::ConnectTimeoutError) mustn't
+  # stop the updater for the rest of the task
+  def safe_tick
+    tick
+  rescue StandardError => e
+    TelegramTools.logger.warn("LLMProgress update failed: #{e.class}: #{e.message}")
   end
 
   def stop_updates
@@ -260,10 +274,12 @@ class LLMProgress
     steps = []
     steps << step_line(:waking_model, 'Wake up model', now) if @provider.self_hosted
     steps << step_line(:reading_prompt, 'Read messages', now)
+    # Only once the model starts thinking: there's no telling beforehand whether it will
+    steps << step_line(:thinking, 'Think', now) if @tokens_thought.positive?
     steps << step_line(:writing, "Write #{h @label.delete_prefix('a ').delete_prefix('an ')}", now)
   end
 
-  STAGE_ORDER = %i[preparing waking_model reading_prompt writing].freeze
+  STAGE_ORDER = %i[preparing waking_model reading_prompt thinking writing].freeze
   private_constant :STAGE_ORDER
 
   def step_line(stage, name, now)
@@ -280,6 +296,7 @@ class LLMProgress
     case stage
     when :waking_model then duration(elapsed)
     when :reading_prompt then ["~#{count(@prompt_tokens)} tokens", prompt_eta(elapsed)].compact.join(' · ')
+    when :thinking then "#{count(@tokens_thought)} tokens · #{duration(elapsed)}"
     when :writing then "#{count(@tokens_out)} tokens · #{(@tokens_out / [elapsed, 1].max).round(1)} tok/s"
     end
   end
@@ -289,7 +306,11 @@ class LLMProgress
     return 'already awake' if stage == :waking_model && @loaded_at_start
 
     took = duration(@stage_times[next_stage] - @stage_times[stage])
-    stage == :reading_prompt ? "~#{count(@prompt_tokens)} tokens · #{took}" : took
+    case stage
+    when :reading_prompt then "~#{count(@prompt_tokens)} tokens · #{took}"
+    when :thinking then "#{count(@tokens_thought)} tokens · #{took}"
+    else took
+    end
   end
 
   # Upper bound: assumes none of the prompt is cached

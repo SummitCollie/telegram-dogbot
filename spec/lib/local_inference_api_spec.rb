@@ -192,11 +192,26 @@ RSpec.describe LocalInferenceApi do
       expect { run }.to raise_error Faraday::ResourceNotFound
     end
 
-    it 'yields each piece of output content' do
+    def yielded_output
       yielded = []
-      described_class.run_chat_completion(model: model_name, messages:, model_params: {}) { |c| yielded << c }
+      output = described_class.run_chat_completion(model: model_name, messages:, model_params: {}) do |*piece|
+        yielded << piece
+      end
+      [yielded, output]
+    end
 
-      expect(yielded).to eq [' lol', "\nno "]
+    it 'yields each piece of output content' do
+      expect(yielded_output.first).to eq [[' lol', :content], ["\nno ", :content]]
+    end
+
+    context 'with thinking' do
+      before do
+        chunks.unshift(%({"message":{"role":"assistant","content":"","thinking":"hmm"},"done":false}\n))
+      end
+
+      it 'yields thinking too (for progress), but leaves it out of the output' do
+        expect(yielded_output).to eq [[['hmm', :thinking], [' lol', :content], ["\nno ", :content]], "lol\nno"]
+      end
     end
 
     describe 'prompt speed (for ETAs)' do

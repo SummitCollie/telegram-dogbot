@@ -47,13 +47,18 @@ class LocalInferenceApi
     end
 
     # `model_params` are merged into Ollama's `options` (e.g. temperature).
-    # Yields each piece of streamed output content, if given a block.
+    # Yields each piece of streamed output, if given a block, with its kind: :content, or :thinking
+    # (which isn't part of the returned output).
     def run_chat_completion(model:, messages:, model_params:)
       result = +''
       each_streamed_chunk('api/chat', chat_request_body(model, messages, model_params)) do |chunk|
         content = chunk.dig('message', 'content').to_s
+        thinking = chunk.dig('message', 'thinking').to_s
         result << content
-        yield content if block_given? && content.present?
+        if block_given?
+          yield thinking, :thinking if thinking.present?
+          yield content, :content if content.present?
+        end
         record_prompt_speed(chunk) if chunk['done']
       end
 

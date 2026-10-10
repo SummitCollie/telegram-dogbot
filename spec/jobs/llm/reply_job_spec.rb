@@ -446,89 +446,13 @@ RSpec.describe LLM::ReplyJob do
           expect(Telegram.bot).to have_received(:send_message).exactly(3).times # blank line skipped
         end
 
-        it 'pauses 1-3s before each follow-up message, but not the first' do
+        it 'pauses before each follow-up message, but not the first' do
           sleeps = []
           allow_any_instance_of(described_class).to receive(:sleep) { |_job, seconds| sleeps << seconds }
 
           described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
 
-          expect(sleeps.size).to eq 2
-          expect(sleeps).to all(be_between(1.0, 3.0))
-        end
-
-        it 'shows typing indicator before each follow-up message' do
-          described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
-
-          expect(Telegram.bot).to have_received(:send_chat_action)
-            .with(chat_id: chat.api_id, action: 'typing').twice
-        end
-
-        context 'when a message arrives while bot is "typing" follow-up messages' do
-          let(:other_user_cu) { create(:chat_user, chat:) }
-
-          # Simulates `message` being stored during the first pause between sent messages
-          def run_with_message_during_pause(&create_message)
-            sleeps = 0
-            allow_any_instance_of(described_class).to receive(:sleep) do
-              create_message.call if (sleeps += 1) == 1
-            end
-            described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
-          end
-
-          shared_examples 'interrupted' do
-            it 'stops sending, keeps only sent message in DB' do
-              expect(Telegram.bot).to have_received(:send_message).once
-              expect(Message.from_this_bot.pluck(:text)).to eq ['lol no']
-            end
-          end
-
-          context 'when from the user being replied to' do
-            before { run_with_message_during_pause { create(:message, chat_user: human_cu, text: 'wait what') } }
-
-            it_behaves_like 'interrupted'
-          end
-
-          context 'when mentioning the bot' do
-            before do
-              run_with_message_during_pause do
-                bot_username = Rails.application.credentials.telegram.bot.username
-                create(:message, chat_user: other_user_cu, text: "hey @#{bot_username.upcase} shut up")
-              end
-            end
-
-            it_behaves_like 'interrupted'
-          end
-
-          context "when replying to one of the bot's messages" do
-            before do
-              run_with_message_during_pause do
-                create(:message, chat_user: other_user_cu, reply_to_message: Message.from_this_bot.last)
-              end
-            end
-
-            it_behaves_like 'interrupted'
-          end
-
-          context 'when unrelated (another user talking to someone else)' do
-            before { run_with_message_during_pause { create(:message, chat_user: other_user_cu, text: 'anyway') } }
-
-            it 'sends all messages' do
-              expect(Telegram.bot).to have_received(:send_message).exactly(3).times
-            end
-          end
-        end
-
-        context 'when a message from the user being replied to arrived before the first message was sent' do
-          it 'sends all messages (bot was still generating, it had not "seen" it)' do
-            allow(LLMTools).to receive(:chat_completion) do
-              create(:message, chat_user: human_cu, text: 'hello??', date: Time.current)
-              LLMTools::Completion.new(text: multiline_text, split_replies: true)
-            end
-
-            described_class.perform_now(chat, TelegramTools.serialize_api_message(api_reply_to_human))
-
-            expect(Telegram.bot).to have_received(:send_message).exactly(3).times
-          end
+          expect(sleeps).to eq [described_class::SPLIT_MESSAGE_DELAY] * 2
         end
 
         context 'with split limits' do
@@ -551,13 +475,17 @@ RSpec.describe LLM::ReplyJob do
           end
 
           it 'splits lines of exactly MAX_SPLIT_LINE_LENGTH' do
-            lines = ['a' * described_class::MAX_SPLIT_LINE_LENGTH, 'short']
+            lines = ["#{'a' * (described_class::MAX_SPLIT_LINE_LENGTH - 2)} b", 'short line']
             expect(sent_texts(lines.join("\n"))).to eq lines
           end
 
           it 'does not split when any line is longer than MAX_SPLIT_LINE_LENGTH' do
-            text = "#{'a' * (described_class::MAX_SPLIT_LINE_LENGTH + 1)}\nshort"
+            text = "#{'a' * (described_class::MAX_SPLIT_LINE_LENGTH + 1)}\nshort line"
             expect(sent_texts(text)).to eq [text]
+          end
+
+          it 'joins lines into one message when any is a single word (one thought broken across lines)' do
+            expect(sent_texts("no\nwe just\n\nrun")).to eq ['no we just run']
           end
 
           ['- bones', '* bones', '• bones', '1. bones', '2) bones'].each do |list_item|
@@ -765,24 +693,27 @@ RSpec.describe LLM::ReplyJob do
         (1..count).map { |i| create(:message, chat_user: human_cu, date: 1.day.ago + i.seconds) }
       end
 
+      let(:min) { described_class::CONTEXT_MIN_MESSAGES }
+      let(:step) { described_class::CONTEXT_STEP }
+
       it 'includes all messages while there are fewer than CONTEXT_MIN_MESSAGES + CONTEXT_STEP' do
-        history = create_history(149)
+        history = create_history(min + step - 1)
         mention = create(:message, chat_user: human_cu, date: Time.current)
 
         ids = user_turn_ids(reply_to(mention).last)
 
-        expect(ids.size).to eq 150
+        expect(ids.size).to eq min + step
         expect(ids.first).to eq history.first.api_id
       end
 
       it 'moves window start forward by CONTEXT_STEP once enough messages accumulate' do
-        history = create_history(150)
+        history = create_history(min + step)
         mention = create(:message, chat_user: human_cu, date: Time.current)
 
         ids = user_turn_ids(reply_to(mention).last)
 
-        expect(ids.size).to eq 101
-        expect(ids.first).to eq history[50].api_id
+        expect(ids.size).to eq min + 1
+        expect(ids.first).to eq history[step].api_id
       end
     end
   end
