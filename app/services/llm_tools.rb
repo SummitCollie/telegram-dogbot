@@ -3,7 +3,10 @@
 class LLMTools
   # The LLM about to generate a completion. Passed to callable system prompts, so they can adapt to it.
   # split_replies: model tends to "double-text", so chat replies (only) are sent as separate messages per line
-  Provider = Data.define(:model, :self_hosted, :split_replies)
+  # vision: model can see images (messages' `images`)
+  Provider = Data.define(:model, :self_hosted, :split_replies, :vision) do
+    def initialize(vision: false, **) = super
+  end
 
   # Output text, plus per-model settings of whichever provider generated it
   Completion = Data.define(:text, :split_replies)
@@ -29,7 +32,8 @@ class LLMTools
 
     # Uses the self-hosted LLM if it's up, otherwise (or if it fails) `llm_api_provider`.
     # - system_prompt: String, or callable taking the Provider about to be used (called again on fallback)
-    # - messages: conversation turns following the system prompt
+    # - messages: conversation turns following the system prompt. Ones with `images` (base64 strings) are
+    #   image-only, e.g. "Image in #123:", and are left out for providers that can't see images.
     # - progress: optional LLMProgress, told which provider is used and about each piece of output
     def chat_completion(system_prompt:, messages:, model_params: {}, progress: nil)
       local_chat_completion(system_prompt:, messages:, model_params:, progress:) ||
@@ -58,7 +62,8 @@ class LLMTools
       model = LocalInferenceApi.available_model
       return unless model
 
-      provider = Provider.new(model:, self_hosted: true, split_replies: LocalInferenceApi.config&.split_replies == true)
+      provider = Provider.new(model:, self_hosted: true, split_replies: LocalInferenceApi.config&.split_replies == true,
+                              vision: LocalInferenceApi.vision?)
       messages = full_messages(system_prompt, messages, provider)
       progress&.llm_started(provider, messages)
       text = LocalInferenceApi.run_chat_completion(model:, messages:, model_params:) do |output, kind|
@@ -84,6 +89,8 @@ class LLMTools
 
     def full_messages(system_prompt, messages, provider)
       system_prompt = system_prompt.call(provider) if system_prompt.respond_to?(:call)
+
+      messages = messages.reject { |m| m[:images] } unless provider.vision
 
       [
         { role: 'system', content: system_prompt.strip },

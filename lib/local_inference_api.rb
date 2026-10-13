@@ -37,6 +37,12 @@ class LocalInferenceApi
       end
     end
 
+    # Whether the model from `available_model` can see images (Ollama's `vision` capability, which
+    # GGUF models from Hugging Face get when their repo has an mmproj file)
+    def vision?
+      MUTEX.synchronize { @vision } || false
+    end
+
     # Called when a request to the local server fails, so subsequent requests
     # go straight to the fallback until the next probe
     def mark_unavailable!(error)
@@ -46,12 +52,14 @@ class LocalInferenceApi
       end
     end
 
-    # `model_params` are merged into Ollama's `options` (e.g. temperature).
+    # `model_params` are merged into Ollama's `options` (e.g. temperature), and `request_params` override
+    # `local_llm.request_params` (e.g. { think: false }). Messages may have `images` (base64 strings).
     # Yields each piece of streamed output, if given a block, with its kind: :content, or :thinking
     # (which isn't part of the returned output).
-    def run_chat_completion(model:, messages:, model_params:)
+    def run_chat_completion(model:, messages:, model_params:, request_params: {})
       result = +''
-      each_streamed_chunk('api/chat', chat_request_body(model, messages, model_params)) do |chunk|
+      body = chat_request_body(model, messages, model_params, request_params)
+      each_streamed_chunk('api/chat', body) do |chunk|
         content = chunk.dig('message', 'content').to_s
         thinking = chunk.dig('message', 'thinking').to_s
         result << content
@@ -83,6 +91,7 @@ class LocalInferenceApi
     def reset!
       MUTEX.synchronize do
         @model = nil
+        @vision = nil
         @checked_at = nil
         @prompt_tokens_per_second = nil
       end
@@ -91,11 +100,11 @@ class LocalInferenceApi
     private
 
     # `local_llm.request_params` holds model-specific Ollama params, e.g. { think: false, options: { num_ctx: ... } }
-    def chat_request_body(model, messages, model_params)
+    def chat_request_body(model, messages, model_params, request_params)
       params = config.request_params.to_h.deep_symbolize_keys
       options = { **params.fetch(:options, {}), **model_params }
 
-      { **params, model:, messages:, stream: true, options: }
+      { **params, **request_params, model:, messages:, stream: true, options: }
     end
 
     # Yields each parsed line of Ollama's streamed (newline-delimited JSON) response
@@ -145,17 +154,18 @@ class LocalInferenceApi
       end
     end
 
+    # Matching installed model's info ({ 'name', 'capabilities', ... }), or nil
     def probe_model
       body = JSON.parse(connection(timeout: PROBE_TIMEOUT).get('api/tags').body)
       models = body.is_a?(Hash) ? Array(body['models']) : []
 
-      models.filter_map { |m| m['name'] if m.is_a?(Hash) }
-            .find { |name| name.is_a?(String) && name.include?(config.model_match) }
+      models.find { |m| m.is_a?(Hash) && m['name'].is_a?(String) && m['name'].include?(config.model_match) }
     rescue Faraday::Error, JSON::ParserError
       nil
     end
 
-    def update_model(model)
+    def update_model(model_info)
+      model = model_info&.dig('name')
       if model != @model
         TelegramTools.logger.info(
           model ? "Local LLM available, switching to: #{model}" : 'Local LLM unavailable, switching to fallback provider'
@@ -163,6 +173,7 @@ class LocalInferenceApi
       end
 
       @model = model
+      @vision = Array(model_info&.dig('capabilities')).include?('vision')
       @checked_at = Time.current
     end
   end

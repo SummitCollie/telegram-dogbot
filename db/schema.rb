@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_10_23_051322) do
+ActiveRecord::Schema[7.1].define(version: 2026_10_13_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -51,13 +51,22 @@ ActiveRecord::Schema[7.1].define(version: 2024_10_23_051322) do
     t.integer "api_id", null: false
     t.bigint "reply_to_message_id"
     t.bigint "chat_user_id", null: false
-    t.integer "attachment_type", comment: "0=animation 1=audio 2=document 3=photo 4=video 5=voice"
+    t.integer "attachment_type", comment: "0=animation 1=audio 2=document 3=photo 4=video 5=voice 6=sticker"
     t.datetime "date"
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "sticker_file_unique_id"
     t.index ["chat_user_id"], name: "index_messages_on_chat_user_id"
     t.index ["reply_to_message_id"], name: "index_messages_on_reply_to_message_id"
+  end
+
+  create_table "sticker_descriptions", force: :cascade do |t|
+    t.string "file_unique_id", null: false
+    t.string "description", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["file_unique_id"], name: "index_sticker_descriptions_on_file_unique_id", unique: true
   end
 
   create_table "users", force: :cascade do |t|

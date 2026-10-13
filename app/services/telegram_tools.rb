@@ -7,6 +7,12 @@ class TelegramTools
   COLLAPSE_MAX_LINES = 5
   COLLAPSE_MAX_CHARS = 500
 
+  # Largest photo dimension to download for vision models. Telegram has each photo in several sizes,
+  # up to 2560px. Vision tokens scale with pixels (~1.2k tokens at 1280x960), and 1280px keeps
+  # screenshot text readable.
+  MAX_IMAGE_SIZE = 1280
+  DOWNLOAD_TIMEOUT = 30 # seconds
+
   class << self
     def logger
       @logger ||= Logger.new(
@@ -65,6 +71,40 @@ class TelegramTools
       Message.attachment_types.keys.find { |type| !!api_message[type] }
     end
 
+    # file_id of a still image showing the message's photo or sticker, or nil if it has neither.
+    # Animated (.tgs) and video (.webm) stickers aren't images, so their thumbnails are used instead.
+    def image_file_id(api_message)
+      if (photo = api_message.try(:photo).presence)
+        photo_size_to_download(photo).file_id
+      elsif (sticker = api_message.try(:sticker))
+        sticker.is_animated || sticker.is_video ? sticker.thumbnail&.file_id : sticker.file_id
+      end
+    end
+
+    # Largest within MAX_IMAGE_SIZE, or the smallest if none are
+    def photo_size_to_download(photo_sizes)
+      pixels = ->(size) { size.width.to_i * size.height.to_i }
+      fitting = photo_sizes.select { |size| [size.width.to_i, size.height.to_i].max <= MAX_IMAGE_SIZE }
+
+      fitting.max_by(&pixels) || photo_sizes.min_by(&pixels)
+    end
+
+    # Contents of a file sent to the bot (up to 20MB, Telegram's limit for bots)
+    # https://core.telegram.org/bots/api#getfile
+    def download_file(file_id)
+      response = Telegram.bot.async(false) { Telegram.bot.get_file(file_id:) }
+      file_path = response.dig('result', 'file_path') if response.is_a?(Hash)
+      raise Telegram::Bot::Error, "No file_path for file_id=#{file_id}" if file_path.blank?
+
+      # The download URL contains the bot token, so mustn't end up in logs or error messages
+      Faraday.new(url: "#{Telegram::Bot::Client::SERVER}/file/bot#{Telegram.bot.token}/",
+                  request: { timeout: DOWNLOAD_TIMEOUT }) { |f| f.response :raise_error }
+             .get(file_path).body
+    rescue Faraday::Error => e
+      raise Telegram::Bot::Error, "Couldn't download file_id=#{file_id} (#{e.class}, HTTP #{e.response_status})",
+            cause: nil # its response has the URL
+    end
+
     def strip_bot_command(command_name, str)
       str.gsub(%r{^/#{command_name}(\S?)+}, '').strip
     end
@@ -77,18 +117,20 @@ class TelegramTools
         from: {
           first_name: message.from.first_name,
           username: message.from.username
-        }
+        },
+        image_file_id: image_file_id(message)
       }
 
       if message.reply_to_message.present?
         serialized[:reply_to_message] = {
           message_id: message.reply_to_message.message_id,
-          text: message.reply_to_message.text,
+          text: TelegramTools.extract_message_text(message.reply_to_message),
           date: message.reply_to_message.date,
           from: {
             first_name: message.reply_to_message.from.first_name,
             username: message.reply_to_message.from.username
-          }
+          },
+          image_file_id: image_file_id(message.reply_to_message)
         }
       end
 

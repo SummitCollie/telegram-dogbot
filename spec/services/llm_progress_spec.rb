@@ -96,6 +96,12 @@ RSpec.describe LLMProgress do
         ]
       end
 
+      it 'counts images in the estimated prompt size' do
+        progress.llm_started(cloud_provider, [*prompt, { role: 'user', content: '', images: %w[a b] }], now: t0 + 1)
+
+        expect(lines(t0 + 6)[1]).to eq '⏳ Read messages · ~3k tokens'
+      end
+
       it 'shows output tokens and speed while writing' do
         progress.llm_output('a', now: t0 + 7)
         20.times { progress.llm_output('b', now: t0 + 8) }

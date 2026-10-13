@@ -109,6 +109,41 @@ RSpec.describe LLMTools do
     end
   end
 
+  describe '.chat_completion with image messages' do
+    let(:image_message) { { role: 'user', content: 'Image in #2:', images: ['base64'] } }
+    let(:messages) { [{ role: 'user', content: '#1 a: hi' }, image_message, { role: 'user', content: '#2 b: look' }] }
+    let(:text_messages) { [{ role: 'system', content: 'sys' }, messages.first, messages.last] }
+
+    before { allow(LocalInferenceApi).to receive(:available_model).and_return 'local-model' }
+
+    it 'sends images to a local model with vision' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return true
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(LocalInferenceApi).to have_received(:run_chat_completion)
+        .with(hash_including(messages: [{ role: 'system', content: 'sys' }, *messages]))
+    end
+
+    it 'leaves image messages out for a local model without vision' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return false
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(LocalInferenceApi).to have_received(:run_chat_completion).with(hash_including(messages: text_messages))
+    end
+
+    it 'leaves image messages out on fallback to the cloud provider' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return true
+      allow(LocalInferenceApi).to receive(:run_chat_completion).and_raise Faraday::ConnectionFailed
+      allow(LocalInferenceApi).to receive(:mark_unavailable!)
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(GenericInferenceApi).to have_received(:run_chat_completion).with(messages: text_messages, model_params: {})
+    end
+  end
+
   describe '.chat_completion with progress' do
     let(:progress) { instance_double(LLMProgress, llm_started: nil, llm_thinking: nil, llm_output: nil) }
 

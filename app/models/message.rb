@@ -1,12 +1,15 @@
 # frozen_string_literal: true
 
 class Message < ApplicationRecord
-  enum :attachment_type, { animation: 0, audio: 1, document: 2, photo: 3, video: 4, voice: 5 }
+  enum :attachment_type, { animation: 0, audio: 1, document: 2, photo: 3, video: 4, voice: 5, sticker: 6 }
 
   before_create :stub_api_id_for_own_messages
 
   belongs_to :chat_user, counter_cache: :num_stored_messages # increment counter on create
   belongs_to :reply_to_message, class_name: 'Message', optional: true, inverse_of: :replies
+  # Only once a vision model has described the sticker
+  belongs_to :sticker_description, foreign_key: :sticker_file_unique_id, primary_key: :file_unique_id,
+                                   optional: true, inverse_of: false
   has_many :replies, class_name: 'Message', foreign_key: :reply_to_message_id,
                      dependent: :nullify, inverse_of: :reply_to_message
   has_one :chat, through: :chat_user

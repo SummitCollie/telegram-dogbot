@@ -19,8 +19,22 @@ RSpec.describe TelegramTools do
         from: {
           first_name: api_message.from.first_name,
           username: api_message.from.username
-        }
+        },
+        image_file_id: nil
       }.to_json)
+    end
+
+    it "serializes file_id of the message's image, and of the one it replies to" do
+      replied_message = Telegram::Bot::Types::Message.new(default_message_options.merge(sticker_message_options))
+      api_message = Telegram::Bot::Types::Message.new(
+        default_message_options.merge(photo: [{ file_id: 'photo_file_id', width: 800, height: 600 }],
+                                      reply_to_message: replied_message)
+      )
+
+      result = JSON.parse(described_class.serialize_api_message(api_message))
+
+      expect(result['image_file_id']).to eq 'photo_file_id'
+      expect(result.dig('reply_to_message', 'image_file_id')).to eq 'sticker_file_id'
     end
 
     context 'when api message is a sticker' do
@@ -77,9 +91,103 @@ RSpec.describe TelegramTools do
           from: {
             first_name: replied_message.from.first_name,
             username: replied_message.from.username
-          }
+          },
+          image_file_id: nil
         }.deep_stringify_keys)
       end
+
+      it "serializes reply_to_message's caption as its text" do
+        replied_message = Telegram::Bot::Types::Message.new(default_message_options.merge(photo_message_options))
+        api_message = Telegram::Bot::Types::Message.new(
+          default_message_options.merge(reply_to_message: replied_message)
+        )
+
+        result = JSON.parse(described_class.serialize_api_message(api_message))
+
+        expect(result.dig('reply_to_message', 'text')).to eq photo_message_options[:caption]
+      end
+    end
+  end
+
+  describe '#image_file_id' do
+    def message_with(**options)
+      Telegram::Bot::Types::Message.new(default_message_options.merge(options))
+    end
+
+    it 'picks the largest photo size within MAX_IMAGE_SIZE' do
+      photo = [
+        { file_id: 'small', width: 90, height: 67 },
+        { file_id: 'large', width: 1280, height: 960 },
+        { file_id: 'huge', width: 2560, height: 1920 },
+        { file_id: 'medium', width: 800, height: 600 }
+      ]
+
+      expect(described_class.image_file_id(message_with(photo:))).to eq 'large'
+    end
+
+    it 'picks the smallest photo size when none fit within MAX_IMAGE_SIZE' do
+      photo = [{ file_id: 'huge', width: 2560, height: 1920 }, { file_id: 'tall', width: 1000, height: 1500 }]
+
+      expect(described_class.image_file_id(message_with(photo:))).to eq 'tall'
+    end
+
+    it "uses static stickers' own file" do
+      sticker = { file_id: 'webp', file_unique_id: 'u', is_animated: false, is_video: false }
+
+      expect(described_class.image_file_id(message_with(sticker:))).to eq 'webp'
+    end
+
+    [{ is_animated: true }, { is_video: true }].each do |kind|
+      it "uses the thumbnail of #{kind.keys.first.to_s.delete_prefix('is_')} stickers" do
+        sticker = { file_id: 'not_an_image', file_unique_id: 'u', thumbnail: { file_id: 'thumb' }, **kind }
+
+        expect(described_class.image_file_id(message_with(sticker:))).to eq 'thumb'
+      end
+    end
+
+    it 'is nil for animated stickers without a thumbnail' do
+      sticker = { file_id: 'tgs', file_unique_id: 'u', is_animated: true }
+
+      expect(described_class.image_file_id(message_with(sticker:))).to be_nil
+    end
+
+    it 'is nil without photo or sticker' do
+      expect(described_class.image_file_id(message_with(text: 'hi', **video_message_options))).to be_nil
+    end
+  end
+
+  describe '#download_file' do
+    let(:conn) { instance_double(Faraday::Connection) }
+    let(:get_file_response) { { 'ok' => true, 'result' => { 'file_path' => 'photos/file_1.jpg' } } }
+    let!(:bot) { stub_telegram_bot(token: 'BOT_TOKEN', get_file: get_file_response) }
+
+    before do
+      allow(Faraday).to receive(:new).and_return conn
+      allow(conn).to receive(:get).with('photos/file_1.jpg')
+                                  .and_return instance_double(Faraday::Response, body: 'jpeg bytes')
+    end
+
+    it "downloads the file from Telegram's file server, looking up its path synchronously" do
+      expect(described_class.download_file('file_id')).to eq 'jpeg bytes'
+      expect(bot).to have_received(:async).with(false)
+      expect(bot).to have_received(:get_file).with(file_id: 'file_id')
+      expect(Faraday).to have_received(:new).with(hash_including(url: 'https://api.telegram.org/file/botBOT_TOKEN/'))
+    end
+
+    it 'raises Telegram::Bot::Error without the bot token when the download fails' do
+      allow(conn).to receive(:get).and_raise Faraday::ResourceNotFound.new('not found', { status: 404 })
+
+      expect { described_class.download_file('file_id') }.to raise_error(Telegram::Bot::Error) { |e|
+        expect(e.message).to include('file_id=file_id', '404')
+        expect(e.message).not_to include 'BOT_TOKEN'
+        expect(e.cause).to be_nil
+      }
+    end
+
+    it 'raises Telegram::Bot::Error when Telegram returns no file path' do
+      allow(bot).to receive(:get_file).and_return({ 'ok' => true, 'result' => {} })
+
+      expect { described_class.download_file('file_id') }.to raise_error Telegram::Bot::Error, /No file_path/
     end
   end
 

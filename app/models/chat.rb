@@ -9,6 +9,12 @@ class Chat < ApplicationRecord
   has_many :users, through: :chat_users
   has_many :messages, through: :chat_users
 
+  # Whether the bot may look at images (photos, stickers) sent in this chat.
+  # Independent of the general chat whitelist.
+  def vision_enabled?
+    Rails.application.credentials.vision_chat_id_whitelist&.include?(api_id) || false
+  end
+
   def summarize_job_running?
     chat_summaries.exists?(status: :running)
   end

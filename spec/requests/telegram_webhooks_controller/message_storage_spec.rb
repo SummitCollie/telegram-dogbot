@@ -160,6 +160,42 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message1.reload.text).to eq "#{emoji} (#{Unicode::Name.of(emoji).downcase})"
       end
 
+      describe 'sticker messages' do
+        let(:options) do
+          default_message_options.merge(
+            sticker: { file_id: 'sticker_file_id', file_unique_id: 'sticker_uid', emoji: '🙂' }
+          )
+        end
+        let(:vision_chats) { [12345] }
+
+        before { allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats }
+
+        it "saves them as stickers, with the sticker's file_unique_id" do
+          dispatch_message nil, options
+
+          expect(Message.last).to have_attributes(attachment_type: 'sticker', sticker_file_unique_id: 'sticker_uid')
+        end
+
+        it 'queues describing new stickers' do
+          expect { dispatch_message nil, options }
+            .to have_enqueued_job(LLM::DescribeStickerJob).with('sticker_uid', 'sticker_file_id', '🙂')
+        end
+
+        it 'does not queue describing stickers that already have a description' do
+          StickerDescription.create!(file_unique_id: 'sticker_uid', description: 'a smiling dog')
+
+          expect { dispatch_message nil, options }.not_to have_enqueued_job(LLM::DescribeStickerJob)
+        end
+
+        context 'when chat does not have vision enabled' do
+          let(:vision_chats) { [999] }
+
+          it 'does not queue describing them' do
+            expect { dispatch_message nil, options }.not_to have_enqueued_job(LLM::DescribeStickerJob)
+          end
+        end
+      end
+
       it 'saves messages from other bots' do
         expect do
           dispatch_message 'text', { from: Telegram::Bot::Types::User.new(

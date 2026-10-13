@@ -119,6 +119,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   def message(message)
     authorize_message_storage!(message)
     store_message(message)
+    describe_new_sticker(message)
     reply_when_mentioned(message) if bot_mentioned? || replied_to_bot?
   end
 
@@ -143,6 +144,16 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     return @db_chat if defined?(@db_chat)
 
     @db_chat = Chat.find_by(api_id: chat&.id)
+  end
+
+  # Stickers are described as they're sent, rather than when replying, so replies don't wait on it
+  def describe_new_sticker(message)
+    sticker = message.sticker
+    return unless sticker && db_chat.vision_enabled?
+    return if StickerDescription.exists?(file_unique_id: sticker.file_unique_id)
+
+    image_file_id = TelegramTools.image_file_id(message)
+    LLM::DescribeStickerJob.perform_later(sticker.file_unique_id, image_file_id, sticker.emoji) if image_file_id
   end
 
   def reply_when_mentioned(message)

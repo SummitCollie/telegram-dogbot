@@ -60,6 +60,7 @@ class TelegramWebhooksController
 
       attachment_type = TelegramTools.attachment_type(message)
       db_message.attachment_type = attachment_type.to_sym if attachment_type
+      db_message.sticker_file_unique_id = message.try(:sticker)&.file_unique_id
 
       db_message.reply_to_message_id = db_chat.messages.find_by(
         api_id: message.reply_to_message&.message_id
