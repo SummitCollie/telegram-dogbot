@@ -160,38 +160,47 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message1.reload.text).to eq "#{emoji} (#{Unicode::Name.of(emoji).downcase})"
       end
 
-      describe 'sticker messages' do
-        let(:options) do
-          default_message_options.merge(
-            sticker: { file_id: 'sticker_file_id', file_unique_id: 'sticker_uid', emoji: '🙂' }
-          )
-        end
+      describe 'images' do
+        let(:sticker) { { file_id: 'sticker_file_id', file_unique_id: 'sticker_uid', emoji: '🙂' } }
+        let(:photo) { [{ file_id: 'small', width: 90, height: 67 }, { file_id: 'medium', width: 800, height: 600 }] }
         let(:vision_chats) { [12345] }
 
         before { allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats }
 
-        it "saves them as stickers, with the sticker's file_unique_id" do
-          dispatch_message nil, options
+        it 'saves photos (even without a caption) as pending description, and queues describing them' do
+          expect { dispatch_message nil, default_message_options.merge(photo:, media_group_id: 'album') }
+            .to have_enqueued_job(LLM::DescribeImageJob)
 
-          expect(Message.last).to have_attributes(attachment_type: 'sticker', sticker_file_unique_id: 'sticker_uid')
+          expect(LLM::DescribeImageJob).to have_been_enqueued.with(Message.last.id)
+          expect(Message.last).to have_attributes(attachment_type: 'photo', image_file_id: 'medium', text: nil,
+                                                  image_status: 'pending', media_group_id: 'album')
         end
 
-        it 'queues describing new stickers' do
-          expect { dispatch_message nil, options }
-            .to have_enqueued_job(LLM::DescribeStickerJob).with('sticker_uid', 'sticker_file_id', '🙂')
+        it "saves stickers with their file_unique_id, for looking up their description if they've been sent before" do
+          expect { dispatch_message nil, default_message_options.merge(sticker:) }
+            .to have_enqueued_job(LLM::DescribeImageJob)
+
+          expect(Message.last).to have_attributes(attachment_type: 'sticker', image_file_id: 'sticker_file_id',
+                                                  sticker_file_unique_id: 'sticker_uid', image_status: 'pending')
         end
 
-        it 'does not queue describing stickers that already have a description' do
-          StickerDescription.create!(file_unique_id: 'sticker_uid', description: 'a smiling dog')
-
-          expect { dispatch_message nil, options }.not_to have_enqueued_job(LLM::DescribeStickerJob)
+        it 'does not queue messages without images' do
+          expect { dispatch_message 'text' }.not_to have_enqueued_job(LLM::DescribeImageJob)
+          expect(Message.last.image_status).to be_nil
         end
 
         context 'when chat does not have vision enabled' do
           let(:vision_chats) { [999] }
 
-          it 'does not queue describing them' do
-            expect { dispatch_message nil, options }.not_to have_enqueued_job(LLM::DescribeStickerJob)
+          it 'does not save their images or queue describing them' do
+            expect { dispatch_message 'caption', default_message_options.merge(photo:) }
+              .not_to have_enqueued_job(LLM::DescribeImageJob)
+
+            expect(Message.last).to have_attributes(attachment_type: 'photo', image_file_id: nil, image_status: nil)
+          end
+
+          it 'does not save photos without a caption' do
+            expect { dispatch_message nil, default_message_options.merge(photo:) }.not_to change(Message, :count)
           end
         end
       end

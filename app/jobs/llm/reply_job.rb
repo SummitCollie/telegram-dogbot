@@ -11,6 +11,10 @@ module LLM
     # Max length of the quote shown in `reply_to` for replies to this bot's messages
     REPLY_QUOTE_LENGTH = 50
 
+    # Albums arrive as separate messages, the caption (which may mention the bot) usually on the first,
+    # so the rest may still be on their way
+    ALBUM_WAIT = 2 # seconds
+
     # For models with `split_replies: true`
     MAX_SPLIT_MESSAGES = 3
     MAX_SPLIT_LINE_LENGTH = 200
@@ -27,12 +31,14 @@ module LLM
       api_message = TelegramTools.deserialize_api_message(serialized_message)
       db_message = @db_chat.messages.find_by(api_id: api_message.message_id)
 
-      # Messages sent before bot was mentioned, plus the message which mentioned the bot
-      window = [*past_messages(db_message), db_message]
-
       LLMProgress.track(@db_chat, label: 'a reply', reply_to: db_message,
                                   requester: db_message.user.api_id) do |progress|
-        completion = llm_generate_reply(window, api_message, progress)
+        # Messages sent before bot was mentioned, plus the message which mentioned the bot
+        window = [*past_messages(db_message), *rest_of_album(db_message), db_message].uniq
+        reply_target = out_of_window_reply_target(window, api_message)
+        look_at_images([*window, reply_target], progress)
+
+        completion = llm_generate_reply(window, reply_target, progress)
         output_messages = completion.split_replies ? split_reply(completion.text) : [completion.text]
         # Reply replaces the progress message (if shown)
         send_output_messages(output_messages, reply_to: db_message, replace_message_id: progress.handover)
@@ -46,59 +52,36 @@ module LLM
     end
 
     # Chat history as alternating turns: other users' messages in `user` turns, one per line like
-    # `#123 Name (@username) [photo] replying to #122: text`, and this bot's own messages as `assistant` turns.
-    # Every message must render identically between replies (to keep the prompt prefix cacheable),
-    # so this only depends on the DB contents of `window` -- except for `extra_reply_target` and `images`
-    # (image-only messages, see #image_messages), which only affect the latest message.
-    def conversation(window, extra_reply_target = nil, images = [])
+    # `#123 Name (@username) [photo: a dog] replying to #122: text`, and this bot's own messages as `assistant`
+    # turns. Every message must render identically between replies (to keep the prompt prefix cacheable),
+    # so this only depends on the DB contents of `window` -- except for `extra_reply_target`.
+    def conversation(window, extra_reply_target = nil)
       turns = order_for_conversation(window).chunk_while { |a, b| a.from_this_bot? == b.from_this_bot? }
 
       turns.flat_map do |turn_messages|
         if turn_messages.first.from_this_bot?
           [{ role: 'assistant', content: turn_messages.map(&:text).join("\n") }]
-        elsif turn_messages.last == window.last
-          user_turn(window, turn_messages, extra_reply_target, images)
         else
-          user_turn(window, turn_messages)
+          user_turn(window, turn_messages, (extra_reply_target if turn_messages.last == window.last))
         end
       end
     end
 
     private
 
-    # One message, unless there are images: models can't tell where images are within a message
-    # (they all go at its start), so each gets its own message, right before the latest chat message
-    def user_turn(window, turn_messages, extra_reply_target = nil, images = [])
+    # One message, unless there are photos: Ollama puts a message's images before all of its text (so models
+    # can't tell which line each goes with), so each line with a photo starts a new message, with its photo.
+    def user_turn(window, turn_messages, extra_reply_target)
       entries = turn_messages.map { |m| db_message_entry(window, m) }
       if extra_reply_target
         # Insert message being replied to above the last message
-        entries.insert(-2, api_message_entry(extra_reply_target))
+        entries.insert(-2, reply_target_entry(window, extra_reply_target))
         entries.last[:reply_to] = "##{entries[-2][:id]}"
       end
-      lines = entries.map { |e| LLMTools.chat_log_line(**e) }
-      return [{ role: 'user', content: lines.join("\n") }] if images.empty?
 
-      [
-        ({ role: 'user', content: lines[...-1].join("\n") } if lines.size > 1),
-        *images,
-        { role: 'user', content: lines.last }
-      ].compact
-    end
-
-    # Photos/stickers in the message being replied to, and in the message it replies to, as image-only messages
-    # (see LLMTools.chat_completion). Images elsewhere in the chat aren't sent: each costs up to ~1k tokens.
-    # Stickers are described in text instead (see #attachment_label).
-    def image_messages(api_message)
-      return [] unless @db_chat.vision_enabled?
-
-      [api_message.reply_to_message, api_message].compact.filter_map do |message|
-        next if message.image_file_id.blank?
-
-        image = Base64.strict_encode64(TelegramTools.download_file(message.image_file_id))
-        { role: 'user', content: "Image in ##{message.message_id}:", images: [image] }
-      rescue Telegram::Bot::Error => e
-        TelegramTools.logger.warn("Leaving image out of reply prompt: #{e.message}")
-        nil
+      entries.slice_before { |e| e[:image] }.map do |chunk|
+        content = chunk.map { |e| LLMTools.chat_log_line(**e.except(:image)) }.join("\n")
+        { role: 'user', content:, images: ([chunk.first[:image]] if chunk.first[:image]) }.compact
       end
     end
 
@@ -110,24 +93,45 @@ module LLM
       )
       offset = [((scope.count - CONTEXT_MIN_MESSAGES) / CONTEXT_STEP) * CONTEXT_STEP, 0].max
 
-      scope.includes(:user, :sticker_description, reply_to_message: :user)
-           .references(:user, :message)
-           .order(:date, :id)
-           .offset(offset)
-           .to_a
+      with_associations(scope).order(:date, :id).offset(offset).to_a
     end
 
-    def llm_generate_reply(window, api_message, progress)
+    def rest_of_album(db_message)
+      return [] if db_message.media_group_id.blank?
+
+      sleep ALBUM_WAIT
+      with_associations(@db_chat.messages.where(media_group_id: db_message.media_group_id).where.not(id: db_message.id))
+        .order(:date, :id).to_a
+    end
+
+    def with_associations(scope)
+      scope.includes(:user, :image, reply_to_message: :user).references(:user, :message)
+    end
+
+    # Waits for descriptions of images in the prompt, so messages render the same in this and later prompts
+    # (keeping them cacheable). Only worth it when the self-hosted model, which also sees photos, is up.
+    def look_at_images(messages, progress)
+      return unless @db_chat.vision_enabled? && LocalInferenceApi.available_model.present? && LocalInferenceApi.vision?
+
+      pending_ids = ImageDescriptions.request(messages)
+      return if pending_ids.empty?
+
+      progress.viewing_images(pending_ids.size)
+      ImageDescriptions.wait_for(pending_ids) { |left| progress.images_left(left) }
+      messages.grep(Message).each { |m| m.reload if pending_ids.include?(m.id) }
+    end
+
+    def llm_generate_reply(window, reply_target, progress)
       # Callable: the prompt depends on which model ends up generating the reply
       system_prompt = lambda do |provider|
         "#{LLMTools.reply_prompt(provider)}\nChatroom title: #{@db_chat.title}".tap do |prompt|
           TelegramTools.logger.debug("### System prompt (#{provider.model}):\n#{prompt}")
         end
       end
-      messages = conversation(window, out_of_window_reply_target(window, api_message), image_messages(api_message))
+      messages = conversation(window, reply_target)
 
-      TelegramTools.logger.debug("\n##### Reply to message:\n" \
-                                 "### Messages:\n#{messages.map { |m| "[#{m[:role]}]\n#{m[:content]}" }.join("\n")}")
+      log = messages.map { |m| "[#{m[:role]}#{' +image' if m[:images]}]\n#{m[:content]}" }.join("\n")
+      TelegramTools.logger.debug("\n##### Reply to message:\n### Messages:\n#{log}")
 
       output = LLMTools.chat_completion(system_prompt:, messages:, progress:)
 
@@ -152,16 +156,21 @@ module LLM
       others.flat_map { |m| [m, *replies_by_target[m]] }
     end
 
-    # If the message being replied to isn't within the window, it needs to be copied into the prompt from
-    # the API message: it may not be in the DB at all (the nightly purge deletes messages older than 2 days,
-    # and ones sent while the bot wasn't around were never stored). Not needed for replies to this bot's
-    # messages, which are quoted in `replying to you ("...")`.
+    # If the message being replied to isn't within the window, it needs to be copied into the prompt: from the
+    # DB if it's older than the window, otherwise from the API message, as it may not be in the DB at all (the
+    # nightly purge deletes messages older than 2 days, and ones sent while the bot wasn't around were never
+    # stored). Not needed for replies to this bot's messages, which are quoted in `replying to you ("...")`.
     def out_of_window_reply_target(window, api_message)
-      reply_to_message = api_message&.reply_to_message
-      return if reply_to_message.blank? || window.last.reply_to_message&.from_this_bot?
-      return if window.any? { |m| m.api_id == reply_to_message.message_id }
+      return if api_message&.reply_to_message.blank?
 
-      reply_to_message
+      stored = window.last.reply_to_message
+      return if stored && (stored.from_this_bot? || window.include?(stored))
+
+      stored || api_message.reply_to_message
+    end
+
+    def reply_target_entry(window, message)
+      message.is_a?(Message) ? db_message_entry(window, message) : api_message_entry(message)
     end
 
     def db_message_entry(window, message)
@@ -169,7 +178,8 @@ module LLM
         id: message.api_id,
         user: "#{message.user.first_name} (@#{message.user.username})",
         text: message.text,
-        attachment: attachment_label(message)
+        attachment: message.attachment_label,
+        image: prompt_image(message)
       }
 
       reply_to = message.reply_to_message
@@ -182,10 +192,11 @@ module LLM
       entry
     end
 
-    # e.g. `photo`, or `sticker: a shiba inu shrugging` once the sticker has been described
-    def attachment_label(message)
-      description = message.sticker_description&.description if @db_chat.vision_enabled?
-      description ? "#{message.attachment_type}: #{description}" : message.attachment_type
+    # Photos are shown to models with vision (see LLMTools.chat_completion), the rest only described
+    def prompt_image(message)
+      return unless @db_chat.vision_enabled? && message.photo? && message.image
+
+      Base64.strict_encode64(message.image.data)
     end
 
     def api_message_entry(message)
@@ -193,11 +204,22 @@ module LLM
         id: message.message_id,
         user: "#{message.from.first_name} (@#{message.from.username})",
         text: message.text,
-        attachment: TelegramTools.attachment_type(message)
+        attachment: message.attachment_type,
+        image: api_message_image(message)
       }
 
       entry[:reply_to] = "##{message.reply_to_message.message_id}" if message.reply_to_message.present?
       entry
+    end
+
+    # Image of a message not in the DB (so not described), which only goes in this prompt
+    def api_message_image(message)
+      return unless @db_chat.vision_enabled? && message.image_file_id.present?
+
+      Base64.strict_encode64(TelegramTools.download_file(message.image_file_id))
+    rescue Telegram::Bot::Error => e
+      TelegramTools.logger.warn("Leaving image out of reply prompt: #{e.message}")
+      nil
     end
 
     # Sends each line as a separate message, like a human double/triple-texting.

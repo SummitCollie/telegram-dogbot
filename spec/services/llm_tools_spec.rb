@@ -109,10 +109,14 @@ RSpec.describe LLMTools do
     end
   end
 
-  describe '.chat_completion with image messages' do
-    let(:image_message) { { role: 'user', content: 'Image in #2:', images: ['base64'] } }
-    let(:messages) { [{ role: 'user', content: '#1 a: hi' }, image_message, { role: 'user', content: '#2 b: look' }] }
-    let(:text_messages) { [{ role: 'system', content: 'sys' }, messages.first, messages.last] }
+  describe '.chat_completion with images' do
+    let(:messages) do
+      [{ role: 'user', content: '#1 a: hi' },
+       { role: 'user', content: '#2 b [photo: a dog]: look', images: ['base64'] }]
+    end
+    let(:text_messages) do
+      [{ role: 'system', content: 'sys' }, messages.first, { role: 'user', content: '#2 b [photo: a dog]: look' }]
+    end
 
     before { allow(LocalInferenceApi).to receive(:available_model).and_return 'local-model' }
 
@@ -125,7 +129,7 @@ RSpec.describe LLMTools do
         .with(hash_including(messages: [{ role: 'system', content: 'sys' }, *messages]))
     end
 
-    it 'leaves image messages out for a local model without vision' do
+    it 'leaves images out for a local model without vision' do
       allow(LocalInferenceApi).to receive(:vision?).and_return false
 
       described_class.chat_completion(system_prompt: 'sys', messages:)
@@ -133,7 +137,7 @@ RSpec.describe LLMTools do
       expect(LocalInferenceApi).to have_received(:run_chat_completion).with(hash_including(messages: text_messages))
     end
 
-    it 'leaves image messages out on fallback to the cloud provider' do
+    it 'leaves images out on fallback to the cloud provider' do
       allow(LocalInferenceApi).to receive(:vision?).and_return true
       allow(LocalInferenceApi).to receive(:run_chat_completion).and_raise Faraday::ConnectionFailed
       allow(LocalInferenceApi).to receive(:mark_unavailable!)
@@ -245,6 +249,12 @@ RSpec.describe LLMTools do
     it 'tells models with split_replies that each line is sent as a separate message' do
       expect(described_class.reply_prompt(local)).to include 'Each line you write is sent as its own Telegram message'
       expect(described_class.reply_prompt(cloud)).not_to include 'Each line you write'
+    end
+
+    it 'tells models with vision that they can see photos' do
+      expect(described_class.reply_prompt(local.with(vision: true))).to include 'You can also see photos'
+      expect(described_class.reply_prompt(local)).not_to include 'You can also see photos'
+      expect(described_class.reply_prompt(cloud)).to include '[photo: what it shows]'
     end
 
     it "includes ReplyJob#perform's source code" do

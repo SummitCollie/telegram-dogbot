@@ -5,7 +5,7 @@ class TelegramWebhooksController
     module_function
 
     def bot_mentioned?
-      TelegramTools.extract_message_text(payload).downcase.include?("@#{
+      TelegramTools.extract_message_text(payload).to_s.downcase.include?("@#{
         Rails.application.credentials.telegram.bot.username.downcase
       }")
     end

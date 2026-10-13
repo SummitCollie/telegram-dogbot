@@ -92,6 +92,7 @@ RSpec.describe TelegramTools do
             first_name: replied_message.from.first_name,
             username: replied_message.from.username
           },
+          attachment_type: nil,
           image_file_id: nil
         }.deep_stringify_keys)
       end
@@ -122,7 +123,7 @@ RSpec.describe TelegramTools do
         { file_id: 'medium', width: 800, height: 600 }
       ]
 
-      expect(described_class.image_file_id(message_with(photo:))).to eq 'large'
+      expect(described_class.image_file_id(message_with(photo:))).to eq 'medium'
     end
 
     it 'picks the smallest photo size when none fit within MAX_IMAGE_SIZE' do
@@ -151,8 +152,18 @@ RSpec.describe TelegramTools do
       expect(described_class.image_file_id(message_with(sticker:))).to be_nil
     end
 
-    it 'is nil without photo or sticker' do
+    %i[animation video].each do |type|
+      it "uses the thumbnail of #{type} messages" do
+        media = { file_id: 'not_an_image', file_unique_id: 'u', width: 1, height: 1, duration: 1,
+                  thumbnail: { file_id: 'thumb', file_unique_id: 't', width: 320, height: 240 } }
+
+        expect(described_class.image_file_id(message_with(type => media))).to eq 'thumb'
+      end
+    end
+
+    it 'is nil without anything to show' do
       expect(described_class.image_file_id(message_with(text: 'hi', **video_message_options))).to be_nil
+      expect(described_class.image_file_id(message_with(text: 'hi'))).to be_nil
     end
   end
 

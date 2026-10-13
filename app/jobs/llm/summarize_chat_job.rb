@@ -46,7 +46,7 @@ module LLM
       messages.map do |message|
         reply_to = message.reply_to_message
         LLMTools.chat_log_line(id: message.api_id, user: message.user.first_name, text: message.text,
-                               attachment: message.attachment_type,
+                               attachment: message.attachment_label,
                                reply_to: ("##{reply_to.api_id}" if messages.include?(reply_to)))
       end.join("\n")
     end

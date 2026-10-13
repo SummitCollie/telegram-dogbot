@@ -60,7 +60,8 @@ class TelegramWebhooksController
 
       attachment_type = TelegramTools.attachment_type(message)
       db_message.attachment_type = attachment_type.to_sym if attachment_type
-      db_message.sticker_file_unique_id = message.try(:sticker)&.file_unique_id
+      db_message.media_group_id = message.try(:media_group_id)
+      assign_image(db_chat, db_message, message)
 
       db_message.reply_to_message_id = db_chat.messages.find_by(
         api_id: message.reply_to_message&.message_id
@@ -68,7 +69,17 @@ class TelegramWebhooksController
       db_message.text = TelegramTools.extract_message_text(message)
 
       db_message.save!
+      ImageDescriptions.request([db_message]) # describe it ASAP, so replies needn't wait for it
       db_message
+    end
+
+    # Images in vision-enabled chats are described for prompts (see LLM::DescribeImageJob)
+    def assign_image(db_chat, db_message, message)
+      return unless db_chat.vision_enabled? && (image_file_id = TelegramTools.image_file_id(message))
+
+      db_message.image_file_id = image_file_id
+      db_message.image_status = :pending
+      db_message.sticker_file_unique_id = message.try(:sticker)&.file_unique_id
     end
 
     def update_message(db_chat, db_chat_user, message)

@@ -32,8 +32,8 @@ class LLMTools
 
     # Uses the self-hosted LLM if it's up, otherwise (or if it fails) `llm_api_provider`.
     # - system_prompt: String, or callable taking the Provider about to be used (called again on fallback)
-    # - messages: conversation turns following the system prompt. Ones with `images` (base64 strings) are
-    #   image-only, e.g. "Image in #123:", and are left out for providers that can't see images.
+    # - messages: conversation turns following the system prompt. Their `images` (base64 strings) are
+    #   left out for providers that can't see images.
     # - progress: optional LLMProgress, told which provider is used and about each piece of output
     def chat_completion(system_prompt:, messages:, model_params: {}, progress: nil)
       local_chat_completion(system_prompt:, messages:, model_params:, progress:) ||
@@ -43,7 +43,7 @@ class LLMTools
     # System prompt for replying when mentioned, adapted to the model generating the reply.
     def reply_prompt(provider)
       @reply_prompts ||= {}
-      @reply_prompts[provider.split_replies] ||= build_reply_prompt(provider)
+      @reply_prompts[[provider.split_replies, provider.vision]] ||= build_reply_prompt(provider)
     end
 
     # One message of a chat log in a prompt, e.g. `#123 Name [photo] replying to #122: text`.
@@ -90,7 +90,7 @@ class LLMTools
     def full_messages(system_prompt, messages, provider)
       system_prompt = system_prompt.call(provider) if system_prompt.respond_to?(:call)
 
-      messages = messages.reject { |m| m[:images] } unless provider.vision
+      messages = messages.map { |m| m.except(:images) } unless provider.vision
 
       [
         { role: 'system', content: system_prompt.strip },
@@ -102,6 +102,7 @@ class LLMTools
       bot = Rails.application.credentials.telegram.bot
       context_size = "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES}-" \
                      "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES + LLM::ReplyJob::CONTEXT_STEP}"
+      vision_note = ' You can also see photos, each right before the message it was sent in.' if provider.vision
       split_note = <<~SPLIT if provider.split_replies
         Each line you write is sent as its own Telegram message, so never break a sentence across lines.
       SPLIT
@@ -115,6 +116,7 @@ class LLMTools
         Match the language used; default to English if unsure. Blend into the chat's writing style.
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
+        Attachments are noted in brackets, e.g. "[photo: what it shows]" or "[sticker: what it shows]".#{vision_note}
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
         Keep it short by default, usually one casual sentence. When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
         #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.

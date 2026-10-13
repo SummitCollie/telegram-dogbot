@@ -47,6 +47,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_13_170000) do
     t.index ["api_id"], name: "index_chats_on_api_id"
   end
 
+  create_table "message_images", force: :cascade do |t|
+    t.bigint "message_id", null: false
+    t.binary "data", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["message_id"], name: "index_message_images_on_message_id", unique: true
+  end
+
   create_table "messages", force: :cascade do |t|
     t.integer "api_id", null: false
     t.bigint "reply_to_message_id"
@@ -56,14 +64,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_13_170000) do
     t.string "text"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "image_file_id", comment: "Telegram file_id of a still image of the photo/sticker/GIF/video"
+    t.integer "image_status", comment: "0=pending 1=described 2=failed (null: no image to describe)"
+    t.text "image_description"
     t.string "sticker_file_unique_id"
+    t.string "media_group_id", comment: "Shared by photos sent together as an album"
     t.index ["chat_user_id"], name: "index_messages_on_chat_user_id"
     t.index ["reply_to_message_id"], name: "index_messages_on_reply_to_message_id"
   end
 
   create_table "sticker_descriptions", force: :cascade do |t|
     t.string "file_unique_id", null: false
-    t.string "description", null: false
+    t.text "description", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["file_unique_id"], name: "index_sticker_descriptions_on_file_unique_id", unique: true
@@ -83,6 +95,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_13_170000) do
   add_foreign_key "chat_summaries", "chats"
   add_foreign_key "chat_users", "chats"
   add_foreign_key "chat_users", "users"
+  add_foreign_key "message_images", "messages", on_delete: :cascade
   add_foreign_key "messages", "chat_users"
   add_foreign_key "messages", "messages", column: "reply_to_message_id"
 end

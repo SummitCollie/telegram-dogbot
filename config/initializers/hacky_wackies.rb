@@ -5,4 +5,4 @@
 ###
 
 require 'hacky_wackies/telegram_log_subscriber'
-require 'hacky_wackies/telegram_sticker_type'
+require 'hacky_wackies/telegram_thumbnails'

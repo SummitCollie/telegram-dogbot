@@ -84,6 +84,28 @@ RSpec.describe LLMProgress do
       expect(lines(t0 + 6)[1]).to eq '⏳ Getting ready… 6s'
     end
 
+    context 'when looking at images first' do
+      before { progress.viewing_images(3, now: t0 + 1) }
+
+      it 'shows how many have been described so far' do
+        progress.images_left(2)
+
+        expect(lines(t0 + 6)).to eq ['🐶 <b>Working on a reply…</b> 6s', '⏳ Look at 3 images · 1/3 · 5s']
+      end
+
+      it 'shows how long it took once the LLM request starts' do
+        progress.llm_started(cloud_provider, prompt, now: t0 + 9)
+
+        expect(lines(t0 + 10)[1..2]).to eq ['✅ Look at 3 images · 8s', '⏳ Read messages · ~1k tokens']
+      end
+
+      it 'says image, singular, for one' do
+        progress.viewing_images(1, now: t0 + 1)
+
+        expect(lines(t0 + 6)[1]).to eq '⏳ Look at 1 image · 0/1 · 5s'
+      end
+    end
+
     context 'with a cloud provider' do
       before { progress.llm_started(cloud_provider, prompt, now: t0 + 1) }
 
@@ -99,7 +121,7 @@ RSpec.describe LLMProgress do
       it 'counts images in the estimated prompt size' do
         progress.llm_started(cloud_provider, [*prompt, { role: 'user', content: '', images: %w[a b] }], now: t0 + 1)
 
-        expect(lines(t0 + 6)[1]).to eq '⏳ Read messages · ~3k tokens'
+        expect(lines(t0 + 6)[1]).to eq '⏳ Read messages · ~2k tokens'
       end
 
       it 'shows output tokens and speed while writing' do

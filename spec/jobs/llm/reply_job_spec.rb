@@ -571,9 +571,11 @@ RSpec.describe LLM::ReplyJob do
   end
 
   describe 'images' do
+    include ActiveJob::TestHelper
+
     let(:vision_chats) { [chat.api_id] }
-    let(:image_base64) { Base64.strict_encode64('image bytes') }
-    let(:photo) { [{ file_id: 'photo_file_id', width: 800, height: 600 }] }
+    let(:vision_model_up) { true }
+    let(:image_base64) { Base64.strict_encode64('photo bytes') }
 
     def api_message_for(db_message, **options)
       Telegram::Bot::Types::Message.new(
@@ -594,93 +596,143 @@ RSpec.describe LLM::ReplyJob do
       messages
     end
 
-    before do
-      allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats
-      allow(TelegramTools).to receive(:download_file).and_return 'image bytes'
+    def line(message, attachment: nil)
+      user = message.user
+      "##{message.api_id} #{user.first_name} (@#{user.username})#{" [#{attachment}]" if attachment}: #{message.text}"
     end
 
-    describe 'stickers in chat history' do
-      let(:sticker) do
-        create(:message, chat_user: human_cu, attachment_type: :sticker, sticker_file_unique_id: 'sticker_uid',
-                         text: '😂 (face with tears of joy)', date: 1.minute.ago)
+    def photo_message(description: 'a shiba inu in sunglasses', status: :described, **attributes)
+      create(:message, chat_user: human_cu, attachment_type: :photo, image_file_id: 'photo_file_id',
+                       image_status: status, image_description: description, **attributes).tap do |message|
+        message.create_image!(data: 'photo bytes') if status == :described
+      end
+    end
+
+    before do
+      allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats
+      allow(LocalInferenceApi).to receive_messages(available_model: ('local-model' if vision_model_up),
+                                                   vision?: vision_model_up)
+      allow(TelegramTools).to receive(:download_file).and_return 'photo bytes'
+    end
+
+    describe 'in chat history' do
+      it 'shows photos to the model, each starting a message, along with their description' do
+        before_photo = create(:message, chat_user: human_cu, date: 3.minutes.ago)
+        photo = photo_message(date: 2.minutes.ago)
+        after_photo = create(:message, chat_user: human_cu, date: 1.minute.ago)
+
+        expect(reply_to(api_message_for(human_message))).to eq [
+          { role: 'user', content: line(before_photo) },
+          { role: 'user', images: [image_base64],
+            content: [line(photo, attachment: 'photo: a shiba inu in sunglasses'), line(after_photo),
+                      line(human_message)].join("\n") }
+        ]
       end
 
-      before { StickerDescription.create!(file_unique_id: 'sticker_uid', description: 'a shiba inu shrugging') }
+      it 'describes stickers and GIFs in text only' do
+        sticker = create(:message, chat_user: human_cu, attachment_type: :sticker, image_status: :described,
+                                   image_description: 'a dog shrugging', text: '🤷', date: 2.minutes.ago)
+        gif = create(:message, chat_user: human_cu, attachment_type: :animation, image_status: :described,
+                               image_description: 'a cat falling off a table', text: 'lol', date: 1.minute.ago)
 
-      it 'includes their descriptions' do
-        sticker
-        messages = reply_to(api_message_for(human_message))
-
-        expect(messages.last[:content].lines.first.chomp).to eq(
-          "##{sticker.api_id} #{human.first_name} (@#{human.username}) [sticker: a shiba inu shrugging]: " \
-          '😂 (face with tears of joy)'
-        )
-      end
-
-      it 'are just tagged as stickers until described' do
-        sticker.update!(sticker_file_unique_id: 'undescribed_uid')
-
-        expect(reply_to(api_message_for(human_message)).last[:content]).to include '[sticker]: 😂'
+        expect(reply_to(api_message_for(human_message))).to eq [
+          { role: 'user', content: [line(sticker, attachment: 'sticker: a dog shrugging'),
+                                    line(gif, attachment: 'animation: a cat falling off a table'),
+                                    line(human_message)].join("\n") }
+        ]
       end
 
       context 'when chat does not have vision enabled' do
         let(:vision_chats) { [] }
 
-        it 'does not include their descriptions' do
-          sticker
+        it 'does not show photos' do
+          photo_message(date: 1.minute.ago)
 
-          expect(reply_to(api_message_for(human_message)).last[:content]).to include '[sticker]: 😂'
+          expect(reply_to(api_message_for(human_message)).pluck(:images)).to all be_nil
         end
       end
     end
 
-    it 'puts photo of the message being replied to in its own message, right before it' do
-      earlier = create(:message, chat_user: human_cu, date: 1.minute.ago)
-      human_message.update!(attachment_type: :photo)
+    describe 'images still being described' do
+      let!(:pending_photo) { photo_message(status: :pending, description: nil, date: 1.minute.ago) }
 
-      messages = reply_to(api_message_for(human_message, photo:))
+      before { allow(LocalInferenceApi).to receive(:run_chat_completion).and_return 'a cat in a box' }
 
-      expect(TelegramTools).to have_received(:download_file).with('photo_file_id')
-      expect(messages).to eq [
-        { role: 'user', content: "##{earlier.api_id} #{human.first_name} (@#{human.username}): #{earlier.text}" },
-        { role: 'user', content: "Image in ##{human_message.api_id}:", images: [image_base64] },
-        { role: 'user', content: "##{human_message.api_id} #{human.first_name} (@#{human.username}) [photo]: " \
-                                 "#{human_message.text}" }
-      ]
+      it 'waits for their descriptions, then shows them' do
+        messages = perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+        expect(pending_photo.reload).to have_attributes(image_status: 'described', image_description: 'a cat in a box')
+        expect(messages).to eq [
+          { role: 'user', images: [image_base64],
+            content: "#{line(pending_photo, attachment: 'photo: a cat in a box')}\n#{line(human_message)}" }
+        ]
+      end
+
+      it 'waits for the photo in the message mentioning the bot too' do
+        human_message.update!(attachment_type: :photo, image_file_id: 'mention_photo', image_status: :pending)
+
+        perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+        expect(human_message.reload.image_description).to eq 'a cat in a box'
+        expect(TelegramTools).to have_received(:download_file).with('mention_photo')
+      end
+
+      context 'when the self-hosted model with vision is unavailable' do
+        let(:vision_model_up) { false }
+
+        it "doesn't wait for them" do
+          messages = reply_to(api_message_for(human_message))
+
+          expect(LLM::DescribeImageJob).not_to have_been_enqueued
+          expect(messages).to eq [{ role: 'user', content: "#{line(pending_photo, attachment: 'photo')}\n" \
+                                                           "#{line(human_message)}" }]
+        end
+      end
     end
 
-    it 'includes the image of the message it replies to, first' do
-      reply_to_human.update!(attachment_type: :photo)
-      allow(TelegramTools).to receive(:download_file).with('sticker_file_id').and_return 'sticker bytes'
-      target = api_message_for(other_human_message, sticker: { file_id: 'sticker_file_id', file_unique_id: 'uid' })
+    describe 'albums' do
+      before { stub_const("#{described_class}::ALBUM_WAIT", 0) }
 
-      messages = reply_to(api_message_for(reply_to_human, photo:, reply_to_message: target))
+      it 'includes the rest of the album the mention was sent with, even if it arrived afterwards' do
+        human_message.update!(media_group_id: 'album')
+        rest = photo_message(media_group_id: 'album', date: 1.second.from_now)
+        unrelated = create(:message, chat_user: human_cu, date: 2.seconds.from_now)
 
-      expect(messages[-3..]).to match [
-        { role: 'user', content: "Image in ##{other_human_message.api_id}:",
-          images: [Base64.strict_encode64('sticker bytes')] },
-        { role: 'user', content: "Image in ##{reply_to_human.api_id}:", images: [image_base64] },
-        { role: 'user', content: start_with("##{reply_to_human.api_id} ") }
-      ]
+        messages = reply_to(api_message_for(human_message))
+
+        expect(messages.last[:content].lines(chomp: true).last).to eq line(human_message)
+        expect(messages.pluck(:content).join).to include line(rest, attachment: 'photo: a shiba inu in sunglasses')
+        expect(messages.pluck(:content).join).not_to include unrelated.text
+      end
     end
 
-    it 'leaves out images that fail to download' do
-      allow(TelegramTools).to receive(:download_file).and_raise Telegram::Bot::Error, 'nope'
+    describe 'replies to messages outside the context window' do
+      it 'shows the image of a message that was never stored, only in this prompt' do
+        target = api_message_for(old_human_message, photo: [{ file_id: 'old_photo', width: 800, height: 600 }])
+        old_human_message.destroy!
 
-      messages = reply_to(api_message_for(human_message, photo:))
+        messages = reply_to(api_message_for(human_message, reply_to_message: target))
 
-      expect(messages).to eq [{ role: 'user', content: "##{human_message.api_id} #{human.first_name} " \
-                                                       "(@#{human.username}): #{human_message.text}" }]
-    end
+        expect(TelegramTools).to have_received(:download_file).with('old_photo')
+        expect(messages.last).to include(images: [image_base64])
+        expect(messages.last[:content]).to start_with "##{target.message_id} "
+      end
 
-    context 'when chat does not have vision enabled' do
-      let(:vision_chats) { nil }
+      it 'uses the stored copy of older messages, with its description and image' do
+        stub_const("#{described_class}::CONTEXT_MIN_MESSAGES", 2)
+        stub_const("#{described_class}::CONTEXT_STEP", 1)
+        old_photo = photo_message(date: 1.hour.ago)
+        create_list(:message, 3, chat_user: human_cu, date: 1.minute.ago)
+        human_message.update!(reply_to_message: old_photo)
 
-      it 'does not download or include images' do
-        messages = reply_to(api_message_for(human_message, photo:))
+        messages = reply_to(api_message_for(human_message, reply_to_message: api_message_for(old_photo)))
 
         expect(TelegramTools).not_to have_received(:download_file)
-        expect(messages.pluck(:images)).to all be_nil
+        expect(messages.last).to eq(
+          role: 'user', images: [image_base64],
+          content: "#{line(old_photo, attachment: 'photo: a shiba inu in sunglasses')}\n" \
+                   "#{line(human_message).sub(': ', " replying to ##{old_photo.api_id}: ")}"
+        )
       end
     end
   end

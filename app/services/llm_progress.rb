@@ -19,7 +19,7 @@ class LLMProgress
   MODEL_CHECK_INTERVAL = 2 # seconds
   TICK = 0.5 # seconds
   CHARS_PER_TOKEN = 3.5 # rough prompt token estimate
-  TOKENS_PER_IMAGE = 1000 # rough: ~1 token per 1024 pixels, photos are up to 1280px
+  TOKENS_PER_IMAGE = 500 # rough: ~1 token per 1024 pixels, photos are up to 800px
   CANCEL_DATA = 'llm_progress_cancel'
   CANCEL_KEYBOARD = { inline_keyboard: [[{ text: '✖️ Cancel', callback_data: CANCEL_DATA }]] }.freeze
 
@@ -77,6 +77,21 @@ class LLMProgress
         end
       end
     end
+  end
+
+  ### Called by the job
+
+  # Waiting for `count` images to be described (see ImageDescriptions), before calling the LLM
+  def viewing_images(count, now: Time.current)
+    @mutex.synchronize do
+      @images_total = count
+      @images_left = count
+      enter_stage(:viewing_images, now)
+    end
+  end
+
+  def images_left(count)
+    @mutex.synchronize { @images_left = count }
   end
 
   ### Called by LLMTools
@@ -271,9 +286,10 @@ class LLMProgress
   ### Rendering (called with @mutex held)
 
   def step_lines(now)
-    return ["⏳ Getting ready… #{duration(now - @started_at)}"] unless @provider
-
     steps = []
+    steps << step_line(:viewing_images, "Look at #{pluralize(@images_total, 'image')}", now) if @images_total
+    return steps.presence || ["⏳ Getting ready… #{duration(now - @started_at)}"] unless @provider
+
     steps << step_line(:waking_model, 'Wake up model', now) if @provider.self_hosted
     steps << step_line(:reading_prompt, 'Read messages', now)
     # Only once the model starts thinking: there's no telling beforehand whether it will
@@ -281,7 +297,7 @@ class LLMProgress
     steps << step_line(:writing, "Write #{h @label.delete_prefix('a ').delete_prefix('an ')}", now)
   end
 
-  STAGE_ORDER = %i[preparing waking_model reading_prompt thinking writing].freeze
+  STAGE_ORDER = %i[preparing viewing_images waking_model reading_prompt thinking writing].freeze
   private_constant :STAGE_ORDER
 
   def step_line(stage, name, now)
@@ -296,6 +312,7 @@ class LLMProgress
   def current_detail(stage, now)
     elapsed = now - @stage_times[stage]
     case stage
+    when :viewing_images then "#{@images_total - @images_left}/#{@images_total} · #{duration(elapsed)}"
     when :waking_model then duration(elapsed)
     when :reading_prompt then ["~#{count(@prompt_tokens)} tokens", prompt_eta(elapsed)].compact.join(' · ')
     when :thinking then "#{count(@tokens_thought)} tokens · #{duration(elapsed)}"
@@ -339,6 +356,8 @@ class LLMProgress
   def count(number)
     number >= 1000 ? "#{(number / 1000.0).round(1).to_s.delete_suffix('.0')}k" : number.to_s
   end
+
+  def pluralize(number, word) = "#{number} #{number == 1 ? word : word.pluralize}"
 
   def h(text) = ERB::Util.html_escape(text)
 end

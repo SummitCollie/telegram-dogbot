@@ -7,10 +7,10 @@ class TelegramTools
   COLLAPSE_MAX_LINES = 5
   COLLAPSE_MAX_CHARS = 500
 
-  # Largest photo dimension to download for vision models. Telegram has each photo in several sizes,
-  # up to 2560px. Vision tokens scale with pixels (~1.2k tokens at 1280x960), and 1280px keeps
-  # screenshot text readable.
-  MAX_IMAGE_SIZE = 1280
+  # Largest photo dimension to download for vision models. Telegram has each photo in several sizes
+  # (90, 320, 800, 1280, 2560px). Vision tokens scale with pixels (~470 tokens at 800x600), and photos
+  # stay in prompts for as long as they're in the context window.
+  MAX_IMAGE_SIZE = 800
   DOWNLOAD_TIMEOUT = 30 # seconds
 
   class << self
@@ -71,14 +71,21 @@ class TelegramTools
       Message.attachment_types.keys.find { |type| !!api_message[type] }
     end
 
-    # file_id of a still image showing the message's photo or sticker, or nil if it has neither.
-    # Animated (.tgs) and video (.webm) stickers aren't images, so their thumbnails are used instead.
+    # file_id of a still image showing the message's photo, sticker, GIF or video, or nil if it has none.
+    # Animated (.tgs) and video (.webm) stickers aren't images, so their thumbnails are used instead,
+    # like for GIFs and videos.
     def image_file_id(api_message)
       if (photo = api_message.try(:photo).presence)
         photo_size_to_download(photo).file_id
       elsif (sticker = api_message.try(:sticker))
-        sticker.is_animated || sticker.is_video ? sticker.thumbnail&.file_id : sticker.file_id
+        sticker_image(sticker)&.file_id
+      else
+        (api_message.try(:animation) || api_message.try(:video))&.thumbnail&.file_id
       end
+    end
+
+    def sticker_image(sticker)
+      sticker.is_animated || sticker.is_video ? sticker.thumbnail : sticker
     end
 
     # Largest within MAX_IMAGE_SIZE, or the smallest if none are
@@ -130,6 +137,7 @@ class TelegramTools
             first_name: message.reply_to_message.from.first_name,
             username: message.reply_to_message.from.username
           },
+          attachment_type: attachment_type(message.reply_to_message),
           image_file_id: image_file_id(message.reply_to_message)
         }
       end
