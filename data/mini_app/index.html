@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Bot Settings</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  /* Colors come from the Telegram client's theme (set on :root by telegram-web-app.js) */
+  :root {
+    --bg: var(--tg-theme-secondary-bg-color, #efeff4);
+    --section: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #fff));
+    --text: var(--tg-theme-text-color, #000);
+    --hint: var(--tg-theme-hint-color, #8e8e93);
+    --link: var(--tg-theme-link-color, #2481cc);
+    --accent: var(--tg-theme-button-color, #2481cc);
+    --accent-text: var(--tg-theme-button-text-color, #fff);
+    --header: var(--tg-theme-section-header-text-color, var(--hint));
+    --danger: var(--tg-theme-destructive-text-color, #e53935);
+    --separator: var(--tg-theme-section-separator-color, rgba(128, 128, 128, .2));
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-tg]) { --bg: #1c1c1e; --section: #2c2c2e; --text: #fff; --hint: #98989f; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 12px 16px calc(88px + env(safe-area-inset-bottom));
+    background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  [hidden] { display: none !important; }
+
+  .hero { display: flex; align-items: center; gap: 14px; padding: 8px 4px 16px; }
+  .avatar {
+    width: 56px; height: 56px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    font-size: 30px; background: var(--section);
+  }
+  .hero h1 { margin: 0; font-size: 21px; font-weight: 600; overflow-wrap: anywhere; }
+  .hero p { margin: 2px 0 0; color: var(--hint); font-size: 14px; }
+
+  h2 {
+    margin: 22px 16px 6px; font-size: 13px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .02em; color: var(--header);
+  }
+  .section { background: var(--section); border-radius: var(--radius); overflow: hidden; }
+  .row { padding: 12px 16px; }
+  .row + .row { border-top: 1px solid var(--separator); }
+  .footnote { margin: 6px 16px 0; color: var(--hint); font-size: 13px; }
+
+  label.field { display: block; }
+  .label { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--hint); margin-bottom: 6px; }
+  .count.over { color: var(--danger); }
+  input[type=text], textarea {
+    width: 100%; border: 0; padding: 0; margin: 0; background: transparent; color: var(--text);
+    font: inherit; outline: none; resize: none;
+  }
+  textarea { min-height: 96px; field-sizing: content; max-height: 50vh; }
+  input::placeholder, textarea::placeholder { color: var(--hint); opacity: .8; }
+
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 12px 16px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: none; border: 1.5px solid var(--separator); background: transparent; color: var(--text);
+    border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 15px; cursor: pointer;
+  }
+  .chip[aria-pressed=true] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+
+  .segmented { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; gap: 3px; }
+  .segmented button {
+    flex: 1; border: 0; border-radius: 8px; padding: 8px 4px; background: transparent; color: var(--text);
+    font: inherit; font-size: 15px; cursor: pointer;
+  }
+  .segmented button[aria-pressed=true] { background: var(--section); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); font-weight: 600; }
+
+  .slider-labels { display: flex; justify-content: space-between; font-size: 13px; color: var(--hint); margin-top: 4px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .toggle-row small { display: block; color: var(--hint); font-size: 13px; }
+  .switch { position: relative; flex: none; width: 51px; height: 31px; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--separator); transition: background .2s; }
+  .switch span::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .2); transition: transform .2s;
+  }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+
+  .button {
+    display: block; width: 100%; border: 0; border-radius: 10px; padding: 13px; font: inherit; font-weight: 600;
+    background: var(--accent); color: var(--accent-text); cursor: pointer;
+  }
+  .link-button {
+    display: block; width: 100%; border: 0; background: transparent; padding: 0; font: inherit;
+    color: var(--link); text-align: left; cursor: pointer;
+  }
+  .link-button.danger { color: var(--danger); }
+  button:disabled { opacity: .5; cursor: default; }
+
+  .consent ul { margin: 8px 0 14px; padding-left: 20px; }
+  .consent li { margin: 6px 0; }
+  .status { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .status b { font-weight: 600; }
+  .status span { color: var(--hint); font-size: 14px; text-align: right; }
+
+  #fallback-save { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .message { text-align: center; color: var(--hint); padding: 48px 16px; }
+</style>
+</head>
+<body>
+<p class="message" id="loading">Loading…</p>
+<p class="message" id="fatal" hidden></p>
+
+<main id="app" hidden>
+  <header class="hero">
+    <div class="avatar" id="avatar">🐶</div>
+    <div>
+      <h1 id="preview-name"></h1>
+      <p id="hero-status"></p>
+    </div>
+  </header>
+
+  <!-- Shown until the user agrees -->
+  <section id="consent" hidden>
+    <div class="section consent"><div class="row">
+      <b>Before we start</b>
+      <ul>
+        <li>🤖 You'll be chatting with an <b>AI</b>, not a person, even when it acts like one.</li>
+        <li>🔞 DMs are for <b>adults (18+)</b>, and it doesn't refuse much.</li>
+        <li>🗑 Chats are stored only for context, then deleted automatically (you choose when, from 2 to 30 days).</li>
+        <li>📜 Send <b>/terms</b> and <b>/privacy</b> in the chat to read the details.</li>
+      </ul>
+      <button class="button" id="consent-button">I'm 18+ and agree</button>
+    </div></div>
+  </section>
+
+  <div id="settings" hidden>
+    <h2>Subscription</h2>
+    <div class="section">
+      <div class="row status"><b id="sub-title"></b><span id="sub-detail"></span></div>
+      <div class="row" id="sub-action-row"><button class="link-button" id="sub-action"></button></div>
+    </div>
+
+    <h2>Personality</h2>
+    <div class="section">
+      <div class="chips" id="presets" role="group" aria-label="Presets"></div>
+      <div class="row">
+        <label class="field"><div class="label"><span>Name</span><span class="count" data-for="bot_name"></span></div>
+          <input type="text" id="bot_name" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label class="field"><div class="label"><span>Personality</span><span class="count" data-for="persona"></span></div>
+          <textarea id="persona" rows="4"></textarea></label>
+      </div>
+    </div>
+    <p class="footnote">Describe who it is and how it acts, as if briefing an actor.</p>
+
+    <h2>About you</h2>
+    <div class="section">
+      <div class="row">
+        <label class="field"><div class="label"><span>What should it call you?</span><span class="count" data-for="user_name"></span></div>
+          <input type="text" id="user_name" autocomplete="off"></label>
+      </div>
+      <div class="row">
+        <label class="field"><div class="label"><span>Things it should know about you</span><span class="count" data-for="user_bio"></span></div>
+          <textarea id="user_bio" rows="3" placeholder="Pronouns, what you're into, what you'd like from these chats…"></textarea></label>
+      </div>
+    </div>
+
+    <h2>How it writes</h2>
+    <div class="section">
+      <div class="row">
+        <div class="label"><span>Reply length</span></div>
+        <div class="segmented" id="reply_length"></div>
+      </div>
+      <div class="row">
+        <div class="label"><span>Creativity</span><span id="creativity-label"></span></div>
+        <input type="range" id="creativity" min="0" step="1">
+        <div class="slider-labels"><span>Predictable</span><span>Unhinged</span></div>
+      </div>
+      <div class="row toggle-row">
+        <div>Double-texting<small>Splits replies into several short messages</small></div>
+        <label class="switch"><input type="checkbox" id="double_texting" aria-label="Double-texting"><span></span></label>
+      </div>
+    </div>
+
+    <h2>Memory</h2>
+    <div class="section">
+      <div class="row">
+        <div class="label"><span>Forget messages after</span></div>
+        <div class="segmented" id="retention_days"></div>
+      </div>
+      <div class="row"><button class="link-button danger" id="forget"></button></div>
+    </div>
+    <p class="footnote">Older messages are deleted every night. Telegram keeps its own copy of the chat.</p>
+
+    <h2>&nbsp;</h2>
+    <div class="section">
+      <div class="row"><button class="link-button danger" id="reset">Reset personality & style to default</button></div>
+    </div>
+  </div>
+
+  <button class="button" id="fallback-save" hidden>Save changes</button>
+</main>
+
+<script>
+(() => {
+  const tg = window.Telegram?.WebApp;
+  const $ = (id) => document.getElementById(id);
+  const TEXT_FIELDS = ['bot_name', 'persona', 'user_name', 'user_bio'];
+  const CREATIVITY_LABELS = ['Predictable', 'Steady', 'Balanced', 'Spicy', 'Unhinged'];
+  const LENGTH_LABELS = { short: 'Short', normal: 'Normal', long: 'Long' };
+  const RETENTION_LABELS = { 2: '2 days', 7: '1 week', 30: '30 days' };
+
+  let state = null; // last state from the server
+  let draft = null; // settings being edited
+  let busy = false;
+
+  const inTelegram = Boolean(tg?.initData);
+  const supports = (version) => inTelegram && tg.isVersionAtLeast(version);
+  const mainButton = supports('6.0') ? tg.MainButton : null;
+
+  if (tg) {
+    document.documentElement.dataset.tg = '';
+    tg.ready();
+    tg.expand();
+  }
+
+  // API
+
+  async function api(method, path, body) {
+    const response = await fetch(`/mini_app/api/${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: `tma ${tg?.initData || ''}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(json.error || `Something went wrong (${response.status})`);
+    return json;
+  }
+
+  async function run(action) {
+    if (busy) return;
+    busy = true;
+    mainButton?.showProgress(false);
+    try {
+      return await action();
+    } catch (error) {
+      haptic('error');
+      alert(error.message);
+    } finally {
+      busy = false;
+      mainButton?.hideProgress();
+    }
+  }
+
+  // Telegram helpers (with browser fallbacks, for development)
+
+  const haptic = (type) => supports('6.1') && tg.HapticFeedback.notificationOccurred(type);
+  const alert = (text) => (supports('6.2') ? tg.showAlert(text) : window.alert(text));
+  const confirm = (text) => new Promise((resolve) => (
+    supports('6.2') ? tg.showConfirm(text, resolve) : resolve(window.confirm(text))
+  ));
+
+  // Rendering
+
+  function load(newState) {
+    state = newState;
+    draft = { ...state.settings };
+    render();
+  }
+
+  function render() {
+    const { premium, consented, options } = state;
+    $('consent').hidden = consented;
+    $('settings').hidden = !consented;
+
+    const preset = activePreset();
+    $('avatar').textContent = preset?.emoji && preset.key !== 'custom' ? preset.emoji : '🤖';
+    $('preview-name').textContent = draft.bot_name?.trim() || defaults().bot_name;
+    $('hero-status').textContent = premium.active ? 'AI chat companion · Premium' : 'AI chat companion';
+
+    renderSubscription();
+    renderPresets(preset);
+
+    for (const field of TEXT_FIELDS) {
+      const input = $(field);
+      if (document.activeElement !== input) input.value = draft[field] || '';
+      input.maxLength = options.max_lengths[field];
+      updateCount(field);
+    }
+    $('bot_name').placeholder = defaults().bot_name;
+    $('persona').placeholder = defaults().persona;
+    $('user_name').placeholder = state.user.first_name || 'Your name';
+
+    renderSegmented('reply_length', options.reply_lengths, (v) => LENGTH_LABELS[v] || v);
+    renderSegmented('retention_days', options.retention_days, (v) => RETENTION_LABELS[v] || `${v} days`);
+
+    const creativity = $('creativity');
+    creativity.max = options.creativity_levels - 1;
+    creativity.value = draft.creativity;
+    $('creativity-label').textContent = CREATIVITY_LABELS[draft.creativity] || '';
+    $('double_texting').checked = draft.double_texting;
+
+    const count = state.stored_messages;
+    const forget = $('forget');
+    forget.textContent = count ? `Forget our chat now (${count} message${count === 1 ? '' : 's'})` : 'Nothing to forget yet';
+    forget.disabled = !count;
+
+    renderSaveButton();
+  }
+
+  function renderSubscription() {
+    const { premium } = state;
+    const until = premium.until && new Date(premium.until).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    const action = $('sub-action');
+    action.classList.remove('danger');
+    $('sub-action-row').hidden = false;
+
+    if (premium.owner) {
+      $('sub-title').textContent = '👑 Owner';
+      $('sub-detail').textContent = 'Free forever';
+      $('sub-action-row').hidden = true;
+    } else if (premium.active) {
+      $('sub-title').textContent = '⭐ Premium';
+      $('sub-detail').textContent = premium.recurring && !premium.renewal_canceled ? `Renews ${until}` : `Ends ${until}`;
+      if (premium.recurring) {
+        action.textContent = premium.renewal_canceled ? 'Turn renewal back on' : 'Cancel renewal';
+        action.classList.toggle('danger', !premium.renewal_canceled);
+        action.onclick = toggleRenewal;
+      } else {
+        $('sub-action-row').hidden = true;
+      }
+    } else {
+      $('sub-title').textContent = 'Not subscribed';
+      $('sub-detail').textContent = `${premium.price} ⭐ / 30 days`;
+      action.textContent = `⭐ Subscribe for ${premium.price} Stars`;
+      action.onclick = subscribe;
+    }
+  }
+
+  function renderPresets(active) {
+    const container = $('presets');
+    container.replaceChildren(...state.options.presets.map((preset) => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.textContent = `${preset.emoji} ${preset.label}`;
+      chip.setAttribute('aria-pressed', String(preset.key === active?.key));
+      chip.onclick = () => applyPreset(preset);
+      return chip;
+    }));
+  }
+
+  function renderSegmented(field, values, label) {
+    $(field).replaceChildren(...values.map((value) => {
+      const button = document.createElement('button');
+      button.textContent = label(value);
+      button.setAttribute('aria-pressed', String(draft[field] === value));
+      button.onclick = () => { draft[field] = value; selectionChanged(); };
+      return button;
+    }));
+  }
+
+  function updateCount(field) {
+    const max = state.options.max_lengths[field];
+    const length = $(field).value.length;
+    const count = document.querySelector(`.count[data-for=${field}]`);
+    count.textContent = length > max * 0.8 ? `${length}/${max}` : '';
+    count.classList.toggle('over', length >= max);
+  }
+
+  function renderSaveButton() {
+    const show = state.consented && isDirty();
+    if (mainButton) {
+      mainButton.setParams({ text: 'Save changes' });
+      show ? mainButton.show() : mainButton.hide();
+    } else {
+      $('fallback-save').hidden = !show;
+    }
+    if (supports('6.2')) show ? tg.enableClosingConfirmation() : tg.disableClosingConfirmation();
+  }
+
+  // Presets: blank name & personality mean the default one
+
+  const defaults = () => state.options.presets[0];
+  const normalized = (text) => (text || '').trim();
+
+  function activePreset() {
+    const name = normalized(draft.bot_name);
+    const persona = normalized(draft.persona);
+    if (!name && !persona) return defaults();
+    return state.options.presets.find((p) => p.key !== 'custom' && normalized(p.bot_name) === name &&
+                                              normalized(p.persona) === persona)
+      || state.options.presets.find((p) => p.key === 'custom');
+  }
+
+  function applyPreset(preset) {
+    if (preset.key === 'custom') {
+      if (activePreset()?.key !== 'custom') {
+        draft.bot_name = '';
+        draft.persona = '';
+      }
+      selectionChanged();
+      $('persona').focus();
+      return;
+    }
+    draft.bot_name = preset.bot_name;
+    draft.persona = preset.persona;
+    selectionChanged();
+  }
+
+  // Editing
+
+  function isDirty() {
+    return Object.keys(state.settings).some((key) => {
+      const saved = state.settings[key];
+      const edited = draft[key];
+      return TEXT_FIELDS.includes(key) ? normalized(saved) !== normalized(edited) : saved !== edited;
+    });
+  }
+
+  function selectionChanged() {
+    if (supports('6.1')) tg.HapticFeedback.selectionChanged();
+    render();
+  }
+
+  for (const field of TEXT_FIELDS) {
+    $(field).addEventListener('input', (event) => {
+      draft[field] = event.target.value;
+      updateCount(field);
+      if (field === 'bot_name' || field === 'persona') {
+        $('preview-name').textContent = normalized(draft.bot_name) || defaults().bot_name;
+        renderPresets(activePreset());
+      }
+      renderSaveButton();
+    });
+  }
+  $('creativity').addEventListener('input', (event) => {
+    draft.creativity = Number(event.target.value);
+    selectionChanged();
+  });
+  $('double_texting').addEventListener('change', (event) => {
+    draft.double_texting = event.target.checked;
+    selectionChanged();
+  });
+
+  // Actions
+
+  function save() {
+    return run(async () => {
+      const settings = { ...draft };
+      for (const field of TEXT_FIELDS) settings[field] = normalized(settings[field]);
+      load(await api('PATCH', 'settings', { settings }));
+      haptic('success');
+    });
+  }
+
+  $('consent-button').onclick = () => run(async () => {
+    load(await api('POST', 'consent'));
+    haptic('success');
+  });
+
+  $('forget').onclick = async () => {
+    if (!(await confirm('Forget our whole chat history now? This can\'t be undone.'))) return;
+    run(async () => {
+      const saved = draft;
+      load(await api('POST', 'forget'));
+      draft = saved; // keep unsaved edits
+      render();
+      haptic('success');
+    });
+  };
+
+  $('reset').onclick = async () => {
+    if (!(await confirm('Reset name, personality, what it knows about you, and writing style to the defaults?'))) return;
+    run(async () => {
+      load(await api('POST', 'settings/reset'));
+      haptic('success');
+    });
+  };
+
+  async function subscribe() {
+    if (isDirty()) await save();
+    run(async () => {
+      const { link } = await api('POST', 'invoice');
+      if (!supports('6.1')) return window.open(link, '_blank');
+
+      tg.openInvoice(link, (status) => {
+        if (status !== 'paid') return;
+        haptic('success');
+        // The payment reaches the bot through Telegram, which may take a moment
+        refreshUntil((s) => s.premium.active);
+      });
+    });
+  }
+
+  async function toggleRenewal() {
+    const cancel = !state.premium.renewal_canceled;
+    if (cancel && !(await confirm('Cancel renewal? You keep premium until the end of the period you paid for.'))) return;
+    run(async () => {
+      const saved = draft;
+      load(await api('POST', 'renewal', { canceled: cancel }));
+      draft = saved;
+      render();
+      haptic('success');
+    });
+  }
+
+  async function refreshUntil(done, attempts = 10) {
+    for (let i = 0; i < attempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const fresh = await api('GET', 'state').catch(() => null);
+      if (fresh && done(fresh)) {
+        const saved = draft;
+        load(fresh);
+        draft = { ...fresh.settings, ...saved };
+        render();
+        return;
+      }
+    }
+  }
+
+  mainButton?.onClick(save);
+  $('fallback-save').onclick = save;
+
+  // Start
+
+  if (!inTelegram) {
+    $('loading').hidden = true;
+    $('fatal').hidden = false;
+    $('fatal').textContent = 'Open this from the ⚙️ Settings button in your chat with the bot on Telegram.';
+    return;
+  }
+
+  api('GET', 'state').then((initial) => {
+    $('loading').hidden = true;
+    $('app').hidden = false;
+    load(initial);
+  }).catch((error) => {
+    $('loading').hidden = true;
+    $('fatal').hidden = false;
+    $('fatal').textContent = error.message;
+  });
+})();
+</script>
+</body>
+</html>

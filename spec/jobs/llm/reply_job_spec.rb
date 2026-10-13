@@ -623,6 +623,20 @@ RSpec.describe LLM::ReplyJob do
       expect(user_turn_ids(messages[2])).to eq [msg_b.api_id, mention2.api_id]
     end
 
+    it "quotes the bot's message in earlier replies to it, rather than its (invisible) id" do
+      human_cu
+      bot_cu
+      mention1 = create(:message, chat_user: human_cu, date: 4.minutes.ago)
+      bot_reply = create(:message, chat_user: bot_cu, reply_to_message: mention1, text: 'sup', date: 3.minutes.ago)
+      reply_to_bot = create(:message, chat_user: human_cu, reply_to_message: bot_reply, date: 2.minutes.ago)
+      mention2 = create(:message, chat_user: human_cu, date: 1.minute.ago)
+
+      messages = reply_to(mention2)
+
+      expect(messages[2][:content])
+        .to include %(##{reply_to_bot.api_id} #{human.first_name} (@#{human.username}) replying to you ("sup"): )
+    end
+
     it 'joins consecutive bot messages (split replies) into one assistant turn' do
       human_cu
       bot_cu

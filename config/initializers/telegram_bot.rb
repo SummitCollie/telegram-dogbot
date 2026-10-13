@@ -1,29 +1,12 @@
 # frozen_string_literal: true
 
-temp_tg_client = Telegram::Bot::Client.new(
-  Rails.application.credentials.telegram.bot.token,
-  Rails.application.credentials.telegram.bot.username,
-  async: false
-)
-
-# Set slash commands available from telegram UI
-# https://core.telegram.org/bots/features#commands
-temp_tg_client.set_my_commands(
-  commands: [
-    { command: 'summarize',
-      description: 'Show help for summarize features' },
-    { command: 'summarize_url',
-      description: 'Summarize content from a URL, optional custom style' },
-    { command: 'summarize_chat',
-      description: 'Summarize recent chat messages, optional custom style' },
-    { command: 'vibe_check',
-      description: 'Run vibe analysis' },
-    { command: 'translate',
-      description: 'Translate text from your message or replied message' },
-    { command: 'chat_stats',
-      description: 'Show stats about this chat' }
-  ],
-  language_code: 'en'
-)
-
-temp_tg_client = nil # rubocop:disable Lint/UselessAssignment
+# Set slash commands available from telegram UI (after initialization, when app classes can be loaded)
+Rails.application.config.after_initialize do
+  TelegramTools.register_commands(
+    Telegram::Bot::Client.new(
+      Rails.application.credentials.telegram.bot.token,
+      Rails.application.credentials.telegram.bot.username,
+      async: false
+    )
+  )
+end

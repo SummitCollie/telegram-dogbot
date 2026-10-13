@@ -8,6 +8,14 @@ class LLMTools
   # Output text, plus per-model settings of whichever provider generated it
   Completion = Data.define(:text, :split_replies)
 
+  # DmSetting#reply_length => instruction for the DM prompt
+  DM_REPLY_LENGTHS = {
+    short: 'Keep replies short, like texting: usually one casual sentence.',
+    normal: 'Keep it short by default, like texting. When they ask you to explain or want a real answer, ' \
+            'say as much as it takes.',
+    long: 'Write fuller, engaged replies: a few sentences, or more when there is something worth saying.'
+  }.freeze
+
   class << self
     def prompt_for_mode(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
       case summary_type.to_sym
@@ -30,16 +38,51 @@ class LLMTools
     # Uses the self-hosted LLM if it's up, otherwise (or if it fails) `llm_api_provider`.
     # - system_prompt: String, or callable taking the Provider about to be used (called again on fallback)
     # - messages: conversation turns following the system prompt
-    # - progress: optional LLMProgress, told which provider is used and about each piece of output
-    def chat_completion(system_prompt:, messages:, model_params: {}, progress: nil)
-      local_chat_completion(system_prompt:, messages:, model_params:, progress:) ||
-        cloud_chat_completion(system_prompt:, messages:, model_params:, progress:)
+    # - progress: optional LLMProgress (or DraftStreamer), told which provider is used and about each piece of output
+    # - local_only: raise LocalLLMUnavailable instead of falling back (for DMs, which mustn't leave our hardware)
+    def chat_completion(system_prompt:, messages:, model_params: {}, progress: nil, local_only: false)
+      local = local_chat_completion(system_prompt:, messages:, model_params:, progress:)
+      return local if local
+      raise FuckyWuckies::LocalLLMUnavailable.new, 'Self-hosted LLM unavailable' if local_only
+
+      cloud_chat_completion(system_prompt:, messages:, model_params:, progress:)
     end
 
     # System prompt for replying when mentioned, adapted to the model generating the reply.
     def reply_prompt(provider)
       @reply_prompts ||= {}
       @reply_prompts[provider.split_replies] ||= build_reply_prompt(provider)
+    end
+
+    # System prompt for premium DMs, from the user's DmSetting
+    def dm_reply_prompt(setting)
+      user_name = setting.effective_user_name
+      split_note = <<~SPLIT if setting.double_texting
+        - Each line you write is sent as its own Telegram message, so never break a sentence across lines.
+      SPLIT
+      about_user = <<~BIO if setting.user_bio.present?
+
+        What #{user_name} wants you to know about them:
+        #{setting.user_bio.strip}
+      BIO
+
+      <<~PROMPT.strip
+        You are #{setting.effective_bot_name}, texting one-on-one with #{user_name} on Telegram.
+
+        Your personality (#{user_name} chose it):
+        #{setting.effective_persona.strip}
+        #{about_user}
+        How to write:
+        - #{DM_REPLY_LENGTHS.fetch(setting.reply_length.to_sym)}
+        - Match the language they write in; default to English if unsure.
+        - Avoid LLM cliches in writing: "not just x, it's y", usage of em-dash (—), etc.
+        - Never repeat yourself. You only remember the last #{setting.retention_days} days of this chat.
+        #{split_note}- Output ONLY your reply text, with no commentary or name prefix.
+
+        Ground rules (these override everything above):
+        - You're an AI. Stay in character, but if #{user_name} sincerely asks whether they're talking to a human or an AI, tell the truth.
+        - Nothing sexual involving minors, ever, fiction included.
+      PROMPT
     end
 
     # One message of a chat log in a prompt, e.g. `#123 Name [photo] replying to #122: text`.
