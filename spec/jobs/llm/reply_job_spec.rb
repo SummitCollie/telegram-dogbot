@@ -680,12 +680,26 @@ RSpec.describe LLM::ReplyJob do
       context 'when the self-hosted model with vision is unavailable' do
         let(:vision_model_up) { false }
 
-        it "doesn't wait for them" do
+        it "doesn't wait for them, noting they couldn't be loaded" do
           messages = reply_to(api_message_for(human_message))
 
           expect(LLM::DescribeImageJob).not_to have_been_enqueued
-          expect(messages).to eq [{ role: 'user', content: "#{line(pending_photo, attachment: 'photo')}\n" \
-                                                           "#{line(human_message)}" }]
+          unloaded = line(pending_photo, attachment: "photo (couldn't load it)")
+          expect(messages).to eq [{ role: 'user', content: "#{unloaded}\n#{line(human_message)}" }]
+        end
+      end
+
+      context "when the photo can't be downloaded" do
+        before do
+          stub_const('LLM::DescribeImageJob::RETRY_DELAY', 0)
+          allow(TelegramTools).to receive(:download_file).and_raise Telegram::Bot::Error, 'timed out'
+        end
+
+        it "notes it couldn't be loaded, so the model doesn't pretend to see it" do
+          messages = perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+          unloaded = line(pending_photo, attachment: "photo (couldn't load it)")
+          expect(messages).to eq [{ role: 'user', content: "#{unloaded}\n#{line(human_message)}" }]
         end
       end
     end
@@ -716,6 +730,17 @@ RSpec.describe LLM::ReplyJob do
         expect(TelegramTools).to have_received(:download_file).with('old_photo')
         expect(messages.last).to include(images: [image_base64])
         expect(messages.last[:content]).to start_with "##{target.message_id} "
+      end
+
+      it "notes when the image of a message that was never stored couldn't be loaded" do
+        allow(TelegramTools).to receive(:download_file).and_raise Telegram::Bot::Error, 'timed out'
+        target = api_message_for(old_human_message, photo: [{ file_id: 'old_photo', width: 800, height: 600 }])
+        old_human_message.destroy!
+
+        messages = reply_to(api_message_for(human_message, reply_to_message: target))
+
+        expect(messages.last).not_to have_key :images
+        expect(messages.last[:content]).to include "[photo (couldn't load it)]"
       end
 
       it 'uses the stored copy of older messages, with its description and image' do

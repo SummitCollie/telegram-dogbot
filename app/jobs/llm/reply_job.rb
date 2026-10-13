@@ -174,12 +174,13 @@ module LLM
     end
 
     def db_message_entry(window, message)
+      image = prompt_image(message)
       entry = {
         id: message.api_id,
         user: "#{message.user.first_name} (@#{message.user.username})",
         text: message.text,
-        attachment: message.attachment_label,
-        image: prompt_image(message)
+        attachment: db_attachment_label(message, image),
+        image:
       }
 
       reply_to = message.reply_to_message
@@ -192,6 +193,14 @@ module LLM
       entry
     end
 
+    # Images that should've been described, but that the model gets neither a description of nor the image itself
+    # (e.g. downloading it failed), are marked as such, so the model doesn't pretend to see them
+    def db_attachment_label(message, image)
+      return message.attachment_label if message.image_status.nil? || message.image_description || image
+
+      "#{message.attachment_type} (couldn't load it)"
+    end
+
     # Photos (and images sent as files) are shown to models with vision (see LLMTools.chat_completion),
     # the rest only described
     def prompt_image(message)
@@ -201,12 +210,14 @@ module LLM
     end
 
     def api_message_entry(message)
+      image = api_message_image(message)
+      couldnt_load = @db_chat.vision_enabled? && message.image_file_id.present? && image.nil?
       entry = {
         id: message.message_id,
         user: "#{message.from.first_name} (@#{message.from.username})",
         text: message.text,
-        attachment: message.attachment_type,
-        image: api_message_image(message)
+        attachment: couldnt_load ? "#{message.attachment_type} (couldn't load it)" : message.attachment_type,
+        image:
       }
 
       entry[:reply_to] = "##{message.reply_to_message.message_id}" if message.reply_to_message.present?

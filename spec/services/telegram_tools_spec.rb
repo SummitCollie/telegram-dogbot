@@ -242,6 +242,16 @@ RSpec.describe TelegramTools do
       }
     end
 
+    it "raises Telegram::Bot::Error without the bot token when Telegram's API can't be reached" do
+      allow(bot).to receive(:get_file).and_raise HTTPClient::ConnectTimeoutError, 'https://api.telegram.org/botBOT_TOKEN/getFile'
+
+      expect { described_class.download_file('file_id') }.to raise_error(Telegram::Bot::Error) { |e|
+        expect(e.message).to include('file_id=file_id', 'HTTPClient::ConnectTimeoutError')
+        expect(e.message).not_to include 'BOT_TOKEN'
+        expect(e.cause).to be_nil
+      }
+    end
+
     it 'raises Telegram::Bot::Error when Telegram returns no file path' do
       allow(bot).to receive(:get_file).and_return({ 'ok' => true, 'result' => {} })
 

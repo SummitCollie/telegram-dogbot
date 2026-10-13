@@ -14,6 +14,9 @@ class TelegramTools
   MAX_DOWNLOAD_SIZE = 20.megabytes # Telegram's limit for bots
   DOWNLOAD_TIMEOUT = 30 # seconds
   JPEG_QUALITY = 85
+  # Raised as-is (not as Telegram::Bot::Error) by the telegram-bot gem's HTTP client when it can't reach Telegram
+  BOT_API_NETWORK_ERRORS = [HTTPClient::TimeoutError, HTTPClient::BadResponseError, SocketError, SystemCallError,
+                            OpenSSL::SSL::SSLError].freeze
 
   class << self
     def logger
@@ -119,7 +122,11 @@ class TelegramTools
     # Contents of a file sent to the bot (up to 20MB, Telegram's limit for bots)
     # https://core.telegram.org/bots/api#getfile
     def download_file(file_id)
-      response = Telegram.bot.async(false) { Telegram.bot.get_file(file_id:) }
+      response = begin
+        Telegram.bot.async(false) { Telegram.bot.get_file(file_id:) }
+      rescue *BOT_API_NETWORK_ERRORS => e
+        raise Telegram::Bot::Error, "Couldn't look up file_id=#{file_id} (#{e.class})", cause: nil # may have the URL
+      end
       file_path = response.dig('result', 'file_path') if response.is_a?(Hash)
       raise Telegram::Bot::Error, "No file_path for file_id=#{file_id}" if file_path.blank?
 
