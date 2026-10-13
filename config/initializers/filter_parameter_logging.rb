@@ -7,4 +7,5 @@
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += %i[
   passw secret token _key crypt salt certificate otp ssn
+  bot_name persona user_name user_bio
 ]

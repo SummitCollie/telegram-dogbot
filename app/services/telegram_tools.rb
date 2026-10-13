@@ -7,6 +7,25 @@ class TelegramTools
   COLLAPSE_MAX_LINES = 5
   COLLAPSE_MAX_CHARS = 500
 
+  GROUP_COMMANDS = [
+    { command: 'summarize', description: 'Show help for summarize features' },
+    { command: 'summarize_url', description: 'Summarize content from a URL, optional custom style' },
+    { command: 'summarize_chat', description: 'Summarize recent chat messages, optional custom style' },
+    { command: 'vibe_check', description: 'Run vibe analysis' },
+    { command: 'translate', description: 'Translate text from your message or replied message' },
+    { command: 'chat_stats', description: 'Show stats about this chat' }
+  ].freeze
+
+  # In DMs, when premium is enabled (see Premium)
+  PREMIUM_COMMANDS = [
+    { command: 'settings', description: 'Change my name, personality, style & memory' },
+    { command: 'subscription', description: 'Your premium subscription' },
+    { command: 'forget', description: 'Delete our DM history now' },
+    { command: 'terms', description: 'Terms of service' },
+    { command: 'privacy', description: 'Privacy notice' },
+    { command: 'paysupport', description: 'Help with a payment' }
+  ].freeze
+
   class << self
     def logger
       @logger ||= Logger.new(
@@ -24,8 +43,23 @@ class TelegramTools
         url:,
         drop_pending_updates: false,
         secret_token: Rails.application.credentials.telegram_secret_token,
-        allowed_updates: %w[message edited_message my_chat_member callback_query]
+        allowed_updates: %w[message edited_message my_chat_member callback_query pre_checkout_query
+                            stopped_message_generation]
       )
+    end
+
+    # Commands listed in the Telegram UI: https://core.telegram.org/bots/features#commands
+    # Be sure to add any new ones here.
+    def register_commands(client)
+      client.set_my_commands(commands: GROUP_COMMANDS, language_code: 'en')
+      client.set_my_commands(commands: GROUP_COMMANDS, scope: { type: 'all_group_chats' }, language_code: 'en')
+
+      private_scope = { type: 'all_private_chats' }
+      if Premium.enabled?
+        client.set_my_commands(commands: PREMIUM_COMMANDS, scope: private_scope, language_code: 'en')
+      else
+        client.delete_my_commands(scope: private_scope, language_code: 'en')
+      end
     end
 
     # rubocop:disable Style/GuardClause
@@ -101,9 +135,9 @@ class TelegramTools
 
     # Long messages are sent in a collapsed blockquote (unless send_params has its own parse_mode),
     # so they don't flood the chat
-    def collapse_if_long(text, send_params)
+    def collapse_if_long(text, send_params, enabled: true)
       long = text.lines.size > COLLAPSE_MAX_LINES || text.length > COLLAPSE_MAX_CHARS
-      return { text: } if !long || send_params.key?(:parse_mode)
+      return { text: } if !enabled || !long || send_params.key?(:parse_mode)
 
       { text: "<blockquote expandable>#{ERB::Util.html_escape(text)}</blockquote>", parse_mode: 'HTML' }
     end
@@ -132,10 +166,12 @@ class TelegramTools
     # Returns the stored Message.
     # - replace_message_id: api_id of a message of this bot to edit into this one instead (e.g. a progress
     #   message, see LLMProgress), keeping its position. Its buttons are removed. Sent as new message if that fails.
+    # - collapse: false to never put long messages in a collapsed blockquote (see #collapse_if_long)
     def send_bot_message(db_chat, text, reply_to: nil, replace_message_id: nil, **send_params)
+      text_params = collapse_if_long(text, send_params, enabled: send_params.delete(:collapse) != false)
       response = Telegram.bot.async(false) do
         (replace_message_id && edit_into_message(db_chat, replace_message_id, text, send_params)) ||
-          Telegram.bot.send_message(chat_id: db_chat.api_id, **collapse_if_long(text, send_params), **send_params)
+          Telegram.bot.send_message(chat_id: db_chat.api_id, **text_params, **send_params)
       end
       sent = response['result'] if response.is_a?(Hash)
 

@@ -1,0 +1,10 @@
+<%- if owner -%>
+👑 You're the owner, so you get premium for free.
+<%- elsif payment -%>
+⭐ <b>Premium until <%= paid_until %></b>
+<%= payment.is_recurring ? (payment.renewal_canceled? ? 'Renewal cancelled: it ends then.' : "Renews automatically for #{price} Stars.") : '' %>
+
+Manage it in <b>⚙️ Settings</b>, or in Telegram under Settings → My Stars.
+<%- else -%>
+You don't have premium right now.
+<%- end -%>

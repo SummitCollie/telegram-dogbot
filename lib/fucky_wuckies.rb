@@ -25,4 +25,5 @@ module FuckyWuckies
   class SummarizeJobFailure < BaseError; end
   class TranslateJobFailure < BaseError; end
   class ReplyJobFailure < BaseError; end
+  class LocalLLMUnavailable < BaseError; end
 end

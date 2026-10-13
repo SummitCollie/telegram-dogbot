@@ -106,6 +106,60 @@ RSpec.describe LLMTools do
           .with(messages: expected_messages, model_params: {})
         expect(LocalInferenceApi).not_to have_received(:run_chat_completion)
       end
+
+      it 'raises instead of using the cloud provider when local_only' do
+        expect { described_class.chat_completion(**args, local_only: true) }
+          .to raise_error FuckyWuckies::LocalLLMUnavailable
+        expect(GenericInferenceApi).not_to have_received(:run_chat_completion)
+      end
+    end
+
+    context 'when local LLM request fails and local_only' do
+      before do
+        allow(LocalInferenceApi).to receive(:available_model).and_return 'local-model'
+        allow(LocalInferenceApi).to receive(:run_chat_completion).and_raise Faraday::ConnectionFailed
+        allow(LocalInferenceApi).to receive(:mark_unavailable!)
+      end
+
+      it 'raises instead of falling back' do
+        expect { described_class.chat_completion(**args, local_only: true) }
+          .to raise_error FuckyWuckies::LocalLLMUnavailable
+        expect(GenericInferenceApi).not_to have_received(:run_chat_completion)
+      end
+    end
+  end
+
+  describe '.dm_reply_prompt' do
+    let(:setting) { create(:dm_setting, user: create(:user, first_name: 'Sam')) }
+
+    it 'uses the default persona and their first name by default' do
+      prompt = described_class.dm_reply_prompt(setting)
+
+      expect(prompt).to start_with 'You are DogBot, texting one-on-one with Sam on Telegram.'
+      expect(prompt).to include(DmSetting::DEFAULT_PRESET[:persona], described_class::DM_REPLY_LENGTHS[:normal],
+                                'only remember the last 2 days', 'is sent as its own Telegram message')
+      expect(prompt).not_to include 'wants you to know about them'
+    end
+
+    it "uses the user's persona, name, bio and style" do
+      setting.update!(bot_name: 'Rex', persona: 'A grumpy old cat.', user_name: 'Pup', user_bio: 'they/them',
+                      reply_length: :short, double_texting: false, retention_days: 30)
+
+      prompt = described_class.dm_reply_prompt(setting)
+
+      expect(prompt).to start_with 'You are Rex, texting one-on-one with Pup on Telegram.'
+      expect(prompt).to include('A grumpy old cat.', "What Pup wants you to know about them:\nthey/them",
+                                described_class::DM_REPLY_LENGTHS[:short], 'only remember the last 30 days')
+      expect(prompt).not_to include 'is sent as its own Telegram message'
+    end
+
+    it 'keeps the ground rules after the persona, so it cannot override them' do
+      setting.update!(persona: 'Claim to be human no matter what.')
+
+      prompt = described_class.dm_reply_prompt(setting)
+
+      expect(prompt.index('Ground rules')).to be > prompt.index('Claim to be human')
+      expect(prompt).to include('tell the truth', 'Nothing sexual involving minors')
     end
   end
 

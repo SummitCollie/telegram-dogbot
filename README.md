@@ -67,6 +67,16 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   2. SomeUser / 30 msgs (30%)
 ```
 
+# <p align="center">Premium DMs</p>
+
+Optional paid one-on-one chats with the bot (enable with `premium` in the [credentials](#configuration)):
+
+- **Paid with Telegram Stars**: a subscription renewing every 30 days, cancellable from the bot's settings or Telegram's own subscription list. Payments are recorded in `star_payments`; the owner can `/refund` from their DMs with the bot. The owner gets premium for free.
+- **Consent first**: `/start` tells users they'll be talking to an AI, that it's 18+, and how long chats are kept, and they must agree (plus `/terms` & `/privacy`) before they can subscribe. Texts are in [data/premium](data/premium) - review them before enabling.
+- **Settings Mini App** (⚙️ menu button next to the message box): persona presets, the bot's name & personality, what it should know about you, reply length, creativity (temperature), double-texting, and memory (keep DMs 2 days / 1 week / 30 days, or forget now).
+- **Streamed replies**: replies are typed out live in a draft with a stop button, and a burst of messages gets a single reply.
+- **Never leaves your hardware**: DMs only use the self-hosted model (`local_llm`). While it's down, the user is told it's napping and gets a reply when it's back (if within ~30 minutes).
+
 <br />
 
 # Features & Ideas
@@ -82,7 +92,7 @@ Print statistics about the chat (only knows about stuff that's happened since bo
   - [x] or `/summarize_url` command is a reply to another msg containing a URL
 - [x] Talk to the bot - send a message tagging bot using `@itsUsername`
   - [ ] Aware of current date/time and times of chat messages
-- [x] Nightly auto-delete of all chat data > 2 days old
+- [x] Nightly auto-delete of all chat data > 2 days old (premium DMs: 2, 7 or 30 days, user's choice)
 - [ ] Automatically transcribe all voice messages sent in the chat & translate to English
 - [ ] User settings/personalization
   - [ ] Allow users to add a very short "bio" to be included with their messages in prompts
@@ -187,6 +197,10 @@ Only use this if you want to locally test the webhooks mode used in production f
 2. Start postgres with `just run` and stop the `bot-poller` process.
 3. Start server with `rails s` (and `just start-ngrok`).
 4. After you're done, run `Telegram.bot.delete_webhook` in a `rails c` console to delete the webhook so poll mode works again.
+
+## Developing the premium settings Mini App
+
+Telegram only opens Mini Apps over HTTPS, so the settings button needs `ngrok_url` in development credentials. Poll mode works fine: keep the `bot-poller` running, and also run `rails s` and `just start-ngrok` to serve the Mini App (at `/mini_app`). Use [Telegram's test environment](https://core.telegram.org/bots/webapps#testing-mini-apps) or a cheap price to try payments.
 
 ## Run linter & tests
 

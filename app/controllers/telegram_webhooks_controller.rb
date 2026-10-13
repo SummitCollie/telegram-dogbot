@@ -4,6 +4,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include ChatStatsHelpers
   include MessageStorage
+  include PaymentHelpers
+  include PremiumHelpers
   include ReplyHelpers
   include SummarizeHelpers
   include TranslateHelpers
@@ -21,6 +23,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   # Validate `telegram_secret_token` from rails credentials
   def initialize(bot = nil, update = nil, webhook_request = nil)
+    @unparsed_update = update # see PremiumHelpers#raw_update
+
     if webhook_request && !Rails.env.test?
       secret_token_header = webhook_request.headers.fetch('X-Telegram-Bot-Api-Secret-Token')
       if secret_token_header != Rails.application.credentials.telegram_secret_token
@@ -34,7 +38,7 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   ### Handle commands
-  # Be sure to add any new ones in config/initializers/telegram_bot.rb
+  # Be sure to add any new ones in TelegramTools::GROUP_COMMANDS
   def summarize!(*)
     authorize_message_storage!(payload)
     store_message(payload)
@@ -97,7 +101,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
   end
 
   def start!(*)
-    return unless chat.type == 'private'
+    return unless private_chat?
+    return send_premium_status if Premium.enabled?
 
     raise FuckyWuckies::AuthorizationError.new(
       severity: Logger::Severity::INFO,
@@ -106,6 +111,64 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
       sticker: :heck
     ), 'Not saving message from non-group chat: ' \
        "chat api_id=#{chat.id} username=@#{chat.username}"
+  end
+
+  ### Premium DM commands (see PremiumHelpers). In groups, they're treated like unknown commands.
+  def subscription!(*)
+    return action_missing(:subscription) unless private_chat? && Premium.enabled?
+
+    send_premium_status
+  end
+  alias subscribe! subscription!
+
+  def settings!(*)
+    return action_missing(:settings) unless private_chat? && Premium.enabled?
+
+    keyboard = Premium.settings_keyboard
+    return send_html_message("Settings aren't available right now, sorry!") unless keyboard
+
+    send_html_message('⚙️ Change my name, personality, how I write, and how long I remember things:',
+                      reply_markup: keyboard)
+  end
+
+  def forget!(*)
+    return action_missing(:forget) unless private_chat? && Premium.enabled?
+
+    send_html_message(Premium.text(:forget), reply_markup: Premium.forget_keyboard)
+  end
+
+  # Required for bots taking payments: https://core.telegram.org/bots/payments-stars
+  def paysupport!(*words)
+    return action_missing(:paysupport) unless private_chat? && Premium.enabled?
+
+    send_html_message(Premium.text(:paysupport))
+    notify_owner_of_paysupport(words)
+  end
+
+  def terms!(*)
+    return action_missing(:terms) unless private_chat? && Premium.enabled?
+
+    send_html_message(Premium.text(:terms))
+  end
+
+  # Also in groups: it covers what's stored about group chat members too
+  def privacy!(*)
+    return action_missing(:privacy) unless Premium.enabled?
+
+    unless private_chat?
+      authorize_message_storage!(payload)
+      store_message(payload)
+      authorize_command!
+    end
+
+    send_html_message(Premium.text(:privacy))
+  end
+
+  # Owner only: `/refund` lists recent payments, `/refund CHARGE_ID` refunds one
+  def refund!(charge_id = nil, *)
+    return action_missing(:refund) unless private_chat? && owner_message?
+
+    run_refund(charge_id)
   end
 
   ### Handle unknown commands
@@ -117,6 +180,8 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle incoming message - https://core.telegram.org/bots/api#message
   def message(message)
+    return handle_direct_message(message) if private_chat?
+
     authorize_message_storage!(message)
     store_message(message)
     reply_when_mentioned(message) if bot_mentioned? || replied_to_bot?
@@ -124,15 +189,42 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
 
   ### Handle inline button presses - https://core.telegram.org/bots/api#callbackquery
   def callback_query(data)
-    return answer_callback_query('?') unless data == LLMProgress::CANCEL_DATA && payload.message
+    return answer_callback_query('?') unless payload.message
 
-    answer_callback_query LLMProgress.cancel(
-      chat_api_id: payload.message.chat.id, message_id: payload.message.message_id, from:
-    )
+    case data
+    when LLMProgress::CANCEL_DATA
+      answer_callback_query LLMProgress.cancel(
+        chat_api_id: payload.message.chat.id, message_id: payload.message.message_id, from:
+      )
+    when Premium::CONSENT_DATA then premium_consent_pressed
+    when Premium::FORGET_DATA then premium_forget_pressed
+    else answer_callback_query('?')
+    end
+  end
+
+  ### Handle Telegram Stars checkout - must be answered within 10s
+  # https://core.telegram.org/bots/api#answerprecheckoutquery
+  def pre_checkout_query(query)
+    error = Premium.checkout_error(create_or_update_user, payload: query.invoice_payload,
+                                                          currency: query.currency, total_amount: query.total_amount)
+    answer_pre_checkout_query(error.nil?, **({ error_message: error } if error))
+  end
+
+  ### Handle the stop button of a reply being streamed in DMs (see DraftStreamer)
+  def stopped_message_generation(data)
+    DraftStreamer.stop(data.dig('chat', 'id'))
+  end
+
+  # telegram-bot only knows update types up to Bot API 8.2
+  def action_for_payload
+    stopped = raw_update['stopped_message_generation'] unless payload_type
+    stopped ? [:stopped_message_generation, [stopped]] : super
   end
 
   ### Handle incoming edited message
   def edited_message(message)
+    return handle_direct_edit(message) if private_chat?
+
     authorize_message_storage!(message)
     store_edited_message(message)
   end

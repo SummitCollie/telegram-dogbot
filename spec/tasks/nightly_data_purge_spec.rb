@@ -94,6 +94,43 @@ RSpec.describe 'Rake Task: nightly_data_purge' do
     end
   end
 
+  context 'with premium DMs' do
+    def dm_message(user, age)
+      chat = Chat.find_or_create_by!(api_id: user.api_id, api_type: :private_room)
+      create(:message, chat_user: ChatUser.find_or_create_by!(chat:, user:), date: age.ago)
+    end
+
+    it 'keeps DM messages for as long as their user chose' do
+      week_user = create(:dm_setting, retention_days: 7).user
+      kept = dm_message(week_user, 5.days)
+      expired = dm_message(week_user, 8.days)
+
+      Rake::Task['nightly_data_purge'].invoke
+
+      expect(Message.where(id: [kept.id, expired.id])).to contain_exactly(kept)
+    end
+
+    it 'keeps DM messages for 2 days by default, like group chats' do
+      user = create(:dm_setting).user
+      kept = dm_message(user, 1.day)
+      expired = dm_message(user, 3.days)
+      no_setting = dm_message(create(:user), 3.days)
+
+      Rake::Task['nightly_data_purge'].invoke
+
+      expect(Message.where(id: [kept.id, expired.id, no_setting.id])).to contain_exactly(kept)
+    end
+
+    it "doesn't apply a user's DM retention to their messages in groups" do
+      user = create(:dm_setting, retention_days: 30).user
+      group_message = create(:message, chat_user: create(:chat_user, user:), date: 3.days.ago)
+
+      Rake::Task['nightly_data_purge'].invoke
+
+      expect(Message.where(id: group_message.id)).to be_empty
+    end
+  end
+
   context 'when some ChatSummaries in DB are > 2 days old' do
     it 'deletes ChatSummaries > 2 days old' do
       create(:chat_summary, status: :complete, created_at: 3.days.ago)

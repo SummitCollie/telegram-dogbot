@@ -82,8 +82,8 @@ module LLM
       )
       offset = [((scope.count - CONTEXT_MIN_MESSAGES) / CONTEXT_STEP) * CONTEXT_STEP, 0].max
 
-      scope.includes(:user, reply_to_message: :user)
-           .references(:user, :message)
+      # Preloaded in separate queries: eager_load (JOINs) gets reply_to_message.user wrong
+      scope.preload(:user, reply_to_message: :user)
            .order(:date, :id)
            .offset(offset)
            .to_a

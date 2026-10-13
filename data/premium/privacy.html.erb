@@ -1,0 +1,16 @@
+🔒 <b><%= bot_name %>: Privacy notice</b>
+
+<b>Who:</b> this bot is run by an individual, contact <%= support_contact %>.
+
+<b>DMs (premium)</b>
+• <b>Stored:</b> your Telegram ID, name & username; the text of our DMs (captions and sticker emoji included, no media); your settings; and your payments (amount, dates, Telegram charge ID).
+• <b>Why:</b> messages give the AI context for its replies; settings shape its persona; payment records handle your subscription, refunds and disputes. Legal basis: providing the service you asked for, and your explicit consent, given when you tapped "I agree", for anything sensitive you choose to share (e.g. about your sex life or health).
+• <b>Where:</b> processed only on the operator's own hardware. Your DMs aren't sent to any AI company.
+• <b>How long:</b> DM messages are deleted automatically after the period you choose (<%= retention_days.to_sentence(last_word_connector: ' or ', two_words_connector: ' or ') %> days; default <%= default_retention_days %>), or immediately with /forget. Settings are kept until you reset them in ⚙️ Settings. Payment records are kept as long as needed for accounting and disputes.
+
+<b>Group chats</b>
+Messages in group chats with the bot are stored for <%= default_retention_days %> days for its group features, and when the self-hosted AI is unavailable they may be processed by a third-party AI API.
+
+<b>Telegram</b> keeps its own copy of your chats under its own privacy policy; deleting data here doesn't delete it from Telegram.
+
+<b>Your rights:</b> access, correction, deletion, objection and data portability, and you can withdraw consent at any time (/forget, or stop using the bot). Contact <%= support_contact %>. You can also complain to your data protection authority.
