@@ -556,6 +556,55 @@
     targets = [];
     version = "3.4.4";
   };
+  ffi = {
+    groups = ["default"];
+    platforms = [];
+    source = null;
+    targets = [{
+      remotes = ["https://rubygems.org"];
+      sha256 = "06q06ylk32yma6ms84sd6cxhlcvp1sbbyal58q51n98r2jpil1qr";
+      target = "arm64-darwin";
+      targetCPU = "arm64";
+      targetOS = "darwin";
+      type = "gem";
+    } {
+      remotes = ["https://rubygems.org"];
+      sha256 = "0bbmph141hwnn3m4k8hx8nhy1imfjpz87h595ww4n1xf5r6b2gcx";
+      target = "x86_64-linux-gnu";
+      targetCPU = "x86_64";
+      targetOS = "linux";
+      type = "gem";
+    } {
+      remotes = ["https://rubygems.org"];
+      sha256 = "0r0mrghywpvzd42mrh83n263gkdqcmx1hpxg25a9bgvprgvxvnyn";
+      target = "arm-linux-gnu";
+      targetCPU = "arm";
+      targetOS = "linux";
+      type = "gem";
+    } {
+      remotes = ["https://rubygems.org"];
+      sha256 = "15m4rlngxc2ff6pb4b1a11fbvkxl16vn4jgndh4kacng4c2kjw5a";
+      target = "x86_64-darwin";
+      targetCPU = "x86_64";
+      targetOS = "darwin";
+      type = "gem";
+    } {
+      remotes = ["https://rubygems.org"];
+      sha256 = "1kvjxp0k31igqpim9lfyrrxna2df4c40k97cbgi5b9acbzgm1q9q";
+      target = "x86-linux-gnu";
+      targetCPU = "x86";
+      targetOS = "linux";
+      type = "gem";
+    } {
+      remotes = ["https://rubygems.org"];
+      sha256 = "1pw0q28nvllqysx7g9gv6vy2gz6csbiwm8rx37hzbn7zj5pz025j";
+      target = "aarch64-linux-gnu";
+      targetCPU = "aarch64";
+      targetOS = "linux";
+      type = "gem";
+    }];
+    version = "1.17.4";
+  };
   globalid = {
     dependencies = ["activesupport"];
     groups = ["default"];
@@ -1582,6 +1631,19 @@
     };
     targets = [];
     version = "0.7.3";
+  };
+  ruby-vips = {
+    dependencies = ["ffi" "logger"];
+    groups = ["default"];
+    platforms = [];
+    source = {
+      remotes = ["https://rubygems.org"];
+      sha256 = "0x2k5x272m2zs0vmznl2jac14bj9a2g0365xxcnr2s9rq41fr1g6";
+      target = "ruby";
+      type = "gem";
+    };
+    targets = [];
+    version = "2.3.0";
   };
   securerandom = {
     groups = ["default" "development" "test"];

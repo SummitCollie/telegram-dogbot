@@ -161,9 +161,56 @@ RSpec.describe TelegramTools do
       end
     end
 
+    it 'uses images sent as files' do
+      document = { file_id: 'heic', file_unique_id: 'u', mime_type: 'image/heic', file_size: 3.megabytes }
+
+      expect(described_class.image_file_id(message_with(document:))).to eq 'heic'
+    end
+
+    [{ mime_type: 'application/pdf' }, { mime_type: 'image/svg+xml' },
+     { mime_type: 'image/png', file_size: 21.megabytes }].each do |document|
+      it "is nil for files that aren't images it can download (#{document.values.join(', ')})" do
+        document = { file_id: 'f', file_unique_id: 'u', file_size: 1000, **document }
+
+        expect(described_class.image_file_id(message_with(document:))).to be_nil
+      end
+    end
+
     it 'is nil without anything to show' do
       expect(described_class.image_file_id(message_with(text: 'hi', **video_message_options))).to be_nil
       expect(described_class.image_file_id(message_with(text: 'hi'))).to be_nil
+    end
+  end
+
+  describe '#compress_image' do
+    def compress(image, format)
+      Vips::Image.new_from_buffer(described_class.compress_image(image.write_to_buffer(format)), '')
+    end
+
+    it 'shrinks images to fit within MAX_IMAGE_SIZE, as JPEG' do
+      result = compress(Vips::Image.black(3000, 1500, bands: 3), '.png')
+
+      expect([result.width, result.height]).to eq [800, 400]
+      expect(result.get('vips-loader')).to eq 'jpegload_buffer'
+    end
+
+    it 'leaves smaller images their size' do
+      result = compress(Vips::Image.black(300, 200, bands: 3), '.webp')
+
+      expect([result.width, result.height, result.bands]).to eq [300, 200, 3]
+    end
+
+    it 'puts transparent images on white, and converts 16-bit ones' do
+      transparent = Vips::Image.black(10, 10, bands: 4).cast(:ushort).copy(interpretation: :rgb16)
+
+      result = compress(transparent, '.png')
+
+      expect(result.bands).to eq 3
+      expect(result.getpoint(5, 5).map(&:round)).to eq [255, 255, 255]
+    end
+
+    it "raises Vips::Error for files that aren't images" do
+      expect { described_class.compress_image('%PDF-1.4 not an image') }.to raise_error Vips::Error
     end
   end
 

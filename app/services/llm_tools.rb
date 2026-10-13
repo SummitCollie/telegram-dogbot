@@ -118,7 +118,8 @@ class LLMTools
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
         Attachments are noted in brackets, e.g. "[photo: what it shows]" or "[sticker: what it shows]".#{vision_note}
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
-        Keep it short by default, usually one casual sentence. When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
+        Keep it short by default, usually one casual sentence around 5-6 words.
+        BUT, When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
         #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):

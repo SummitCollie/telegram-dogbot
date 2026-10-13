@@ -11,7 +11,9 @@ class TelegramTools
   # (90, 320, 800, 1280, 2560px). Vision tokens scale with pixels (~470 tokens at 800x600), and photos
   # stay in prompts for as long as they're in the context window.
   MAX_IMAGE_SIZE = 800
+  MAX_DOWNLOAD_SIZE = 20.megabytes # Telegram's limit for bots
   DOWNLOAD_TIMEOUT = 30 # seconds
+  JPEG_QUALITY = 85
 
   class << self
     def logger
@@ -71,21 +73,39 @@ class TelegramTools
       Message.attachment_types.keys.find { |type| !!api_message[type] }
     end
 
-    # file_id of a still image showing the message's photo, sticker, GIF or video, or nil if it has none.
-    # Animated (.tgs) and video (.webm) stickers aren't images, so their thumbnails are used instead,
-    # like for GIFs and videos.
+    # file_id of a still image showing the message's photo, sticker, GIF, video, or image sent as a file
+    # (uncompressed), or nil if it has none. Animated (.tgs) and video (.webm) stickers aren't images,
+    # so their thumbnails are used instead, like for GIFs and videos.
     def image_file_id(api_message)
-      if (photo = api_message.try(:photo).presence)
-        photo_size_to_download(photo).file_id
-      elsif (sticker = api_message.try(:sticker))
-        sticker_image(sticker)&.file_id
-      else
-        (api_message.try(:animation) || api_message.try(:video))&.thumbnail&.file_id
-      end
+      photo = api_message.try(:photo).presence
+      return photo_size_to_download(photo).file_id if photo
+
+      image = sticker_image(api_message.try(:sticker)) ||
+              (api_message.try(:animation) || api_message.try(:video))&.thumbnail ||
+              image_document(api_message.try(:document))
+      image&.file_id
     end
 
     def sticker_image(sticker)
+      return unless sticker
+
       sticker.is_animated || sticker.is_video ? sticker.thumbnail : sticker
+    end
+
+    # Any format libvips can read (incl. HEIC from iPhones), except SVGs, which aren't worth the risk
+    def image_document(document)
+      return unless document&.mime_type.to_s.start_with?('image/') && document.mime_type != 'image/svg+xml'
+
+      document if document.file_size.to_i <= MAX_DOWNLOAD_SIZE
+    end
+
+    # Images sent as files can be any size and format, so they're shrunk to fit within MAX_IMAGE_SIZE,
+    # as JPEG, like Telegram does with photos. Raises Vips::Error if it's not an image libvips can read.
+    def compress_image(data)
+      image = Vips::Image.thumbnail_buffer(data, MAX_IMAGE_SIZE, height: MAX_IMAGE_SIZE, size: :down) # also autorotates
+      image = image.colourspace(:srgb) # e.g. from CMYK or 16-bit
+      image = image.flatten(background: [255, 255, 255]) if image.has_alpha?
+      image.jpegsave_buffer(Q: JPEG_QUALITY, strip: true)
     end
 
     # Largest within MAX_IMAGE_SIZE, or the smallest if none are

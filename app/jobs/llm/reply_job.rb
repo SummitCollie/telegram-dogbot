@@ -192,9 +192,10 @@ module LLM
       entry
     end
 
-    # Photos are shown to models with vision (see LLMTools.chat_completion), the rest only described
+    # Photos (and images sent as files) are shown to models with vision (see LLMTools.chat_completion),
+    # the rest only described
     def prompt_image(message)
-      return unless @db_chat.vision_enabled? && message.photo? && message.image
+      return unless @db_chat.vision_enabled? && message.image
 
       Base64.strict_encode64(message.image.data)
     end

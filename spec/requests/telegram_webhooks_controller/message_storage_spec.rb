@@ -184,6 +184,16 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
                                                   sticker_file_unique_id: 'sticker_uid', image_status: 'pending')
         end
 
+        it 'saves images sent as files (even without a caption), and queues describing them' do
+          document = { file_id: 'doc_file_id', file_unique_id: 'u', mime_type: 'image/jpeg', file_size: 5000 }
+
+          expect { dispatch_message nil, default_message_options.merge(document:) }
+            .to have_enqueued_job(LLM::DescribeImageJob)
+
+          expect(Message.last).to have_attributes(attachment_type: 'document', image_file_id: 'doc_file_id',
+                                                  image_status: 'pending')
+        end
+
         it 'does not queue messages without images' do
           expect { dispatch_message 'text' }.not_to have_enqueued_job(LLM::DescribeImageJob)
           expect(Message.last.image_status).to be_nil

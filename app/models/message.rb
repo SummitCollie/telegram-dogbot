@@ -13,7 +13,7 @@ class Message < ApplicationRecord
                      dependent: :nullify, inverse_of: :reply_to_message
   has_one :chat, through: :chat_user
   has_one :user, through: :chat_user
-  # Only photos have their image stored (once downloaded), the rest are just described
+  # Only photos and images sent as files have their image stored (once downloaded), the rest are just described
   has_one :image, class_name: 'MessageImage', dependent: :delete
 
   scope :from_this_bot, -> { joins(:user).where(user: { is_this_bot: true }) }
