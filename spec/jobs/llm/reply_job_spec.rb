@@ -847,6 +847,18 @@ RSpec.describe LLM::ReplyJob do
       ]
     end
 
+    it "keeps replies to the bot's messages quoting it, once the bot has replied to them too" do
+      human_cu
+      earlier_bot_message = create(:message, chat_user: bot_cu, text: "i'm just lucky", date: 5.minutes.ago)
+      reply_to_bot = create(:message, chat_user: human_cu, reply_to_message: earlier_bot_message, date: 4.minutes.ago)
+
+      first_prompt = reply_to(reply_to_bot)
+      second_prompt = reply_to(create(:message, chat_user: human_cu, date: 1.minute.from_now))
+
+      expect(first_prompt.last[:content]).to include %(replying to you ("i'm just lucky"))
+      expect(second_prompt.first(first_prompt.size)).to eq first_prompt
+    end
+
     it 'puts bot messages that are not replies (summaries etc) in date order, even as the first turn' do
       human_cu
       bot_cu
@@ -906,6 +918,55 @@ RSpec.describe LLM::ReplyJob do
 
         expect(ids.size).to eq min + 1
         expect(ids.first).to eq history[step].api_id
+      end
+
+      describe "fitting into the self-hosted model's context" do
+        let(:num_ctx) { 800 }
+
+        before do
+          stub_const("#{described_class}::CONTEXT_MIN_MESSAGES", 20)
+          stub_const("#{described_class}::CONTEXT_STEP", 4)
+          stub_const("#{described_class}::CONTEXT_RESERVED_TOKENS", 50) # leaving 750 for the conversation
+          allow(LocalInferenceApi).to receive(:config)
+            .and_return ActiveSupport::OrderedOptions[request_params: { options: { num_ctx: } }]
+          # 100 tokens per message
+          allow(LLMTools).to receive(:estimate_tokens) { |messages| messages.sum { |m| m[:content].lines.size } * 100 }
+        end
+
+        it 'drops the oldest messages CONTEXT_STEP at a time, until they fit' do
+          history = create_history(7)
+          mention = create(:message, chat_user: human_cu, date: Time.current)
+
+          ids = user_turn_ids(reply_to(mention).last)
+
+          expect(ids).to eq [*history.last(3), mention].map(&:api_id)
+        end
+
+        it "keeps the window's start while later messages still fit, so the previous prompt stays cacheable" do
+          create_history(7)
+          first_prompt = reply_to(create(:message, chat_user: human_cu, date: 1.minute.ago))
+          second_prompt = reply_to(create(:message, chat_user: human_cu, date: Time.current))
+
+          expect(second_prompt.first(first_prompt.size)).to eq first_prompt
+        end
+
+        it 'keeps the message being replied to, even if it alone is too much' do
+          mention = create(:message, chat_user: human_cu, date: Time.current)
+          allow(LLMTools).to receive(:estimate_tokens).and_return 10_000
+
+          expect(user_turn_ids(reply_to(mention).last)).to eq [mention.api_id]
+        end
+
+        context 'without num_ctx configured' do
+          let(:num_ctx) { nil }
+
+          it 'keeps all messages' do
+            history = create_history(7)
+            mention = create(:message, chat_user: human_cu, date: Time.current)
+
+            expect(user_turn_ids(reply_to(mention).last)).to eq [*history, mention].map(&:api_id)
+          end
+        end
       end
     end
   end

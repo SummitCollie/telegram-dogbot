@@ -177,9 +177,19 @@ RSpec.describe LocalInferenceApi do
         model: model_name,
         messages:,
         stream: true,
+        truncate: false,
         think: false,
         options: { num_ctx: 32768, temperature: 1.0, top_k: 20 }
       )
+    end
+
+    it "turns off Ollama's dropping of old messages, unless config says otherwise" do
+      run
+      expect(posted[:body]).to include(truncate: false)
+
+      config.request_params = { truncate: true }
+      run
+      expect(posted[:body]).to include(truncate: true)
     end
 
     it 'merges model_params into options' do

@@ -15,7 +15,7 @@ RSpec.describe LLMProgress do
     LLMTools::Provider.new(model: 'hf.co/someone/Some-Model-GGUF:Q6_K', self_hosted: true, split_replies: true)
   end
   let(:cloud_provider) { LLMTools::Provider.new(model: 'llama-3.3-70b', self_hosted: false, split_replies: false) }
-  let(:prompt) { [{ role: 'system', content: 'a' * 350 }, { role: 'user', content: 'b' * 3150 }] } # ~1k tokens
+  let(:prompt) { [{ role: 'system', content: 'a' * 250 }, { role: 'user', content: 'b' * 2250 }] } # ~1k tokens
 
   before do
     allow(LocalInferenceApi).to receive_messages(loaded_model: nil, prompt_tokens_per_second: nil)

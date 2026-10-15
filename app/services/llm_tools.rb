@@ -11,6 +11,11 @@ class LLMTools
   # Output text, plus per-model settings of whichever provider generated it
   Completion = Data.define(:text, :split_replies)
 
+  # For rough prompt size estimates. Chat logs tokenize poorly: Qwen splits numbers (like `#225903` message ids)
+  # into single digits, and there are lots of names and emoji. A 47k-char reply prompt measured 2.7 chars per token.
+  CHARS_PER_TOKEN = 2.5
+  TOKENS_PER_IMAGE = 500 # ~1 token per 32x32 pixels, and photos are up to 800px (TelegramTools::MAX_IMAGE_SIZE)
+
   class << self
     def prompt_for_mode(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
       case summary_type.to_sym
@@ -53,6 +58,13 @@ class LLMTools
       header += " [#{attachment}]" if attachment
       header += " replying to #{reply_to}" if reply_to
       "#{header}: #{text}".strip
+    end
+
+    # Rough number of prompt tokens in `messages` (see CHARS_PER_TOKEN), counting their images
+    def estimate_tokens(messages)
+      chars = messages.sum { |m| m[:content].to_s.length }
+      images = messages.sum { |m| m[:images].to_a.size }
+      (chars / CHARS_PER_TOKEN).round + (images * TOKENS_PER_IMAGE)
     end
 
     private

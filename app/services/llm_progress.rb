@@ -18,8 +18,6 @@ class LLMProgress
   TYPING_INTERVAL = 4 # seconds; typing indicator lasts ~5s
   MODEL_CHECK_INTERVAL = 2 # seconds
   TICK = 0.5 # seconds
-  CHARS_PER_TOKEN = 3.5 # rough prompt token estimate
-  TOKENS_PER_IMAGE = 500 # rough: ~1 token per 1024 pixels, photos are up to 800px
   CANCEL_DATA = 'llm_progress_cancel'
   CANCEL_KEYBOARD = { inline_keyboard: [[{ text: '✖️ Cancel', callback_data: CANCEL_DATA }]] }.freeze
 
@@ -98,13 +96,12 @@ class LLMProgress
 
   # About to send `messages` to `provider` (again, on fallback to another provider)
   def llm_started(provider, messages, now: Time.current)
-    prompt_chars = messages.sum { |m| m[:content].to_s.length }
-    images = messages.sum { |m| m[:images].to_a.size }
+    prompt_tokens = LLMTools.estimate_tokens(messages)
     @mutex.synchronize do
       @provider = provider
       @model_info = nil
       @loaded_at_start = nil
-      @prompt_tokens = (prompt_chars / CHARS_PER_TOKEN).round + (images * TOKENS_PER_IMAGE)
+      @prompt_tokens = prompt_tokens
       @tokens_thought = 0
       @tokens_out = 0
       enter_stage(provider.self_hosted ? :waking_model : :reading_prompt, now)

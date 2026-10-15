@@ -100,11 +100,16 @@ class LocalInferenceApi
     private
 
     # `local_llm.request_params` holds model-specific Ollama params, e.g. { think: false, options: { num_ctx: ... } }
+    #
+    # `truncate: false`: otherwise, when Ollama's estimate of the prompt (768 tokens per image, however small)
+    # exceeds num_ctx, it drops the oldest messages -- a few more for every reply in a busy chat, so the prompt's
+    # start keeps changing and none of it can be reused from cache. Callers fit prompts to num_ctx instead (see
+    # LLM::ReplyJob); one that's still too long fails with an HTTP 400 (and falls back).
     def chat_request_body(model, messages, model_params, request_params)
       params = config.request_params.to_h.deep_symbolize_keys
       options = { **params.fetch(:options, {}), **model_params }
 
-      { **params, **request_params, model:, messages:, stream: true, options: }
+      { truncate: false, **params, **request_params, model:, messages:, stream: true, options: }
     end
 
     # Yields each parsed line of Ollama's streamed (newline-delimited JSON) response

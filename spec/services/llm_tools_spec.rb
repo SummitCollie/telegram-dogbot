@@ -277,6 +277,16 @@ RSpec.describe LLMTools do
     end
   end
 
+  describe '.estimate_tokens' do
+    it 'counts characters of all messages, plus images' do
+      messages = [{ role: 'system', content: 'a' * 1000 }, { role: 'user', content: 'b' * 1500, images: %w[x y] },
+                  { role: 'assistant', content: 'c' * 500 }]
+
+      expect(described_class.estimate_tokens(messages))
+        .to eq((3000 / described_class::CHARS_PER_TOKEN).round + (2 * described_class::TOKENS_PER_IMAGE))
+    end
+  end
+
   describe '.prompt_completion' do
     before { allow(LocalInferenceApi).to receive(:available_model).and_return nil }
 

@@ -3,10 +3,14 @@
 module LLM
   class ReplyJob < ApplicationJob
     # Context window holds between CONTEXT_MIN_MESSAGES and (CONTEXT_MIN_MESSAGES + CONTEXT_STEP - 1)
-    # messages. Its start only moves every CONTEXT_STEP messages, so the prompt prefix stays identical
-    # between replies and the LLM server can reuse its cached context.
+    # messages (fewer if they don't fit the self-hosted model's context, see `fit_to_context`). Its start only
+    # moves every CONTEXT_STEP messages, so the prompt prefix stays identical between replies and the LLM
+    # server can reuse its cached context.
     CONTEXT_MIN_MESSAGES = 300
     CONTEXT_STEP = 100
+    # Room to leave in the self-hosted model's context (`num_ctx`) for the system prompt (~1.1k tokens),
+    # thinking, the reply, and any message being replied to from outside the window
+    CONTEXT_RESERVED_TOKENS = 4096
 
     # Max length of the quote shown in `reply_to` for replies to this bot's messages
     REPLY_QUOTE_LENGTH = 50
@@ -35,8 +39,9 @@ module LLM
                                   requester: db_message.user.api_id) do |progress|
         # Messages sent before bot was mentioned, plus the message which mentioned the bot
         window = [*past_messages(db_message), *rest_of_album(db_message), db_message].uniq
+        look_at_images([*window, out_of_window_reply_target(window, api_message)], progress)
+        window = fit_to_context(window)
         reply_target = out_of_window_reply_target(window, api_message)
-        look_at_images([*window, reply_target], progress)
 
         completion = llm_generate_reply(window, reply_target, progress)
         output_messages = completion.split_replies ? split_reply(completion.text) : [completion.text]
@@ -96,6 +101,21 @@ module LLM
       with_associations(scope).order(:date, :id).offset(offset).to_a
     end
 
+    # Drops the oldest messages, CONTEXT_STEP at a time like `past_messages` (so the window's start still only
+    # moves every so often), until the prompt should fit the self-hosted model's context. Otherwise Ollama would
+    # fail, or drop messages itself (see LocalInferenceApi#chat_request_body). Leaves out any message being replied
+    # to from outside the window, which changes every reply, so it can't make the start move back and forth.
+    def fit_to_context(window)
+      num_ctx = LocalInferenceApi.config&.request_params&.dig(:options, :num_ctx)
+      return window unless num_ctx
+
+      budget = num_ctx - CONTEXT_RESERVED_TOKENS
+      while window.size > CONTEXT_STEP && LLMTools.estimate_tokens(conversation(window)) > budget
+        window = window.drop(CONTEXT_STEP)
+      end
+      window
+    end
+
     def rest_of_album(db_message)
       return [] if db_message.media_group_id.blank?
 
@@ -104,8 +124,10 @@ module LLM
         .order(:date, :id).to_a
     end
 
+    # Preloaded with separate queries: eager loading these all in one JOIN gives messages replied to the
+    # user of the reply instead of their own, when the reply is itself replied to within the same window
     def with_associations(scope)
-      scope.includes(:user, :image, reply_to_message: :user).references(:user, :message)
+      scope.preload(:user, :image, reply_to_message: :user)
     end
 
     # Waits for descriptions of images in the prompt, so messages render the same in this and later prompts
