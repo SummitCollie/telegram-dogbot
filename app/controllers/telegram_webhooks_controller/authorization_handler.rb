@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# rubocop:disable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
+# rubocop:disable-next Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity
 class TelegramWebhooksController
   module AuthorizationHandler
     extend self
@@ -99,4 +99,3 @@ class TelegramWebhooksController
     end
   end
 end
-# rubocop:enable Metrics/PerceivedComplexity, Metrics/CyclomaticComplexity

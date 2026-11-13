@@ -39,7 +39,7 @@ class TelegramTools
       )
     end
 
-    # rubocop:disable Style/GuardClause
+    # rubocop:disable-next Style/GuardClause
     def send_error_message(error, chat_api_id)
       logger.log(error.severity, error.message)
 
@@ -58,7 +58,6 @@ class TelegramTools
         )
       end
     end
-    # rubocop:enable Style/GuardClause
 
     # Returns the thing from the message that we want to save in the DB, or nil if missing.
     # - Sticker messages have an emoji we can log as message text

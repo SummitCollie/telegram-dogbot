@@ -3,7 +3,7 @@
 require 'rails_helper'
 
 RSpec.describe LLM::SummarizeUrlJob do
-  # rubocop:disable RSpec/InstanceVariable
+  # rubocop:disable-next RSpec/InstanceVariable
   describe '#perform' do
     let(:chat) { create(:chat) }
     let(:url) { 'http://example.com/article' }
@@ -249,5 +249,4 @@ RSpec.describe LLM::SummarizeUrlJob do
       end
     end
   end
-  # rubocop:enable RSpec/InstanceVariable
 end

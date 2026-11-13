@@ -249,7 +249,7 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
           end
         end
 
-        # rubocop:disable Style/PercentLiteralDelimiters
+        # rubocop:disable-next Style/PercentLiteralDelimiters
         it 'shows help info when no URL in command or replied message' do
           replied_message_without_url = api_replied_message.clone
           replied_message_without_url.attributes.merge!(
@@ -271,7 +271,6 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
             )
           end.to send_telegram_message(bot, %r:📝 <b><u>Summarize URL</u></b>:)
         end
-        # rubocop:enable Style/PercentLiteralDelimiters
       end
 
       context 'when style text comes before URL' do

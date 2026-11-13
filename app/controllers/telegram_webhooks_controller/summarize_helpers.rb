@@ -45,8 +45,8 @@ class TelegramWebhooksController
           payload.text[..(offset - 1)],
           payload.text[(offset + length)..]
         ].map(&:strip)
-                     .compact_blank
-                     .join(', ')
+         .compact_blank
+         .join(', ')
       else
         # No URL in command msg, so use the one from the replied msg
         offset = replied_entity.offset

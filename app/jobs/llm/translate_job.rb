@@ -9,7 +9,7 @@ module LLM
       TelegramTools.send_error_message(error, db_chat.api_id)
     end
 
-    # rubocop:disable Metrics/CyclomaticComplexity
+    # rubocop:disable-next Metrics/CyclomaticComplexity
     def perform(db_chat, text_to_translate, target_language, command_message_from, parent_message_from)
       @db_chat = db_chat
       @command_message_from = command_message_from
@@ -43,7 +43,6 @@ module LLM
       ), 'Translation failed: ' \
          "chat api_id=#{@db_chat.id} title=#{@db_chat.title}", cause: e
     end
-    # rubocop:enable Metrics/CyclomaticComplexity
 
     private
 

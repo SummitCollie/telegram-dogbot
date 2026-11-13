@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# rubocop:disable Layout/LineContinuationLeadingSpace
+# rubocop:disable-next Layout/LineContinuationLeadingSpace
 class TelegramWebhooksController
   module TranslateHelpers
     module_function
@@ -31,7 +31,7 @@ class TelegramWebhooksController
                             "• Paste text after command:\n" \
                             "    /translate hola mi amigo\n\n" \
                             "⚙️ Choose target language\n" \
-                            "    /translate polish hi there!\n" \
+                            "    /translate polish hi there!\n"
         ), 'Aborting translation, empty text_to_translate: ' \
            "chat api_id=#{db_chat.id} title=#{db_chat.title}"
       end
@@ -40,4 +40,3 @@ class TelegramWebhooksController
     end
   end
 end
-# rubocop:enable Layout/LineContinuationLeadingSpace
