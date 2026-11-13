@@ -3,6 +3,7 @@
 class TelegramWebhooksController < Telegram::Bot::UpdatesController
   include AuthorizationHandler
   include ChatStatsHelpers
+  include DescribeHelpers
   include MessageStorage
   include ReplyHelpers
   include SummarizeHelpers
@@ -94,6 +95,15 @@ class TelegramWebhooksController < Telegram::Bot::UpdatesController
     output = chat_stats_text
 
     TelegramTools.send_bot_message(db_chat, output, protect_content: true)
+  end
+
+  # Secret (not in the command menu): replies with the description of the image in the replied-to message.
+  # Neither the command nor its reply are stored, so they don't end up in chat history.
+  def describe!(*)
+    authorize_message_storage!(payload)
+    authorize_command!
+
+    send_describe_reply(image_description_text)
   end
 
   def start!(*)

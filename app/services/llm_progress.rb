@@ -18,7 +18,6 @@ class LLMProgress
   TYPING_INTERVAL = 4 # seconds; typing indicator lasts ~5s
   MODEL_CHECK_INTERVAL = 2 # seconds
   TICK = 0.5 # seconds
-  CHARS_PER_TOKEN = 3.5 # rough prompt token estimate
   CANCEL_DATA = 'llm_progress_cancel'
   CANCEL_KEYBOARD = { inline_keyboard: [[{ text: '✖️ Cancel', callback_data: CANCEL_DATA }]] }.freeze
 
@@ -78,16 +77,31 @@ class LLMProgress
     end
   end
 
+  ### Called by the job
+
+  # Waiting for `count` images to be described (see ImageDescriptions), before calling the LLM
+  def viewing_images(count, now: Time.current)
+    @mutex.synchronize do
+      @images_total = count
+      @images_left = count
+      enter_stage(:viewing_images, now)
+    end
+  end
+
+  def images_left(count)
+    @mutex.synchronize { @images_left = count }
+  end
+
   ### Called by LLMTools
 
   # About to send `messages` to `provider` (again, on fallback to another provider)
   def llm_started(provider, messages, now: Time.current)
-    prompt_chars = messages.sum { |m| m[:content].to_s.length }
+    prompt_tokens = LLMTools.estimate_tokens(messages)
     @mutex.synchronize do
       @provider = provider
       @model_info = nil
       @loaded_at_start = nil
-      @prompt_tokens = (prompt_chars / CHARS_PER_TOKEN).round
+      @prompt_tokens = prompt_tokens
       @tokens_thought = 0
       @tokens_out = 0
       enter_stage(provider.self_hosted ? :waking_model : :reading_prompt, now)
@@ -269,9 +283,10 @@ class LLMProgress
   ### Rendering (called with @mutex held)
 
   def step_lines(now)
-    return ["⏳ Getting ready… #{duration(now - @started_at)}"] unless @provider
-
     steps = []
+    steps << step_line(:viewing_images, "Look at #{pluralize(@images_total, 'image')}", now) if @images_total
+    return steps.presence || ["⏳ Getting ready… #{duration(now - @started_at)}"] unless @provider
+
     steps << step_line(:waking_model, 'Wake up model', now) if @provider.self_hosted
     steps << step_line(:reading_prompt, 'Read messages', now)
     # Only once the model starts thinking: there's no telling beforehand whether it will
@@ -279,7 +294,7 @@ class LLMProgress
     steps << step_line(:writing, "Write #{h @label.delete_prefix('a ').delete_prefix('an ')}", now)
   end
 
-  STAGE_ORDER = %i[preparing waking_model reading_prompt thinking writing].freeze
+  STAGE_ORDER = %i[preparing viewing_images waking_model reading_prompt thinking writing].freeze
   private_constant :STAGE_ORDER
 
   def step_line(stage, name, now)
@@ -294,6 +309,7 @@ class LLMProgress
   def current_detail(stage, now)
     elapsed = now - @stage_times[stage]
     case stage
+    when :viewing_images then "#{@images_total - @images_left}/#{@images_total} · #{duration(elapsed)}"
     when :waking_model then duration(elapsed)
     when :reading_prompt then ["~#{count(@prompt_tokens)} tokens", prompt_eta(elapsed)].compact.join(' · ')
     when :thinking then "#{count(@tokens_thought)} tokens · #{duration(elapsed)}"
@@ -337,6 +353,8 @@ class LLMProgress
   def count(number)
     number >= 1000 ? "#{(number / 1000.0).round(1).to_s.delete_suffix('.0')}k" : number.to_s
   end
+
+  def pluralize(number, word) = "#{number} #{number == 1 ? word : word.pluralize}"
 
   def h(text) = ERB::Util.html_escape(text)
 end

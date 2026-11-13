@@ -54,7 +54,9 @@ class TelegramWebhooksController
       #   raise FuckyWuckies::MessageFilterError.new, "Not saving message from bot: message api_id=#{message.message_id}"
       # end
 
-      if TelegramTools.extract_message_text(message).blank?
+      # Images without captions are worth saving if they'll be described
+      if TelegramTools.extract_message_text(message).blank? &&
+         !(Chat.vision_enabled?(chat&.id) && TelegramTools.image_file_id(message))
         raise FuckyWuckies::MessageFilterError.new, 'Not saving message with empty text: ' \
                                                     "message api_id=#{message.try(:message_id) || '?'}"
       end

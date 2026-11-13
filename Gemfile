@@ -42,6 +42,7 @@ gem 'method_source' # Method#source, used to put ReplyJob#perform in the reply p
 gem 'ostruct'
 gem 'ruby-openai'
 gem 'ruby-readability', require: 'readability'
+gem 'ruby-vips', '~> 2.3', require: 'vips' # resizing images sent as files (libvips is set up by nixpkgs)
 gem 'telegram-bot'
 gem 'telegram-bot-types'
 gem 'unicode-name'

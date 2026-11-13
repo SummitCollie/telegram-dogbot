@@ -160,6 +160,61 @@ RSpec.describe TelegramWebhooksController, telegram_bot: :rails do
         expect(message1.reload.text).to eq "#{emoji} (#{Unicode::Name.of(emoji).downcase})"
       end
 
+      describe 'images' do
+        let(:sticker) { { file_id: 'sticker_file_id', file_unique_id: 'sticker_uid', emoji: '🙂' } }
+        let(:photo) { [{ file_id: 'small', width: 90, height: 67 }, { file_id: 'medium', width: 800, height: 600 }] }
+        let(:vision_chats) { [12345] }
+
+        before { allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats }
+
+        it 'saves photos (even without a caption) as pending description, and queues describing them' do
+          expect { dispatch_message nil, default_message_options.merge(photo:, media_group_id: 'album') }
+            .to have_enqueued_job(LLM::DescribeImageJob)
+
+          expect(LLM::DescribeImageJob).to have_been_enqueued.with(Message.last.id)
+          expect(Message.last).to have_attributes(attachment_type: 'photo', image_file_id: 'medium', text: nil,
+                                                  image_status: 'pending', media_group_id: 'album')
+        end
+
+        it "saves stickers with their file_unique_id, for looking up their description if they've been sent before" do
+          expect { dispatch_message nil, default_message_options.merge(sticker:) }
+            .to have_enqueued_job(LLM::DescribeImageJob)
+
+          expect(Message.last).to have_attributes(attachment_type: 'sticker', image_file_id: 'sticker_file_id',
+                                                  sticker_file_unique_id: 'sticker_uid', image_status: 'pending')
+        end
+
+        it 'saves images sent as files (even without a caption), and queues describing them' do
+          document = { file_id: 'doc_file_id', file_unique_id: 'u', mime_type: 'image/jpeg', file_size: 5000 }
+
+          expect { dispatch_message nil, default_message_options.merge(document:) }
+            .to have_enqueued_job(LLM::DescribeImageJob)
+
+          expect(Message.last).to have_attributes(attachment_type: 'document', image_file_id: 'doc_file_id',
+                                                  image_status: 'pending')
+        end
+
+        it 'does not queue messages without images' do
+          expect { dispatch_message 'text' }.not_to have_enqueued_job(LLM::DescribeImageJob)
+          expect(Message.last.image_status).to be_nil
+        end
+
+        context 'when chat does not have vision enabled' do
+          let(:vision_chats) { [999] }
+
+          it 'does not save their images or queue describing them' do
+            expect { dispatch_message 'caption', default_message_options.merge(photo:) }
+              .not_to have_enqueued_job(LLM::DescribeImageJob)
+
+            expect(Message.last).to have_attributes(attachment_type: 'photo', image_file_id: nil, image_status: nil)
+          end
+
+          it 'does not save photos without a caption' do
+            expect { dispatch_message nil, default_message_options.merge(photo:) }.not_to change(Message, :count)
+          end
+        end
+      end
+
       it 'saves messages from other bots' do
         expect do
           dispatch_message 'text', { from: Telegram::Bot::Types::User.new(

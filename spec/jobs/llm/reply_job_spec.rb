@@ -570,6 +570,198 @@ RSpec.describe LLM::ReplyJob do
     end
   end
 
+  describe 'images' do
+    include ActiveJob::TestHelper
+
+    let(:vision_chats) { [chat.api_id] }
+    let(:vision_model_up) { true }
+    let(:image_base64) { Base64.strict_encode64('photo bytes') }
+
+    def api_message_for(db_message, **options)
+      Telegram::Bot::Types::Message.new(
+        message_id: db_message.api_id,
+        text: db_message.text,
+        date: db_message.date.to_i,
+        chat: { id: chat.api_id, type: 'group', title: chat.title },
+        from: { id: db_message.user.api_id, is_bot: false, first_name: db_message.user.first_name,
+                username: db_message.user.username },
+        **options
+      )
+    end
+
+    def reply_to(api_message)
+      described_class.perform_now(chat, TelegramTools.serialize_api_message(api_message))
+      messages = nil
+      expect(LLMTools).to have_received(:chat_completion) { |args| messages = args[:messages] }
+      messages
+    end
+
+    def line(message, attachment: nil)
+      user = message.user
+      "##{message.api_id} #{user.first_name} (@#{user.username})#{" [#{attachment}]" if attachment}: #{message.text}"
+    end
+
+    def photo_message(description: 'a shiba inu in sunglasses', status: :described, **attributes)
+      create(:message, chat_user: human_cu, attachment_type: :photo, image_file_id: 'photo_file_id',
+                       image_status: status, image_description: description, **attributes).tap do |message|
+        message.create_image!(data: 'photo bytes') if status == :described
+      end
+    end
+
+    before do
+      allow(Rails.application.credentials).to receive(:vision_chat_id_whitelist).and_return vision_chats
+      allow(LocalInferenceApi).to receive_messages(available_model: ('local-model' if vision_model_up),
+                                                   vision?: vision_model_up)
+      allow(TelegramTools).to receive(:download_file).and_return 'photo bytes'
+    end
+
+    describe 'in chat history' do
+      it 'shows photos to the model, each starting a message, along with their description' do
+        before_photo = create(:message, chat_user: human_cu, date: 3.minutes.ago)
+        photo = photo_message(date: 2.minutes.ago)
+        after_photo = create(:message, chat_user: human_cu, date: 1.minute.ago)
+
+        expect(reply_to(api_message_for(human_message))).to eq [
+          { role: 'user', content: line(before_photo) },
+          { role: 'user', images: [image_base64],
+            content: [line(photo, attachment: 'photo: a shiba inu in sunglasses'), line(after_photo),
+                      line(human_message)].join("\n") }
+        ]
+      end
+
+      it 'describes stickers and GIFs in text only' do
+        sticker = create(:message, chat_user: human_cu, attachment_type: :sticker, image_status: :described,
+                                   image_description: 'a dog shrugging', text: '🤷', date: 2.minutes.ago)
+        gif = create(:message, chat_user: human_cu, attachment_type: :animation, image_status: :described,
+                               image_description: 'a cat falling off a table', text: 'lol', date: 1.minute.ago)
+
+        expect(reply_to(api_message_for(human_message))).to eq [
+          { role: 'user', content: [line(sticker, attachment: 'sticker: a dog shrugging'),
+                                    line(gif, attachment: 'animation: a cat falling off a table'),
+                                    line(human_message)].join("\n") }
+        ]
+      end
+
+      context 'when chat does not have vision enabled' do
+        let(:vision_chats) { [] }
+
+        it 'does not show photos' do
+          photo_message(date: 1.minute.ago)
+
+          expect(reply_to(api_message_for(human_message)).pluck(:images)).to all be_nil
+        end
+      end
+    end
+
+    describe 'images still being described' do
+      let!(:pending_photo) { photo_message(status: :pending, description: nil, date: 1.minute.ago) }
+
+      before { allow(LocalInferenceApi).to receive(:run_chat_completion).and_return 'a cat in a box' }
+
+      it 'waits for their descriptions, then shows them' do
+        messages = perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+        expect(pending_photo.reload).to have_attributes(image_status: 'described', image_description: 'a cat in a box')
+        expect(messages).to eq [
+          { role: 'user', images: [image_base64],
+            content: "#{line(pending_photo, attachment: 'photo: a cat in a box')}\n#{line(human_message)}" }
+        ]
+      end
+
+      it 'waits for the photo in the message mentioning the bot too' do
+        human_message.update!(attachment_type: :photo, image_file_id: 'mention_photo', image_status: :pending)
+
+        perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+        expect(human_message.reload.image_description).to eq 'a cat in a box'
+        expect(TelegramTools).to have_received(:download_file).with('mention_photo')
+      end
+
+      context 'when the self-hosted model with vision is unavailable' do
+        let(:vision_model_up) { false }
+
+        it "doesn't wait for them, noting they couldn't be loaded" do
+          messages = reply_to(api_message_for(human_message))
+
+          expect(LLM::DescribeImageJob).not_to have_been_enqueued
+          unloaded = line(pending_photo, attachment: "photo (couldn't load it)")
+          expect(messages).to eq [{ role: 'user', content: "#{unloaded}\n#{line(human_message)}" }]
+        end
+      end
+
+      context "when the photo can't be downloaded" do
+        before do
+          stub_const('LLM::DescribeImageJob::RETRY_DELAY', 0)
+          allow(TelegramTools).to receive(:download_file).and_raise Telegram::Bot::Error, 'timed out'
+        end
+
+        it "notes it couldn't be loaded, so the model doesn't pretend to see it" do
+          messages = perform_enqueued_jobs { reply_to(api_message_for(human_message)) }
+
+          unloaded = line(pending_photo, attachment: "photo (couldn't load it)")
+          expect(messages).to eq [{ role: 'user', content: "#{unloaded}\n#{line(human_message)}" }]
+        end
+      end
+    end
+
+    describe 'albums' do
+      before { stub_const("#{described_class}::ALBUM_WAIT", 0) }
+
+      it 'includes the rest of the album the mention was sent with, even if it arrived afterwards' do
+        human_message.update!(media_group_id: 'album')
+        rest = photo_message(media_group_id: 'album', date: 1.second.from_now)
+        unrelated = create(:message, chat_user: human_cu, date: 2.seconds.from_now)
+
+        messages = reply_to(api_message_for(human_message))
+
+        expect(messages.last[:content].lines(chomp: true).last).to eq line(human_message)
+        expect(messages.pluck(:content).join).to include line(rest, attachment: 'photo: a shiba inu in sunglasses')
+        expect(messages.pluck(:content).join).not_to include unrelated.text
+      end
+    end
+
+    describe 'replies to messages outside the context window' do
+      it 'shows the image of a message that was never stored, only in this prompt' do
+        target = api_message_for(old_human_message, photo: [{ file_id: 'old_photo', width: 800, height: 600 }])
+        old_human_message.destroy!
+
+        messages = reply_to(api_message_for(human_message, reply_to_message: target))
+
+        expect(TelegramTools).to have_received(:download_file).with('old_photo')
+        expect(messages.last).to include(images: [image_base64])
+        expect(messages.last[:content]).to start_with "##{target.message_id} "
+      end
+
+      it "notes when the image of a message that was never stored couldn't be loaded" do
+        allow(TelegramTools).to receive(:download_file).and_raise Telegram::Bot::Error, 'timed out'
+        target = api_message_for(old_human_message, photo: [{ file_id: 'old_photo', width: 800, height: 600 }])
+        old_human_message.destroy!
+
+        messages = reply_to(api_message_for(human_message, reply_to_message: target))
+
+        expect(messages.last).not_to have_key :images
+        expect(messages.last[:content]).to include "[photo (couldn't load it)]"
+      end
+
+      it 'uses the stored copy of older messages, with its description and image' do
+        stub_const("#{described_class}::CONTEXT_MIN_MESSAGES", 2)
+        stub_const("#{described_class}::CONTEXT_STEP", 1)
+        old_photo = photo_message(date: 1.hour.ago)
+        create_list(:message, 3, chat_user: human_cu, date: 1.minute.ago)
+        human_message.update!(reply_to_message: old_photo)
+
+        messages = reply_to(api_message_for(human_message, reply_to_message: api_message_for(old_photo)))
+
+        expect(TelegramTools).not_to have_received(:download_file)
+        expect(messages.last).to eq(
+          role: 'user', images: [image_base64],
+          content: "#{line(old_photo, attachment: 'photo: a shiba inu in sunglasses')}\n" \
+                   "#{line(human_message).sub(': ', " replying to ##{old_photo.api_id}: ")}"
+        )
+      end
+    end
+  end
+
   describe 'conversation structure' do
     let(:llm_calls) { [] }
     let(:reply_text) { 'LLM generated reply text' }
@@ -655,6 +847,18 @@ RSpec.describe LLM::ReplyJob do
       ]
     end
 
+    it "keeps replies to the bot's messages quoting it, once the bot has replied to them too" do
+      human_cu
+      earlier_bot_message = create(:message, chat_user: bot_cu, text: "i'm just lucky", date: 5.minutes.ago)
+      reply_to_bot = create(:message, chat_user: human_cu, reply_to_message: earlier_bot_message, date: 4.minutes.ago)
+
+      first_prompt = reply_to(reply_to_bot)
+      second_prompt = reply_to(create(:message, chat_user: human_cu, date: 1.minute.from_now))
+
+      expect(first_prompt.last[:content]).to include %(replying to you ("i'm just lucky"))
+      expect(second_prompt.first(first_prompt.size)).to eq first_prompt
+    end
+
     it 'puts bot messages that are not replies (summaries etc) in date order, even as the first turn' do
       human_cu
       bot_cu
@@ -714,6 +918,55 @@ RSpec.describe LLM::ReplyJob do
 
         expect(ids.size).to eq min + 1
         expect(ids.first).to eq history[step].api_id
+      end
+
+      describe "fitting into the self-hosted model's context" do
+        let(:num_ctx) { 800 }
+
+        before do
+          stub_const("#{described_class}::CONTEXT_MIN_MESSAGES", 20)
+          stub_const("#{described_class}::CONTEXT_STEP", 4)
+          stub_const("#{described_class}::CONTEXT_RESERVED_TOKENS", 50) # leaving 750 for the conversation
+          allow(LocalInferenceApi).to receive(:config)
+            .and_return ActiveSupport::OrderedOptions[request_params: { options: { num_ctx: } }]
+          # 100 tokens per message
+          allow(LLMTools).to receive(:estimate_tokens) { |messages| messages.sum { |m| m[:content].lines.size } * 100 }
+        end
+
+        it 'drops the oldest messages CONTEXT_STEP at a time, until they fit' do
+          history = create_history(7)
+          mention = create(:message, chat_user: human_cu, date: Time.current)
+
+          ids = user_turn_ids(reply_to(mention).last)
+
+          expect(ids).to eq [*history.last(3), mention].map(&:api_id)
+        end
+
+        it "keeps the window's start while later messages still fit, so the previous prompt stays cacheable" do
+          create_history(7)
+          first_prompt = reply_to(create(:message, chat_user: human_cu, date: 1.minute.ago))
+          second_prompt = reply_to(create(:message, chat_user: human_cu, date: Time.current))
+
+          expect(second_prompt.first(first_prompt.size)).to eq first_prompt
+        end
+
+        it 'keeps the message being replied to, even if it alone is too much' do
+          mention = create(:message, chat_user: human_cu, date: Time.current)
+          allow(LLMTools).to receive(:estimate_tokens).and_return 10_000
+
+          expect(user_turn_ids(reply_to(mention).last)).to eq [mention.api_id]
+        end
+
+        context 'without num_ctx configured' do
+          let(:num_ctx) { nil }
+
+          it 'keeps all messages' do
+            history = create_history(7)
+            mention = create(:message, chat_user: human_cu, date: Time.current)
+
+            expect(user_turn_ids(reply_to(mention).last)).to eq [*history, mention].map(&:api_id)
+          end
+        end
       end
     end
   end

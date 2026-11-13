@@ -8,6 +8,7 @@ temp_tg_client = Telegram::Bot::Client.new(
 
 # Set slash commands available from telegram UI
 # https://core.telegram.org/bots/features#commands
+# (/describe is deliberately left out: it's for checking image descriptions)
 temp_tg_client.set_my_commands(
   commands: [
     { command: 'summarize',

@@ -109,6 +109,45 @@ RSpec.describe LLMTools do
     end
   end
 
+  describe '.chat_completion with images' do
+    let(:messages) do
+      [{ role: 'user', content: '#1 a: hi' },
+       { role: 'user', content: '#2 b [photo: a dog]: look', images: ['base64'] }]
+    end
+    let(:text_messages) do
+      [{ role: 'system', content: 'sys' }, messages.first, { role: 'user', content: '#2 b [photo: a dog]: look' }]
+    end
+
+    before { allow(LocalInferenceApi).to receive(:available_model).and_return 'local-model' }
+
+    it 'sends images to a local model with vision' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return true
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(LocalInferenceApi).to have_received(:run_chat_completion)
+        .with(hash_including(messages: [{ role: 'system', content: 'sys' }, *messages]))
+    end
+
+    it 'leaves images out for a local model without vision' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return false
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(LocalInferenceApi).to have_received(:run_chat_completion).with(hash_including(messages: text_messages))
+    end
+
+    it 'leaves images out on fallback to the cloud provider' do
+      allow(LocalInferenceApi).to receive(:vision?).and_return true
+      allow(LocalInferenceApi).to receive(:run_chat_completion).and_raise Faraday::ConnectionFailed
+      allow(LocalInferenceApi).to receive(:mark_unavailable!)
+
+      described_class.chat_completion(system_prompt: 'sys', messages:)
+
+      expect(GenericInferenceApi).to have_received(:run_chat_completion).with(messages: text_messages, model_params: {})
+    end
+  end
+
   describe '.chat_completion with progress' do
     let(:progress) { instance_double(LLMProgress, llm_started: nil, llm_thinking: nil, llm_output: nil) }
 
@@ -212,6 +251,12 @@ RSpec.describe LLMTools do
       expect(described_class.reply_prompt(cloud)).not_to include 'Each line you write'
     end
 
+    it 'tells models with vision that they can see photos' do
+      expect(described_class.reply_prompt(local.with(vision: true))).to include 'You can also see photos'
+      expect(described_class.reply_prompt(local)).not_to include 'You can also see photos'
+      expect(described_class.reply_prompt(cloud)).to include '[photo: what it shows]'
+    end
+
     it "includes ReplyJob#perform's source code" do
       expect(described_class.reply_prompt(local)).to include "```ruby\ndef perform(db_chat, serialized_message)\n"
     end
@@ -229,6 +274,16 @@ RSpec.describe LLMTools do
 
       expect(mentions.size).to eq 1
       expect(mentions.first).to include "don't @ them"
+    end
+  end
+
+  describe '.estimate_tokens' do
+    it 'counts characters of all messages, plus images' do
+      messages = [{ role: 'system', content: 'a' * 1000 }, { role: 'user', content: 'b' * 1500, images: %w[x y] },
+                  { role: 'assistant', content: 'c' * 500 }]
+
+      expect(described_class.estimate_tokens(messages))
+        .to eq((3000 / described_class::CHARS_PER_TOKEN).round + (2 * described_class::TOKENS_PER_IMAGE))
     end
   end
 

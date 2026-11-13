@@ -94,6 +94,32 @@ RSpec.describe LocalInferenceApi do
     end
   end
 
+  describe '.vision?' do
+    it "is true when the matching model has Ollama's vision capability" do
+      models = [{ 'name' => model_name, 'capabilities' => %w[completion vision] }]
+      allow(conn).to receive(:get).and_return instance_double(Faraday::Response, body: { models: }.to_json)
+      described_class.available_model
+
+      expect(described_class).to be_vision
+    end
+
+    it 'is false when the matching model lacks the vision capability' do
+      described_class.available_model
+
+      expect(described_class).not_to be_vision
+    end
+
+    it 'is false once the model becomes unavailable' do
+      allow(conn).to receive(:get).and_return instance_double(
+        Faraday::Response, body: { 'models' => [{ 'name' => model_name, 'capabilities' => %w[vision] }] }.to_json
+      )
+      described_class.available_model
+      described_class.mark_unavailable!(Faraday::TimeoutError.new('timed out'))
+
+      expect(described_class).not_to be_vision
+    end
+  end
+
   describe '.mark_unavailable!' do
     it 'makes available_model nil until next probe, then re-probes' do
       described_class.available_model
@@ -151,9 +177,19 @@ RSpec.describe LocalInferenceApi do
         model: model_name,
         messages:,
         stream: true,
+        truncate: false,
         think: false,
         options: { num_ctx: 32768, temperature: 1.0, top_k: 20 }
       )
+    end
+
+    it "turns off Ollama's dropping of old messages, unless config says otherwise" do
+      run
+      expect(posted[:body]).to include(truncate: false)
+
+      config.request_params = { truncate: true }
+      run
+      expect(posted[:body]).to include(truncate: true)
     end
 
     it 'merges model_params into options' do
@@ -163,6 +199,13 @@ RSpec.describe LocalInferenceApi do
         model: model_name,
         options: { num_ctx: 32768, temperature: 0.9, top_k: 20 }
       )
+    end
+
+    it 'lets request_params argument override ones from config' do
+      described_class.run_chat_completion(model: model_name, messages:, model_params: {},
+                                          request_params: { think: 'low' })
+
+      expect(posted[:body]).to include(think: 'low', options: { num_ctx: 32768, temperature: 1.0, top_k: 20 })
     end
 
     it 'works without request_params' do

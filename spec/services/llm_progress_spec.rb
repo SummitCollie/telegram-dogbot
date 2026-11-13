@@ -15,7 +15,7 @@ RSpec.describe LLMProgress do
     LLMTools::Provider.new(model: 'hf.co/someone/Some-Model-GGUF:Q6_K', self_hosted: true, split_replies: true)
   end
   let(:cloud_provider) { LLMTools::Provider.new(model: 'llama-3.3-70b', self_hosted: false, split_replies: false) }
-  let(:prompt) { [{ role: 'system', content: 'a' * 350 }, { role: 'user', content: 'b' * 3150 }] } # ~1k tokens
+  let(:prompt) { [{ role: 'system', content: 'a' * 250 }, { role: 'user', content: 'b' * 2250 }] } # ~1k tokens
 
   before do
     allow(LocalInferenceApi).to receive_messages(loaded_model: nil, prompt_tokens_per_second: nil)
@@ -84,6 +84,28 @@ RSpec.describe LLMProgress do
       expect(lines(t0 + 6)[1]).to eq '⏳ Getting ready… 6s'
     end
 
+    context 'when looking at images first' do
+      before { progress.viewing_images(3, now: t0 + 1) }
+
+      it 'shows how many have been described so far' do
+        progress.images_left(2)
+
+        expect(lines(t0 + 6)).to eq ['🐶 <b>Working on a reply…</b> 6s', '⏳ Look at 3 images · 1/3 · 5s']
+      end
+
+      it 'shows how long it took once the LLM request starts' do
+        progress.llm_started(cloud_provider, prompt, now: t0 + 9)
+
+        expect(lines(t0 + 10)[1..2]).to eq ['✅ Look at 3 images · 8s', '⏳ Read messages · ~1k tokens']
+      end
+
+      it 'says image, singular, for one' do
+        progress.viewing_images(1, now: t0 + 1)
+
+        expect(lines(t0 + 6)[1]).to eq '⏳ Look at 1 image · 0/1 · 5s'
+      end
+    end
+
     context 'with a cloud provider' do
       before { progress.llm_started(cloud_provider, prompt, now: t0 + 1) }
 
@@ -94,6 +116,12 @@ RSpec.describe LLMProgress do
           '▫️ Write reply',
           '<i>llama-3.3-70b</i>'
         ]
+      end
+
+      it 'counts images in the estimated prompt size' do
+        progress.llm_started(cloud_provider, [*prompt, { role: 'user', content: '', images: %w[a b] }], now: t0 + 1)
+
+        expect(lines(t0 + 6)[1]).to eq '⏳ Read messages · ~2k tokens'
       end
 
       it 'shows output tokens and speed while writing' do

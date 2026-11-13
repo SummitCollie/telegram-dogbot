@@ -3,10 +3,18 @@
 class LLMTools
   # The LLM about to generate a completion. Passed to callable system prompts, so they can adapt to it.
   # split_replies: model tends to "double-text", so chat replies (only) are sent as separate messages per line
-  Provider = Data.define(:model, :self_hosted, :split_replies)
+  # vision: model can see images (messages' `images`)
+  Provider = Data.define(:model, :self_hosted, :split_replies, :vision) do
+    def initialize(vision: false, **) = super
+  end
 
   # Output text, plus per-model settings of whichever provider generated it
   Completion = Data.define(:text, :split_replies)
+
+  # For rough prompt size estimates. Chat logs tokenize poorly: Qwen splits numbers (like `#225903` message ids)
+  # into single digits, and there are lots of names and emoji. A 47k-char reply prompt measured 2.7 chars per token.
+  CHARS_PER_TOKEN = 2.5
+  TOKENS_PER_IMAGE = 500 # ~1 token per 32x32 pixels, and photos are up to 800px (TelegramTools::MAX_IMAGE_SIZE)
 
   class << self
     def prompt_for_mode(summary_type) # rubocop:disable Metrics/CyclomaticComplexity
@@ -29,7 +37,8 @@ class LLMTools
 
     # Uses the self-hosted LLM if it's up, otherwise (or if it fails) `llm_api_provider`.
     # - system_prompt: String, or callable taking the Provider about to be used (called again on fallback)
-    # - messages: conversation turns following the system prompt
+    # - messages: conversation turns following the system prompt. Their `images` (base64 strings) are
+    #   left out for providers that can't see images.
     # - progress: optional LLMProgress, told which provider is used and about each piece of output
     def chat_completion(system_prompt:, messages:, model_params: {}, progress: nil)
       local_chat_completion(system_prompt:, messages:, model_params:, progress:) ||
@@ -39,7 +48,7 @@ class LLMTools
     # System prompt for replying when mentioned, adapted to the model generating the reply.
     def reply_prompt(provider)
       @reply_prompts ||= {}
-      @reply_prompts[provider.split_replies] ||= build_reply_prompt(provider)
+      @reply_prompts[[provider.split_replies, provider.vision]] ||= build_reply_prompt(provider)
     end
 
     # One message of a chat log in a prompt, e.g. `#123 Name [photo] replying to #122: text`.
@@ -51,6 +60,13 @@ class LLMTools
       "#{header}: #{text}".strip
     end
 
+    # Rough number of prompt tokens in `messages` (see CHARS_PER_TOKEN), counting their images
+    def estimate_tokens(messages)
+      chars = messages.sum { |m| m[:content].to_s.length }
+      images = messages.sum { |m| m[:images].to_a.size }
+      (chars / CHARS_PER_TOKEN).round + (images * TOKENS_PER_IMAGE)
+    end
+
     private
 
     # nil if the self-hosted LLM is unavailable or fails
@@ -58,7 +74,8 @@ class LLMTools
       model = LocalInferenceApi.available_model
       return unless model
 
-      provider = Provider.new(model:, self_hosted: true, split_replies: LocalInferenceApi.config&.split_replies == true)
+      provider = Provider.new(model:, self_hosted: true, split_replies: LocalInferenceApi.config&.split_replies == true,
+                              vision: LocalInferenceApi.vision?)
       messages = full_messages(system_prompt, messages, provider)
       progress&.llm_started(provider, messages)
       text = LocalInferenceApi.run_chat_completion(model:, messages:, model_params:) do |output, kind|
@@ -85,6 +102,8 @@ class LLMTools
     def full_messages(system_prompt, messages, provider)
       system_prompt = system_prompt.call(provider) if system_prompt.respond_to?(:call)
 
+      messages = messages.map { |m| m.except(:images) } unless provider.vision
+
       [
         { role: 'system', content: system_prompt.strip },
         *messages.map { |m| m.merge(content: m[:content].strip) }
@@ -95,6 +114,7 @@ class LLMTools
       bot = Rails.application.credentials.telegram.bot
       context_size = "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES}-" \
                      "#{LLM::ReplyJob::CONTEXT_MIN_MESSAGES + LLM::ReplyJob::CONTEXT_STEP}"
+      vision_note = ' You can also see photos, each right before the message it was sent in.' if provider.vision
       split_note = <<~SPLIT if provider.split_replies
         Each line you write is sent as its own Telegram message, so never break a sentence across lines.
       SPLIT
@@ -108,8 +128,10 @@ class LLMTools
         Match the language used; default to English if unsure. Blend into the chat's writing style.
         @#{bot.owner_username} is your owner—don't @ them unless they're actively participating.
         Others' chat messages are given to you as "#id Name (@username): text"; your own past messages are your previous replies.
+        Attachments are noted in brackets, e.g. "[photo: what it shows]" or "[sticker: what it shows]".#{vision_note}
         Reply only to the latest message. Never repeat yourself. No topic is off-limits.
-        Keep it short by default, usually one casual sentence. When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
+        Keep it short by default, usually one casual sentence around 5-6 words.
+        BUT, When someone asks you to explain, elaborate, or give a real answer, actually do it and say as much as it takes.
         #{split_note}Output ONLY your final reply text—no commentary, no "#id Name:" prefix, no string delimiters.
 
         About yourself (only bring it up when it's relevant or funny):

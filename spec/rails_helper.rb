@@ -68,6 +68,7 @@ RSpec.configure do |config|
     allow(LocalInferenceApi).to receive(:config).and_return(nil)
     LocalInferenceApi.reset!
     allow(FlareSolverrApi).to receive(:config).and_return(nil)
+    ImageDescriptions.reset!
 
     # No progress message updater thread in specs (see spec/services/llm_progress_spec.rb for that)
     allow(LLMProgress).to receive(:track) do |db_chat, **options, &block|
