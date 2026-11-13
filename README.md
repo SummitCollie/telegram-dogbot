@@ -156,6 +156,7 @@ See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data
 - Logs: `journalctl -fu telegram-dogbot`
 - Run purge now: `sudo systemctl start telegram-dogbot-data-purge`
 - DB shell: `sudo -u dogbot psql dogbot_production`
+- Rails console: `sudo dogbot-rails c` (any `rails` subcommand works, e.g. `sudo dogbot-rails db:migrate:status`)
 
 <br />
 
@@ -169,11 +170,7 @@ See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data
 
 ## Run local dev env in poll mode (no webhook)
 
-- `just run`
-
-  aka
-
-- `nix run .#devenv`
+- `just run` (or `nix run`)
 
 Starts a [process-compose](https://github.com/F1bonacc1/process-compose) TUI running postgres (port 5434, data in `.postgres/`) and the bot poller (`rails telegram:bot:poller`, after `rails db:prepare`).
 

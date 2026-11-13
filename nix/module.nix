@@ -39,6 +39,26 @@ let
     BindPaths = [ "/run/postgresql" ];
     ReadWritePaths = [ cfg.dataDir ];
   };
+
+  # `dogbot-rails <args>` (as root): runs bin/rails as a transient systemd unit
+  # with the exact same user, env, credentials & sandbox as the real service.
+  # e.g. `dogbot-rails c`, `dogbot-rails db:migrate:status`, `dogbot-rails runner '...'`
+  toSystemdValue = v:
+    if builtins.isBool v then lib.boolToString v
+    else if builtins.isList v then lib.concatMapStringsSep " " toString v
+    else toString v;
+  railsCli = pkgs.writeShellApplication {
+    name = "dogbot-rails";
+    text = ''
+      exec ${config.systemd.package}/bin/systemd-run \
+        --quiet --pty --wait --collect --service-type=exec \
+        ${lib.escapeShellArgs (
+          lib.mapAttrsToList (k: v: "--property=${k}=${toSystemdValue v}") sharedServiceConfig
+          ++ lib.mapAttrsToList (k: v: "--setenv=${k}=${v}") sharedEnvironment
+        )} \
+        -- ${rails} "$@"
+    '';
+  };
 in
 {
   options.services.telegram-dogbot = {
@@ -99,6 +119,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ railsCli ];
+
     # Prod dataDir setup
     systemd.tmpfiles.rules = [
       "d '${cfg.dataDir}' 0750 ${cfg.user} ${cfg.group} - -"
