@@ -38,7 +38,7 @@ pkgs.mkShell {
     export PATH="$PATH:$PWD/bin"
 
     echo ""
-    echo "Use \`nix run\` to start postgres & the bot (poll mode)"
+    echo "Use \`nix run .#services\` to start postgres & the bot (poll mode)"
     echo ""
   '';
 

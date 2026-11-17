@@ -1,6 +1,6 @@
 # Postgres + bot in poll mode (process-compose TUI)
 run:
-  nix run
+  nix run .#services
 
 test:
   rubocop & rspec & wait

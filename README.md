@@ -170,7 +170,7 @@ See [nix/module.nix](nix/module.nix) for all options (puma workers/threads, data
 
 ## Run local dev env in poll mode (no webhook)
 
-- `just run` (or `nix run`)
+- `just run` (or `nix run .#services`)
 
 Starts a [process-compose](https://github.com/F1bonacc1/process-compose) TUI running postgres (port 5434, data in `.postgres/`) and the bot poller (`rails telegram:bot:poller`, after `rails db:prepare`).
 

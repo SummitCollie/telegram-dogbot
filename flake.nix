@@ -40,19 +40,12 @@
       });
     in
     {
-      packages = forAllSystems ({ railsApp, ... }: {
+      packages = forAllSystems ({ railsApp, devShell, ... }: {
         default = railsApp;
-      });
 
-      # `nix run` (or `nix run .#services`) starts the local dev env:
-      # postgres + bot poller in a process-compose TUI
-      apps = forAllSystems ({ devShell, ... }: rec {
-        services = {
-          type = "app";
-          program = nixpkgs.lib.getExe devShell.passthru.services;
-          meta.description = "Local dev env: postgres + bot poller (process-compose)";
-        };
-        default = services;
+        # `nix run .#services` starts the local dev env:
+        # postgres + bot poller in a process-compose TUI.
+        services = devShell.passthru.services;
       });
 
       devShells = forAllSystems ({ devShell, ... }: {
